@@ -1,13 +1,32 @@
 name = "okkie-community-api"
 main = "src/worker.js"
 compatibility_date = "2026-10-10"
+
+# API en beheerscherm zijn twee hostnamen naar DEZELFDE Worker.
+# Vereist een actieve Cloudflare-zone voor okkiedarts.nl. Voer pas na akkoord een deploy uit.
 workers_dev = true
 
-[vars]
-# Meerdere origins gescheiden met komma; ook bestaande PWA-origin opnemen.
-ALLOWED_ORIGINS = "https://martijndbesten.github.io"
+[[routes]]
+pattern = "api.okkiedarts.nl"
+custom_domain = true
 
-# Vul database_id pas in nadat de D1 database is aangemaakt.
+[[routes]]
+pattern = "beheer.okkiedarts.nl"
+custom_domain = true
+
+[vars]
+ALLOWED_ORIGINS = "https://okkiedarts.nl,https://www.okkiedarts.nl,https://martijndbesten.github.io"
+ADMIN_HOST = "beheer.okkiedarts.nl"
+
+# Deze verplichte instellingen blijven leeg totdat Cloudflare Access daadwerkelijk is ingericht.
+# ADMIN_ALLOWED_EMAILS is een beheerinstelling, NIET bedoeld voor publiek frontend.
+CF_ACCESS_TEAM_DOMAIN = ""
+CF_ACCESS_AUD = ""
+ADMIN_ALLOWED_EMAILS = ""
+
+# Cloudflare secret (nooit naar GitHub committen):
+# TURNSTILE_SECRET (instellen met npx wrangler secret put TURNSTILE_SECRET)
+
 [[d1_databases]]
 binding = "DB"
 database_name = "okkie-community"
