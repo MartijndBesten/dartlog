@@ -1,0 +1,20 @@
+// Snelle visuele controle: node tools/shots.mjs (server moet draaien op 4173)
+import { chromium, devices } from '@playwright/test';
+const b = await chromium.launch({ channel: 'chrome' });
+const ctx = await b.newContext({ ...devices['iPhone 13'], defaultBrowserType: undefined });
+const p = await ctx.newPage();
+p.on('pageerror', e => console.log('PAGEERROR', e.message));
+p.on('console', m => m.type() === 'error' && console.log('CONSOLE', m.text()));
+await p.goto('http://localhost:4173/');
+await p.screenshot({ path: 'screenshots/01-welkom.png' });
+await p.fill('#wname', 'Sem');
+await p.click('text=Let\'s play darts');
+await p.screenshot({ path: 'screenshots/02-home.png', fullPage: true });
+await p.click('.tabbar [data-go=train]');
+await p.screenshot({ path: 'screenshots/03-trainen.png', fullPage: true });
+await p.click('[data-testid=start-score]');
+const tap = async (sel) => p.click(sel);
+await tap('[data-act=mod][data-arg="3"]'); await tap('[data-act=key][data-arg="20"]');
+await tap('[data-act=key][data-arg="5"]');
+await p.screenshot({ path: 'screenshots/04-spelen.png' });
+await b.close();

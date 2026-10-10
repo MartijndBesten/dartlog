@@ -1,0 +1,17 @@
+{
+  "name": "oche",
+  "version": "1.0.0",
+  "private": true,
+  "description": "OCHE — persoonlijke darttrainer (PWA) met scoretraining, 301/501 en statistieken",
+  "type": "module",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "test": "node --test \"tests/unit/*.test.js\"",
+    "test:e2e": "playwright test",
+    "check": "npm test && npm run test:e2e",
+    "icons": "node tools/make-icons.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0"
+  }
+}
