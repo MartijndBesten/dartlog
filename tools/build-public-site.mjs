@@ -45,8 +45,6 @@ const tutorialFile = join(dest,'uitleg','index.html');
 writeFileSync(tutorialFile,readFileSync(tutorialFile,'utf8')
   .replace('href="../icons/favicon-32.png"','href="/favicon-32.png"'));
 
-// www → okkiedarts.nl, http → https en beveiligingsheaders (Cloudflare Pages advanced mode).
-cpSync(join(root,'ontdek','pages-worker.js'),join(dest,'_worker.js'));
 // Google Search Console: verificatiebestand van het account m.denbesten@live.nl (ook gebruikt voor denckh.nl).
 writeFileSync(join(dest,'google873828225866c738.html'),'google-site-verification: google873828225866c738.html');
 writeFileSync(join(dest,'_headers'),`/*

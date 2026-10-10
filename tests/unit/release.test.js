@@ -112,5 +112,5 @@ test('website-worker: www en http naar https://okkiedarts.nl, pad blijft, beveil
   // pages.dev-voorbeeldadres blijft gewoon werken (geen doorverwijzing)
   assert.equal((await site.fetch(new Request('https://okkiedarts.pages.dev/'), env)).status, 200);
   const files = readdirSync(join(root, 'dist'));
-  assert.ok(files.includes('_worker.js') && files.includes('google873828225866c738.html'));
+  assert.ok(files.includes('google873828225866c738.html') && !files.includes('_worker.js'));
 });

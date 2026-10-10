@@ -71,8 +71,12 @@ Turnstile-sleutels. Pas daarna `REGISTRATION_ENABLED = "true"` én `REGISTRATION
 2. E: bij STRATO alleen de nameservers → `kayden.ns.cloudflare.com`, `sloan.ns.cloudflare.com`.
 3. C: wachten tot de zone *Active* is; DNS-records opnieuw controleren; *Always Use HTTPS* aan.
 4. C: Worker `cd cloud && npx wrangler deploy --env production` (alleen api.okkiedarts.nl). Controle `/v1/health` → `registration: false`.
-5. C: Cloudflare Pages-project (branch main, `npm run build:site`, uitvoer `dist`) met okkiedarts.nl; www via een
-   doorverwijzing (301) naar okkiedarts.nl.
+5. C: website-Worker `okkiedarts-site` (Cloudflare "Pages" is nu Workers met statische bestanden):
+   `npm run build:site && cd site && npx wrangler deploy --env production`. Koppelt okkiedarts.nl en www.okkiedarts.nl;
+   `ontdek/pages-worker.js` stuurt www en http met 301 door naar https://okkiedarts.nl. Draai wrangler nooit zonder `-c`/map
+   vanuit de repo-root: dan maakt hij zelf een `wrangler.jsonc` die de hele map uploadt.
+   Daarna Google Search Console (account m.denbesten@live.nl, u/1): URL-voorvoegsel https://okkiedarts.nl/ verifiëren met
+   `google873828225866c738.html` (staat in dist/) en `sitemap.xml` indienen.
 6. C: `community/config.js` `API_BASE = 'https://api.okkiedarts.nl'` (Turnstile leeg, `REGISTRATION_OPEN = false`), CI groen,
    daarna 1.3.1 naar main.
 7. C: `node tools/live-check.mjs` (app) en `node tools/site-live-check.mjs` (website, www, HTTPS, API, geen adres/geheimen).

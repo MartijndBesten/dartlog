@@ -1,4 +1,4 @@
-// Cloudflare Pages (advanced mode): wordt bij de build dist/_worker.js.
+// Worker vóór de statische website (site/wrangler.toml, bestanden uit dist/).
 // - www.okkiedarts.nl en http:// → https://okkiedarts.nl (301), pad en query blijven behouden.
 // - Vaste beveiligingsheaders op elk antwoord (ook als _headers in deze modus niet wordt toegepast).
 // Verder levert hij alleen de statische bestanden; er is hier geen app en geen opslag.
