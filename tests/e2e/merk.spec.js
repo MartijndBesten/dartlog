@@ -82,3 +82,23 @@ test('Ander appje kiezen gebruikt het deelmenu van de telefoon', async ({ page }
   expect(shared.text).toContain('OKKIE.');
   await expect(page.locator('#modal')).toBeHidden();
 });
+
+// Kleine telefoons en Safari met werkbalken: de toetsen mogen elkaar nooit overlappen (mis-tikken).
+for (const vp of [{ width: 320, height: 568 }, { width: 375, height: 548 }]) {
+  test(`speelscherm past zonder overlap op ${vp.width} x ${vp.height}`, async ({ page }) => {
+    await page.setViewportSize(vp);
+    await onboard(page);
+    await page.click('.action.train');
+    await page.click('[data-testid=start-score]');
+    const box = sel => page.locator(sel).first().boundingBox();
+    const row20 = await box('.nums [data-arg="20"]');
+    const bull = await box('.specials [data-arg="50"]');
+    const stop = await box('[data-act=finish-training]');
+    expect(row20.height).toBeGreaterThanOrEqual(34);
+    expect(row20.y + row20.height).toBeLessThanOrEqual(bull.y + 0.5);
+    expect(bull.y + bull.height).toBeLessThanOrEqual(stop.y + 0.5);
+    // en de toetsen werken gewoon
+    await page.click('.nums [data-arg="20"]');
+    await expect(page.getByTestId('turn-total')).toHaveText('20');
+  });
+}

@@ -265,7 +265,7 @@ body.playing { background: var(--bg); }
 .play {
   height: 100dvh; display: flex; flex-direction: column; gap: 8px;
   padding: calc(env(safe-area-inset-top) + 8px) 10px calc(env(safe-area-inset-bottom) + 8px);
-  max-width: 560px; margin: 0 auto; overflow: hidden;
+  max-width: 560px; margin: 0 auto; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
 }
 .play-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .play-title { text-align: center; display: grid; min-width: 0; }
@@ -314,7 +314,9 @@ body.playing { background: var(--bg); }
 .mod { min-height: 46px; border-radius: 14px; font-weight: 900; letter-spacing: .12em; background: var(--key); border: 2px solid var(--line-strong); font-size: .95rem; transition: background-color .1s, border-color .1s; }
 .mod[data-arg="2"].on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .mod[data-arg="3"].on { background: var(--red); border-color: var(--red); color: #fff; }
-.nums { flex: 1 1 auto; display: grid; grid-template-columns: repeat(5, 1fr); grid-auto-rows: 1fr; gap: 6px; min-height: 0; }
+/* Cijfertoetsen krimpen mee met de schermhoogte (minimaal 34 px) en overlappen nooit de knoppen eronder. */
+.nums { flex: 1 1 auto; display: grid; grid-template-columns: repeat(5, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 6px; min-height: 154px; }
+.nums .key { min-height: 0; }
 .specials { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; flex: 0 0 auto; }
 .key {
   min-height: 44px; border-radius: 14px; background: var(--key); border: 1px solid var(--line);
@@ -507,7 +509,7 @@ body.playing { background: var(--bg); }
 .toast.error { background: var(--red); color: #fff; }
 body.playing .toast { bottom: calc(16px + env(safe-area-inset-bottom)); }
 
-/* Kleine/lage schermen: speelscherm compacter */
+/* Kleine/lage schermen (iPhone SE, Safari met werkbalken): speelscherm compacter */
 @media (max-height: 700px) {
   .slot { min-height: 52px; }
   .slot b { font-size: 1.1rem; }
@@ -515,6 +517,22 @@ body.playing .toast { bottom: calc(16px + env(safe-area-inset-bottom)); }
   .x01-rest { font-size: 2.4rem; }
   .mods .mod { min-height: 40px; }
   .specials .key { min-height: 44px; }
+}
+@media (max-height: 620px) {
+  .play { gap: 6px; padding-top: calc(env(safe-area-inset-top) + 4px); padding-bottom: calc(env(safe-area-inset-bottom) + 4px); }
+  .play-top .icon-btn { width: 36px; height: 36px; }
+  .sb-main { padding: 6px 12px; }
+  .sb-main strong, .scoreboard.compact .sb-main strong { font-size: 1.9rem; }
+  .sb-side div { padding: 2px 8px; }
+  .sb-side b { font-size: .98rem; }
+  .slot { min-height: 46px; }
+  .slot small, .slot span { display: none; }
+  .turn-total strong { font-size: 1.5rem; }
+  .x01-rest, .x01.n1 .x01-rest { font-size: 2.1rem; }
+  .checkout { min-height: 30px; }
+  .mods .mod { min-height: 36px; }
+  .specials .key { min-height: 40px; }
+  .play-actions .btn.small { min-height: 34px; padding: 4px 14px; }
 }
 @media (min-width: 900px) {
   .page { max-width: 860px; }

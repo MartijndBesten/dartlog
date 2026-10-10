@@ -7,6 +7,7 @@
 - **Nodig een vriend uit** op het beginscherm en onder Meer: via WhatsApp, het deelmenu van de telefoon of kopiëren. Deelt alleen een link naar okkiedarts.nl, nooit namen of scores; los van groepsuitnodigingen in Mijn vrienden.
 - Rustiger vormgeving: limoen als vaste interactiekleur (knoppen, keuzes, navigatie), goud alleen voor records en badges, geen rode of gouden vlakken meer zonder betekenis. Eigen lijniconen in plaats van emoji in navigatie en knoppen. Minder randen, één radius-schaal, compacte trainingskeuze op één rij.
 - Statistieken: grafiek wordt op de echte schermbreedte getekend (geen vervormde labels), legenda voor gemiddelde en trend, gemiddelde als hoofdcijfer.
+- Speelscherm op kleine telefoons (iPhone SE, Safari met werkbalken): de onderste cijferrij schoof onder 25/BULL/MIS en gaf mis-tikken. Toetsen krimpen nu mee tot minimaal 34 px en overlappen nooit; compacte opmaak onder 620 px hoogte.
 - Geen browser-linkpaars meer (ook niet bij Community op het beginscherm). "Nieuw? Zo werkt OKKIE." alleen nog bij minder dan drie trainingen.
 - Makersvermelding volgens de Denckh-merkregel: overal het officiële Denckh-signatuurlogo met krul (ongewijzigde merkassets), met de kleine tekst "Ontwikkeld door". Website (homepage, uitleg, privacy, contact), communitypagina en app (welkomstscherm, Meer; lichte en donkere variant per thema).
 - Het eerder toegevoegde pijltje ↗ achter Denckh. is weer weg.
