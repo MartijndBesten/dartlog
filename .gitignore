@@ -2,3 +2,6 @@ node_modules/
 test-results/
 playwright-report/
 screenshots/
+cloud/.dev.vars
+cloud/.wrangler/
+cloud/dist/

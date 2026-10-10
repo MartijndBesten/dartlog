@@ -1,0 +1,3 @@
+# Kopieer naar cloud/.dev.vars voor `npm run dev` (lokaal). Nooit committen.
+# Turnstile-testsleutels van Cloudflare (altijd geslaagd): sitekey 1x00000000000000000000AA
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA

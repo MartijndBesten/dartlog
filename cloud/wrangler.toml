@@ -1,34 +1,73 @@
+# OKKIE. Community API — Cloudflare Worker + D1.
+# Twee omgevingen:
+#   (standaard)       staging/preview op *.workers.dev, eigen D1 "okkie-community-staging", geen beheer
+#   --env production  api.okkiedarts.nl + beheer.okkiedarts.nl, D1 "okkie-community"
+# Secrets (nooit in Git), per omgeving met `npx wrangler secret put <NAAM> [--env production]`:
+#   TURNSTILE_SECRET
+#   CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD, ADMIN_ALLOWED_EMAILS  (alleen production; zonder deze is beheer dicht)
+# Access-instellingen staan bewust als secrets, zodat een latere deploy ze niet met lege [vars] overschrijft.
 name = "okkie-community-api"
 main = "src/worker.js"
 compatibility_date = "2026-10-10"
-
-# API en beheerscherm zijn twee hostnamen naar DEZELFDE Worker.
-# Vereist een actieve Cloudflare-zone voor okkiedarts.nl. Voer pas na akkoord een deploy uit.
 workers_dev = true
 
-[[routes]]
-pattern = "api.okkiedarts.nl"
-custom_domain = true
+[observability]
+enabled = true
 
-[[routes]]
-pattern = "beheer.okkiedarts.nl"
-custom_domain = true
+# Dagelijkse opschoning volgens de bewaartermijnen (03:30 UTC).
+[triggers]
+crons = ["30 3 * * *"]
 
 [vars]
-ALLOWED_ORIGINS = "https://okkiedarts.nl,https://www.okkiedarts.nl,https://martijndbesten.github.io"
-ADMIN_HOST = "beheer.okkiedarts.nl"
-
-# Cloudflare Access-instellingen en beheerderadressen gaan als Worker secrets,
-# zodat een latere wrangler deploy ze niet door lege [vars] overschrijft.
-# npx wrangler secret put CF_ACCESS_TEAM_DOMAIN
-# npx wrangler secret put CF_ACCESS_AUD
-# npx wrangler secret put ADMIN_ALLOWED_EMAILS
-
-# Cloudflare secret (nooit naar GitHub committen):
-# TURNSTILE_SECRET (instellen met npx wrangler secret put TURNSTILE_SECRET)
+# Meerdere origins gescheiden met komma; de bestaande PWA-origin blijft altijd nodig.
+ALLOWED_ORIGINS = "https://martijndbesten.github.io,https://okkiedarts.nl,https://www.okkiedarts.nl,http://localhost:4173"
+EMPTY_ACCOUNT_DAYS = "30"
+INACTIVE_DAYS = "730"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "okkie-community"
-database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
+database_name = "okkie-community-staging"
+database_id = "REPLACE_WITH_STAGING_D1_DATABASE_ID"
 migrations_dir = "migrations"
+
+# Rate limiting (per IP bij registratie/herstel, per account bij wijzigingen).
+[[ratelimits]]
+name = "RL_REGISTER"
+namespace_id = "1001"
+simple = { limit = 5, period = 60 }
+
+[[ratelimits]]
+name = "RL_WRITE"
+namespace_id = "1002"
+simple = { limit = 60, period = 60 }
+
+# ---------------------------------------------------------------------------
+# API en beheerscherm zijn twee hostnamen naar DEZELFDE Worker. Vereist een actieve Cloudflare-zone okkiedarts.nl.
+[env.production]
+workers_dev = false
+routes = [
+  { pattern = "api.okkiedarts.nl", custom_domain = true },
+  { pattern = "beheer.okkiedarts.nl", custom_domain = true },
+]
+
+[env.production.vars]
+ALLOWED_ORIGINS = "https://martijndbesten.github.io,https://okkiedarts.nl,https://www.okkiedarts.nl,https://beheer.okkiedarts.nl"
+ADMIN_HOST = "beheer.okkiedarts.nl"
+EMPTY_ACCOUNT_DAYS = "30"
+INACTIVE_DAYS = "730"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "okkie-community"
+database_id = "REPLACE_WITH_PRODUCTION_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[[env.production.ratelimits]]
+name = "RL_REGISTER"
+namespace_id = "2001"
+simple = { limit = 5, period = 60 }
+
+[[env.production.ratelimits]]
+name = "RL_WRITE"
+namespace_id = "2002"
+simple = { limit = 60, period = 60 }

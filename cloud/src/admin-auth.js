@@ -35,28 +35,33 @@ async function signingKeys(issuer, fetchImpl = fetch) {
   return keys;
 }
 export async function isAdminRequest(request, env, fetchImpl = fetch) {
+  return (await adminEmail(request, env, fetchImpl)) !== null;
+}
+// Geeft het geverifieerde e-mailadres van de beheerder, of null.
+export async function adminEmail(request, env, fetchImpl = fetch) {
   const cfg = settings(env);
-  if (!cfg || new URL(request.url).hostname.toLowerCase() !== cfg.host) return false;
+  if (!cfg || new URL(request.url).hostname.toLowerCase() !== cfg.host) return null;
   const jwt = request.headers.get('Cf-Access-Jwt-Assertion');
-  if (!jwt || jwt.length > 10000) return false;
+  if (!jwt || jwt.length > 10000) return null;
   const parts = jwt.split('.');
-  if (parts.length !== 3) return false;
+  if (parts.length !== 3) return null;
   const header = parsePart(parts[0]), claims = parsePart(parts[1]), signature = b64url(parts[2]);
-  if (!header || !claims || !signature || header.alg !== 'RS256' || typeof header.kid !== 'string') return false;
+  if (!header || !claims || !signature || header.alg !== 'RS256' || typeof header.kid !== 'string') return null;
   const now = Math.floor(Date.now()/1000);
   if (claims.iss !== cfg.issuer ||
       !Array.isArray(claims.aud) && claims.aud !== cfg.audience ||
       (Array.isArray(claims.aud) && !claims.aud.includes(cfg.audience)) ||
       !Number.isInteger(claims.exp) || claims.exp <= now ||
       (claims.nbf != null && (!Number.isInteger(claims.nbf) || claims.nbf > now+30)) ||
-      !cfg.emails.includes(String(claims.email || '').toLowerCase())) return false;
+      !cfg.emails.includes(String(claims.email || '').toLowerCase())) return null;
   try {
     const keys = await signingKeys(cfg.issuer,fetchImpl);
     const jwk = keys.find(k=>k.kid===header.kid);
-    if (!jwk) return false;
+    if (!jwk) return null;
     const key = await crypto.subtle.importKey('jwk', jwk, {name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'}, false, ['verify']);
-    return crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, signature, new TextEncoder().encode(parts[0]+'.'+parts[1]));
-  } catch { return false; }
+    const valid = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, signature, new TextEncoder().encode(parts[0]+'.'+parts[1]));
+    return valid ? String(claims.email).toLowerCase() : null;
+  } catch { return null; }
 }
 export function adminHostMatches(request,env) {
   const cfg = settings(env);
