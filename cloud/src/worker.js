@@ -1,3 +1,6 @@
+import adminHtml from './admin.html';
+import { isAdminRequest, adminHostMatches } from './admin-auth.js';
+
 // Cloudflare Worker + D1 API voor OKKIE. Community.
 // De database bewaart uitsluitend een nickname, account-credentials (gehasht) en geaggregeerde statistieken.
 // Geen e-mail, privétrainingen, pijlen of exacte trainingstijdstippen.
@@ -93,6 +96,38 @@ export default {
     if (!env.DB) return fail('Database niet geconfigureerd.', 503, cors);
     if (request.method !== 'GET' && !originAllowed(request, env)) return fail('Onbekende herkomst.', 403, cors);
     try {
+      // Privébeheer uitsluitend op het afzonderlijke beheerdomein. De Worker
+      // verifieert de Access-JWT zelf: de Cloudflare Access-gateway alleen is niet genoeg.
+      if (path === '/beheer' || path === '/v1/admin/overview') {
+        if (request.method !== 'GET') return fail('Niet toegestaan.', 405, cors);
+        if (!adminHostMatches(request, env)) return fail('Niet gevonden.', 404, cors);
+        if (!await isAdminRequest(request, env)) return fail('Geen toegang.', 403, cors);
+        if (path === '/beheer') {
+          return new Response(adminHtml, { status: 200, headers: {
+            'Content-Type':'text/html; charset=utf-8',
+            'Cache-Control':'no-store, private',
+            'X-Content-Type-Options':'nosniff',
+            'X-Frame-Options':'DENY',
+            'Referrer-Policy':'no-referrer',
+            'Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
+          }});
+        }
+        const totals = await env.DB.prepare(
+          "SELECT " +
+          "(SELECT COUNT(*) FROM members) AS profiles, " +
+          "(SELECT COUNT(*) FROM members WHERE visible = 1) AS publicProfiles, " +
+          "(SELECT COUNT(DISTINCT member_id) FROM stats WHERE period = 'all' AND updated_at >= datetime('now','-7 days')) AS recentlySyncedProfiles, " +
+          "(SELECT COALESCE(SUM(sessions),0) FROM stats WHERE period = 'all') AS sharedTrainings"
+        ).first();
+        const weekly = await env.DB.prepare(
+          "SELECT period, COUNT(*) AS profiles, COALESCE(SUM(sessions),0) AS trainings, " +
+          "COALESCE(SUM(darts),0) AS darts FROM stats WHERE period LIKE 'week:%' " +
+          "GROUP BY period ORDER BY period DESC LIMIT 12"
+        ).all();
+        return json({ totals: totals || {}, weekly: weekly.results || [], notice:
+          'Dit omvat uitsluitend vrijwillige communityaccounts en gedeelde trainingen; geen exacte telling van app-installaties.' }, 200,
+          { 'Cache-Control':'no-store, private', 'X-Content-Type-Options':'nosniff' });
+      }
       if (path === '/v1/register' && request.method === 'POST') {
         const body = await bodyJson(request);
         const nickname = cleanNickname(body.nickname);
