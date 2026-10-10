@@ -9,7 +9,8 @@
     "test": "node --test \"tests/unit/*.test.js\"",
     "test:e2e": "playwright test",
     "check": "npm test && npm run test:e2e",
-    "icons": "node tools/make-icons.mjs"
+    "icons": "node tools/make-icons.mjs",
+    "build:site": "node tools/build-public-site.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0"
