@@ -7,6 +7,8 @@ const ASSETS = [
   './manifest.webmanifest',
   './css/app.css',
   './js/app.js',
+  './js/community-sync.js',
+  './community/config.js',
   './js/logic.js',
   './js/store.js',
   './js/board.js',
