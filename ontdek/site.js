@@ -70,6 +70,13 @@
     reduce.addEventListener?.('change', () => { if (reduce.matches) { timers.forEach(clearTimeout); finalState(); } });
   }
 
+  // ---- Contact: e-mailadres kopiëren, met bevestiging ----
+  document.querySelectorAll('[data-copy]').forEach(btn => btn.addEventListener('click', async () => {
+    const status = btn.closest('.contact-card')?.querySelector('.copy-status');
+    try { await navigator.clipboard.writeText(btn.dataset.copy); if (status) status.textContent = 'Gekopieerd: ' + btn.dataset.copy; }
+    catch { if (status) status.textContent = 'Kopiëren lukt hier niet; selecteer het adres hierboven.'; }
+  }));
+
   // ---- Installeren: het toestel van de bezoeker uitlichten ----
   const ua = navigator.userAgent;
   const device = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? 'ios' : /Android/.test(ua) ? 'android' : '';

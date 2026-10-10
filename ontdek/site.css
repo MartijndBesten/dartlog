@@ -53,3 +53,13 @@
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.kids-graphic{animation:none}}
 /* Zonder JavaScript geen belofte van interactie */
 html:not(.js) .js-only{display:none}
+/* Footer: maker en juridische links */
+.footer-inside .maker{text-decoration:underline;text-underline-offset:3px;margin:0}.footer-inside .footer-links{margin-left:auto;display:flex;gap:18px}.footer-inside .footer-links a{margin:0;padding:10px 0}.footer-links a[aria-current]{color:var(--lime)}
+@media(max-width:800px){.footer-inside .footer-links{margin-left:0}}
+/* Contact en privacy */
+.legal{max-width:780px;padding-top:40px}.legal h1{font-size:clamp(38px,6vw,64px);letter-spacing:-2px;margin:14px 0 18px}.legal h2{font-size:clamp(24px,3vw,32px);letter-spacing:-.6px;margin:46px 0 12px;scroll-margin-top:20px}.legal p,.legal li{color:#c9d8cd}.legal a:not(.btn){color:var(--lime);text-decoration:underline;text-underline-offset:3px}.legal .lead{font-size:18px}.small-print{font-size:13px!important}
+.plain{padding-left:20px}.plain li{margin:8px 0}.checks{list-style:none;padding:0;margin:0}.checks li{position:relative;padding:8px 0 8px 32px}.checks li::before{content:"✓";position:absolute;left:0;top:7px;color:var(--green);font-weight:800}
+.summary-card,.contact-card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:26px;margin:28px 0}.summary-card h2{margin-top:0}
+.contact-card .contact-mail{display:block;font-size:clamp(26px,5vw,38px);font-weight:800;letter-spacing:-1px;margin:6px 0 18px;overflow-wrap:anywhere}.contact-actions{display:flex;gap:12px;flex-wrap:wrap}.contact-actions .btn{min-height:48px;font:inherit;font-weight:800;font-size:14px;cursor:pointer;background:none;color:inherit}.contact-actions .btn.primary{background:var(--lime);color:#13200c;border:0}.copy-status{min-height:1.5em;margin:12px 0 0;font-size:13px;color:var(--green)!important}
+.facts{display:grid;grid-template-columns:max-content 1fr;gap:10px 22px;margin:18px 0}.facts dt{color:var(--muted);font-size:14px}.facts dd{margin:0}.pending{color:#ffcf6b;font-style:italic}
+@media(max-width:520px){.facts{grid-template-columns:1fr;gap:2px}.facts dd{margin-bottom:12px}.contact-actions .btn{width:100%}}

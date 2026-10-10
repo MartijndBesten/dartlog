@@ -25,10 +25,23 @@ Klaar en getest in GitHub Actions (workflows *OKKIE release checks* en *OKKIE co
 
 ### Blokkades vóór publicatie van okkiedarts.nl
 
-| Blokkade | Waarom | Wie |
+Contact (`ontdek/contact/` → okkiedarts.nl/contact/) en privacyverklaring (`ontdek/privacy/` → okkiedarts.nl/privacy/)
+staan klaar, onder de bedrijfsidentiteit van Denckh. (eenmanszaak, info@denckh.nl, link naar denckh.nl). Elke pagina
+(homepage, uitleg, privacy, contact) toont "Ontwikkeld door Denckh." met links naar privacy en contact.
+
+Open velden zijn gemarkeerd met `<span class="pending" data-pending="…">wordt aangevuld</span>`.
+**`npm run check:launch` faalt zolang er één open staat; publiceer pas als hij slaagt.**
+
+| Open veld | Waar | Toelichting |
 |---|---|---|
-| Contactgegevens op de website (naam/handelsnaam, e-mail; bij bedrijfsmatig aanbod ook KvK-nummer en adres) | Wettelijk verplicht voor een dienst van de informatiemaatschappij (art. 3:15d BW); nu staat er alleen "Ontwikkeld door Denckh." | Eigenaar levert gegevens aan |
-| Korte privacyverklaring (concept: `PRIVACY-CONCEPT.md`) | AVG art. 13: Cloudflare verwerkt IP-adressen bij elk bezoek; de app bewaart alles lokaal. Nu linkt "Privacy & community" naar de communitypagina, die geen volledige verklaring is | Eigenaar vult in en keurt goed |
+| ~~`kvk`~~ | contact, privacy | Ingevuld: 83176896 (zelfde eenmanszaak als deegh.nl en denckh.nl) |
+| ~~`btw`~~ | contact | Ingevuld: NL003791952B15 (btw-id, níet het omzetbelastingnummer) |
+| `adres` | contact, privacy | Art. 3:15d BW vraagt een geografisch adres. Geen privéadres zonder uitdrukkelijke toestemming: kies bewust (bijv. een zakelijk of correspondentieadres) |
+| `ingangsdatum` | privacy | Datum van publicatie |
+
+Geen telefoonnummer: niet verplicht naast een e-mailadres. Een unittest bewaakt dat er geen telefoonnummer, postcode of
+ander e-mailadres dan info@denckh.nl op de site komt; pas die alleen aan na uitdrukkelijke toestemming.
+Bewaartermijn van contactmails staat op twaalf maanden na afhandeling (voorstel; pas aan in `ontdek/privacy/index.html`).
 
 ### Blokkades vóór openbare registratie (blijft dicht)
 Definitieve privacyverklaring incl. community, verifieerbare ouderlijke toestemming (<16), wis-/intrekprotocol,
@@ -36,14 +49,15 @@ Turnstile-sleutels. Pas daarna `REGISTRATION_ENABLED = "true"` én `REGISTRATION
 
 ### Zodra STRATO de domeinregistratie heeft afgerond (alleen na akkoord)
 1. STRATO: nameservers van okkiedarts.nl → `kayden.ns.cloudflare.com` en `sloan.ns.cloudflare.com`.
-2. Wachten tot de Cloudflare-zone *Active* is.
+2. Wachten tot de Cloudflare-zone *Active* is. Zet *Always Use HTTPS* aan (de privacyverklaring belooft alleen HTTPS).
+   Vooraf: open velden invullen en `npm run check:launch` moet slagen.
 3. DNS: SPF `v=spf1 -all` en DMARC `v=DMARC1; p=reject;` (geen mail op dit domein).
 4. Release 1.3.1 naar main (GitHub Pages-app), daarna `node tools/live-check.mjs`.
 5. Cloudflare Pages-project (repo dartlog, branch main, `npm run build:site`, uitvoer `dist`), domeinen okkiedarts.nl en www.
 6. Worker: `cd cloud && npx wrangler deploy --env production` (routes api. en beheer.okkiedarts.nl).
 7. `community/config.js`: `API_BASE = 'https://api.okkiedarts.nl'`; `TURNSTILE_SITE_KEY` leeg en `REGISTRATION_OPEN = false` laten.
 8. Cloudflare Access voor beheer.okkiedarts.nl en de drie Worker-secrets (zie Stap 2).
-9. Controle: https://okkiedarts.nl/, /uitleg/, `https://api.okkiedarts.nl/v1/health` (`registration: false`), beheer vraagt login.
+9. Controle: https://okkiedarts.nl/, /uitleg/, /privacy/, /contact/, `https://api.okkiedarts.nl/v1/health` (`registration: false`), beheer vraagt login.
 
 ## Gewenste online indeling
 

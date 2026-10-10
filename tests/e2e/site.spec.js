@@ -118,13 +118,19 @@ test('homepage en uitleg werken zonder JavaScript', async ({ browser }, info) =>
   await expect(page.locator('.step-card')).toHaveCount(4);
   for (const card of await page.locator('.step-card').all()) await expect(card).toBeVisible();
   await expect(page.getByRole('link', { name: /Open de app/ })).toHaveAttribute('href', APP);
+  // Contact en privacy: volledig leesbaar, mail-link werkt, geen kopieerknop die zonder script niets doet.
+  await page.goto(SITE + '/contact/');
+  await expect(page.locator('.contact-mail')).toHaveAttribute('href', 'mailto:info@denckh.nl');
+  await expect(page.locator('[data-copy]')).toBeHidden();
+  await page.goto(SITE + '/privacy/');
+  await expect(page.locator('main h2')).toHaveCount(11);
   await context.close();
 });
 
 test('alle links op website en uitleg wijzen naar de juiste omgeving', async ({ page, request }, info) => {
   test.skip(info.project.name !== 'desktop', 'links zijn per toestel gelijk');
-  const allowedExternal = [APP, APP + 'community/'];
-  for (const path of ['/', '/uitleg/']) {
+  const allowedExternal = [APP, APP + 'community/', 'https://denckh.nl/', 'https://autoriteitpersoonsgegevens.nl/'];
+  for (const path of ['/', '/uitleg/', '/privacy/', '/contact/']) {
     await page.goto(SITE + path);
     const hrefs = await page.locator('a[href], link[href], script[src]').evaluateAll(els =>
       els.map(e => e.getAttribute('href') ?? e.getAttribute('src')));
@@ -135,7 +141,12 @@ test('alle links op website en uitleg wijzen naar de juiste omgeving', async ({ 
         continue;
       }
       expect(href, `${path}: geen relatieve verwijzing buiten de site`).not.toMatch(/^\.\.\//);
-      const url = new URL(href, SITE + path);
+      if (href.startsWith('mailto:')) {
+        expect(href, `${path}: alleen info@denckh.nl`).toMatch(/^mailto:info@denckh\.nl(\?subject=OKKIE\.)?$/);
+        continue;
+      }
+      // De uitleg draait ook in de app en linkt daarom met het volledige adres naar privacy en contact.
+      const url = new URL(href.replace(/^https:\/\/okkiedarts\.nl\//, SITE + '/'), SITE + path);
       if (url.origin === SITE) {
         expect(url.pathname, 'geen app-kopie op okkiedarts.nl').not.toMatch(/^\/(app|community)\b|sw\.js|manifest/);
         expect((await request.get(url.href)).status(), `${href} op ${path} bestaat`).toBe(200);
@@ -154,7 +165,7 @@ test('kleine telefoon (320 px): geen horizontale scroll, knoppen groot genoeg', 
   test.skip(info.project.name === 'desktop', 'alleen telefoons');
   const context = await browser.newContext({ ...device(info.project.use), viewport: { width: 320, height: 568 } });
   const page = await context.newPage();
-  for (const path of ['/', '/uitleg/']) {
+  for (const path of ['/', '/uitleg/', '/privacy/', '/contact/']) {
     await page.goto(SITE + path);
     await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(300);
@@ -180,5 +191,31 @@ test('kinderuitleg op de gebouwde site: volledige oefenbeurt zonder opslag', asy
   await expect(page.locator('#demo-total')).toHaveText('85');
   await expect(page.locator('#demo-step')).toHaveText('GOED GEDAAN!');
   expect(await page.evaluate(() => localStorage.length)).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('privacy en contact: bereikbaar vanaf homepage en uitleg, e-mailadres kopiëren', async ({ page, context }, info) => {
+  const errors = collectErrors(page);
+  await page.goto(SITE + '/');
+  await page.locator('footer a', { hasText: 'Privacy' }).click();
+  await expect(page).toHaveURL(SITE + '/privacy/');
+  await expect(page.locator('h1')).toContainText('Jouw pijlen blijven van jou');
+  await expect(page.locator('footer a.maker')).toHaveAttribute('href', 'https://denckh.nl/');
+  await page.locator('footer a', { hasText: 'Contact' }).click();
+  await expect(page).toHaveURL(SITE + '/contact/');
+  await expect(page.locator('.contact-mail')).toHaveText('info@denckh.nl');
+  // De uitleg linkt met het volledige adres (werkt ook vanuit de app).
+  await page.goto(SITE + '/uitleg/');
+  await expect(page.locator('.credit a', { hasText: 'Privacy' })).toHaveAttribute('href', 'https://okkiedarts.nl/privacy/');
+  await expect(page.locator('.credit a', { hasText: 'Contact' })).toHaveAttribute('href', 'https://okkiedarts.nl/contact/');
+  // De kopieerknop geeft altijd zichtbare bevestiging, of een nette uitleg als het klembord geblokkeerd is.
+  if (info.project.name === 'desktop') await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto(SITE + '/contact/');
+  await page.locator('[data-copy]').click();
+  await expect(page.locator('.copy-status')).toHaveText(/Gekopieerd: info@denckh\.nl|Kopiëren lukt hier niet/);
+  if (info.project.name === 'desktop') {
+    await expect(page.locator('.copy-status')).toHaveText('Gekopieerd: info@denckh.nl');
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('info@denckh.nl');
+  }
   expect(errors).toEqual([]);
 });
