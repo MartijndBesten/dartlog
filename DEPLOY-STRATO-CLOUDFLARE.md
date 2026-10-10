@@ -36,28 +36,47 @@ Open velden zijn gemarkeerd met `<span class="pending" data-pending="…">wordt 
 |---|---|---|
 | ~~`kvk`~~ | contact, privacy | Ingevuld: 83176896 (zelfde eenmanszaak als deegh.nl en denckh.nl) |
 | ~~`btw`~~ | contact | Ingevuld: NL003791952B15 (btw-id, níet het omzetbelastingnummer) |
-| `adres` | — | Bewuste keuze: geen openbaar adres (geen woonadres op site, repo of metadata). Geen blokkade. |
+| `adres` | — | Definitieve keuze van de eigenaar: geen fysiek adres op website, repo, configuratie of metadata. Niet opnieuw vragen. |
 | ~~`ingangsdatum`~~ | privacy | Ingevuld: 10 oktober 2026 |
 
 Geen telefoonnummer: niet verplicht naast een e-mailadres. Een unittest bewaakt dat er geen telefoonnummer, postcode of
 ander e-mailadres dan info@denckh.nl op de site komt; pas die alleen aan na uitdrukkelijke toestemming.
 Bewaartermijn van contactmails staat op twaalf maanden na afhandeling (voorstel; pas aan in `ontdek/privacy/index.html`).
 
+#### Juridische aandachtspunten (intern; geen volledige juridische toets)
+- **Geen geografisch adres.** Art. 3:15d BW vraagt bij een dienst van de informatiemaatschappij om een geografisch adres.
+  De eigenaar heeft bewust gekozen om géén fysiek adres te publiceren; er staat ook geen fictief adres. Risico is
+  geaccepteerd door de eigenaar. Mogelijke oplossing later: een zakelijk post- of correspondentieadres.
+- **Handelsnaam.** Controleer of "Denckh." als handelsnaam bij KvK 83176896 staat (Deegh staat er zeker op).
+- **Privacyverklaring** is opgesteld zonder juridische toetsing; laat haar bij gelegenheid nalezen.
+- `npm run check:launch` controleert alleen open velden en registratie, geen juridische volledigheid.
+
 ### Blokkades vóór openbare registratie (blijft dicht)
 Definitieve privacyverklaring incl. community, verifieerbare ouderlijke toestemming (<16), wis-/intrekprotocol,
 Turnstile-sleutels. Pas daarna `REGISTRATION_ENABLED = "true"` én `REGISTRATION_OPEN = true`, na expliciet akkoord.
 
-### Zodra STRATO de domeinregistratie heeft afgerond (alleen na akkoord)
-1. STRATO: nameservers van okkiedarts.nl → `kayden.ns.cloudflare.com` en `sloan.ns.cloudflare.com`.
-2. Wachten tot de Cloudflare-zone *Active* is. Zet *Always Use HTTPS* aan (de privacyverklaring belooft alleen HTTPS).
-   Vooraf: open velden invullen en `npm run check:launch` moet slagen.
-3. DNS: SPF `v=spf1 -all` en DMARC `v=DMARC1; p=reject;` (geen mail op dit domein).
-4. Release 1.3.1 naar main (GitHub Pages-app), daarna `node tools/live-check.mjs`.
-5. Cloudflare Pages-project (repo dartlog, branch main, `npm run build:site`, uitvoer `dist`), domeinen okkiedarts.nl en www.
-6. Worker: `cd cloud && npx wrangler deploy --env production` (alleen api.okkiedarts.nl; beheer.okkiedarts.nl pas na Access, stap 8).
-7. `community/config.js`: `API_BASE = 'https://api.okkiedarts.nl'`; `TURNSTILE_SITE_KEY` leeg en `REGISTRATION_OPEN = false` laten.
-8. Cloudflare Access voor beheer.okkiedarts.nl en de drie Worker-secrets (zie Stap 2).
-9. Controle: https://okkiedarts.nl/, /uitleg/, /privacy/, /contact/, `https://api.okkiedarts.nl/v1/health` (`registration: false`), beheer vraagt login.
+### Livegang (draaiboek)
+
+**Vastgelegd vóór de wijziging (2026-10-10, alleen-lezen):**
+- Cloudflare-zone: exact `okkiedarts.nl` (id `e8b354129b1f7ca0a95f6e39676857db`), plan Free, status *initializing*,
+  toegewezen nameservers `kayden.ns.cloudflare.com` en `sloan.ns.cloudflare.com`. Cloudflare had **0 records** geïmporteerd.
+- STRATO (oude nameservers `shades01.rzone.de`, `docks12.rzone.de`, SOA-serial 2026101024):
+  A `217.160.0.51`, AAAA `2001:8d8:100f:f000::200` (STRATO-parkeerpagina), CNAME `www` → `okkiedarts.nl`,
+  MX 5 `smtp.rzone.de` (ook als wildcard op subdomeinen), TXT `_dmarc` = `v=DMARC1;p=reject;`. Geen SPF of andere TXT.
+  Het STRATO-pakket heeft geen e-mailfunctie.
+
+**Stappen (eigenaar = E, Claude = C):**
+1. E: in Cloudflare de te bewaren records toevoegen, vóór de omzetting: `MX @ smtp.rzone.de` (prioriteit 5) en
+   `TXT _dmarc "v=DMARC1;p=reject;"`. A/AAAA en www worden vervangen door de website (stap 5).
+2. E: bij STRATO alleen de nameservers → `kayden.ns.cloudflare.com`, `sloan.ns.cloudflare.com`.
+3. C: wachten tot de zone *Active* is; DNS-records opnieuw controleren; *Always Use HTTPS* aan.
+4. C: Worker `cd cloud && npx wrangler deploy --env production` (alleen api.okkiedarts.nl). Controle `/v1/health` → `registration: false`.
+5. C: Cloudflare Pages-project (branch main, `npm run build:site`, uitvoer `dist`) met okkiedarts.nl; www via een
+   doorverwijzing (301) naar okkiedarts.nl.
+6. C: `community/config.js` `API_BASE = 'https://api.okkiedarts.nl'` (Turnstile leeg, `REGISTRATION_OPEN = false`), CI groen,
+   daarna 1.3.1 naar main.
+7. C: `node tools/live-check.mjs` (app) en `node tools/site-live-check.mjs` (website, www, HTTPS, API, geen adres/geheimen).
+8. Later, apart: Cloudflare Access voor beheer.okkiedarts.nl, de drie Worker-secrets, dan pas de beheerroute.
 
 ## Gewenste online indeling
 

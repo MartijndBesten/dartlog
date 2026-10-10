@@ -38,6 +38,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     console.log('\nNIET klaar voor publicatie:\n- ' + problems.join('\n- '));
     process.exitCode = 1;
   } else {
-    console.log('\nJuridische onderdelen compleet; registratie dicht. Publicatie mag na akkoord.');
+    console.log('\nGeen open velden; registratie dicht. Technisch klaar voor publicatie na akkoord.');
+    console.log('Let op: dit is geen volledige juridische toets (zie DEPLOY-STRATO-CLOUDFLARE.md, juridische aandachtspunten).');
   }
 }

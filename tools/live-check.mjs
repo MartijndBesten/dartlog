@@ -9,7 +9,8 @@ const ctx = await b.newContext({ ...devices['iPhone 13'], browserName: 'chromium
 const p = await ctx.newPage();
 const errors = [];
 p.on('pageerror', e => errors.push(e.message));
-const key = async n => p.click(`.nums [data-arg="${n}"], .specials [data-arg="${n}"]`);
+// Tikritme ≥ 35 ms: de app negeert dezelfde toets sneller dan dat als spook-tik.
+const key = async n => { await p.click(`.nums [data-arg="${n}"], .specials [data-arg="${n}"]`); await p.waitForTimeout(60); };
 
 await p.goto(url);
 check((await p.title()) === 'OKKIE. · darttrainer', 'titel OKKIE.');
