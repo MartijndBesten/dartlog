@@ -1,7 +1,7 @@
 // OKKIE — interface. Spelregels staan in logic.js, opslag in store.js.
 import * as L from './logic.js';
 import * as S from './store.js';
-import { queueCommunitySync } from './community-sync.js';
+import { queueCommunitySync, getAccount } from './community-sync.js';
 import * as Backup from './backup-alert.js';
 import { boardSVG, heatLegend } from './board.js';
 import { lineChart, bindChart } from './chart.js';
@@ -1289,7 +1289,10 @@ const ACTIONS = {
   'open-training': id => { const t = data.trainings.find(x => x.id === id); if (t) trainingDetail(t); },
   'open-match': id => { const m = data.matches.find(x => x.id === id); if (m) matchDetail(m); },
   'delete-training': id => confirmBox('Training verwijderen?', 'Deze training verdwijnt definitief uit je geschiedenis en statistieken.', 'Verwijderen', () => {
-    data.trainings = data.trainings.filter(t => t.id !== id); save(); closeModal(); render(); toast('Training verwijderd.');
+    const affected = data.trainings.find(t => t.id === id)?.playerId;
+    data.trainings = data.trainings.filter(t => t.id !== id); save();
+    if (affected) queueCommunitySync(data, [affected]);
+    closeModal(); render(); toast('Training verwijderd.');
   }),
   'delete-match': id => confirmBox('Wedstrijd verwijderen?', 'Deze wedstrijd verdwijnt definitief.', 'Verwijderen', () => {
     data.matches = data.matches.filter(m => m.id !== id); save(); closeModal(); render(); toast('Wedstrijd verwijderd.');
@@ -1299,6 +1302,7 @@ const ACTIONS = {
     modal(`<h3>Naam wijzigen</h3><form data-form="rename" data-arg="${esc(id)}"><input name="name" maxlength="24" value="${esc(p.name)}" aria-label="Nieuwe naam" required><div class="modal-actions"><button type="button" class="btn ghost" data-act="modal-close">Annuleren</button><button class="btn primary">Opslaan</button></div></form>`);
   },
   'delete-player': id => {
+    if (getAccount(id)) return modal('<h3>Eerst online profiel verwijderen</h3><p>Deze speler heeft een gekoppeld openbaar profiel. Verwijder of verberg dat eerst via Community, zodat je de toegang tot je gedeelde statistieken niet kwijtraakt.</p><div class="modal-actions"><a class="btn primary" href="./community/">Naar Community</a><button class="btn ghost" data-act="modal-close">Sluiten</button></div>');
     const p = player(id);
     const n = data.trainings.filter(t => t.playerId === id).length;
     confirmBox(`${p.name} verwijderen?`, `Ook ${n} training(en) van ${p.name} worden verwijderd. Wedstrijden blijven bewaard. Tip: maak eerst een back-up.`, 'Verwijderen', () => {
