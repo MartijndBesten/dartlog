@@ -595,3 +595,15 @@ button.slot:active { transform: scale(.96); }
 [data-theme="light"] .maker .on-light { display: block; }
 .maker:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
 .maker-line { display: flex; justify-content: center; margin: 14px 0 0; }
+
+/* Verhuizen, overzetcode en installeren */
+.move-card { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); text-align: left; }
+.welcome .move-card { display: grid; gap: 6px; }
+.welcome .move-card .btn { justify-self: start; }
+.transfer-code { width: 100%; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 10px; border-radius: var(--r-sm); border: 1px solid var(--line-strong); background: var(--bg2); color: var(--text); word-break: break-all; resize: vertical; margin-top: 8px; }
+.link.file { cursor: pointer; padding: 0; }
+.install-steps { padding-left: 22px; display: grid; gap: 10px; margin: 12px 0; }
+.install-steps li { padding-left: 4px; }
+.install-steps .ico { display: inline-block; vertical-align: -3px; color: var(--accent); }
+[data-testid=transfer-table] td:last-child { color: var(--accent); }
+[data-testid=transfer-table] td:last-child .ico { margin-left: auto; }

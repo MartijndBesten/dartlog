@@ -8,9 +8,11 @@ import { lineChart, bindChart } from './chart.js';
 import { BADGES, earnedBadges } from './achievements.js';
 import { logoSVG, TAGLINE } from './brand.js';
 import { icon } from './icons.js';
+import * as T from './transfer.js';
+import * as I from './install.js';
 import { DARTCOUNTER_SET, dartCounterTrainings, hasDartCounterSet } from './imports.js';
 
-export const APP_VERSION = '1.3.2';
+export const APP_VERSION = '1.3.3';
 // "Nodig een vriend uit": altijd de website als link. Die blijft geldig, ook na de verhuizing van de app.
 export const INVITE_URL = 'https://okkiedarts.nl/';
 export const INVITE_TEXT = 'Ik train mijn darts met OKKIE. 🎯 Gratis, werkt gewoon op je telefoon en je ziet meteen of je beter wordt. Doe je mee?';
@@ -243,15 +245,25 @@ VIEWS.welcome = () => `
     <div class="welcome-logo">${logoSVG({ height: 72 })}</div>
     <p class="tagline">${TAGLINE}</p>
     <p class="lead">Jouw eigen darttrainer. Gooi, tik je pijlen in en zie of je beter wordt.</p>
+    ${T.role() === 'new' ? fetchCard() : ''}
     <form class="card" data-form="welcome">
       <label for="wname">Hoe heet je?</label>
       <input id="wname" name="name" maxlength="24" autocomplete="nickname" placeholder="Je naam" required autofocus>
       <button class="btn primary big" type="submit">Let's play darts</button>
     </form>
+    ${T.role() !== 'new' && I.isStandalone() ? fetchCard() : ''}
     <a class="btn ghost welcome-guide" href="./uitleg/">${icon('book', { size: 19 })}Hoe werkt het? Uitleg in 2 minuten</a>
     <p class="fineprint">Alles wordt op dit toestel bewaard. Geen account, geen reclame.</p>
       <p class="maker-line"><a class="maker" href="https://denckh.nl/" target="_blank" rel="noopener" aria-label="Ontwikkeld door Denckh (naar denckh.nl)"><span class="maker-role">Ontwikkeld door</span><img class="on-dark" src="./icons/denckh-logo-signature-light.svg" alt="Denckh" width="92" height="28"><img class="on-light" src="./icons/denckh-logo-signature.svg" alt="Denckh" width="92" height="28"></a></p>
   </section>`;
+
+// Op het nieuwe adres staat dit bovenaan (daar komen tijdens de verhuizing vooral bestaande spelers),
+// in een geïnstalleerde app onder het naamveld.
+function fetchCard() {
+  return `<section class="card move-card" data-testid="fetch-card"><h3>Al eerder OKKIE. gebruikt?</h3>
+      <p class="muted">${T.role() === 'new' ? 'Op het oude adres, in Safari of op een andere telefoon?' : 'In Safari of op een andere telefoon?'} Haal eerst je spelers en trainingen hierheen.</p>
+      <button class="btn secondary" data-act="transfer-receive">${icon('download', { size: 19 })}Trainingen ophalen</button></section>`;
+}
 
 function header(title, back) {
   const p = player();
@@ -286,6 +298,8 @@ VIEWS.home = () => {
     </section>
     ${at ? resumeCard('training', at) : ''}
     ${am ? resumeCard('match', am) : ''}
+    ${T.announce() ? moveCard() : ''}
+    ${installReminder()}
     ${Backup.due(data, data.activePlayerId) ? `<section class="card" role="status"><h3>Even een back-up bewaren?</h3><p>Je hebt weer tien trainingen afgerond. Bewaar jouw scores veilig op je telefoon of in iCloud Drive/Google Drive.</p><div class="row-actions"><button class="btn primary" data-act="backup-share">Back-up bewaren</button><button class="btn ghost" data-act="backup-dismiss">Later</button></div></section>` : ''}
     <section class="actions">
       <button class="action train" data-go="train">
@@ -898,6 +912,8 @@ VIEWS.more = () => {
         ${data.players.length > 1 ? `<button class="icon-btn small" data-act="delete-player" data-arg="${esc(p.id)}" aria-label="Speler verwijderen">✕</button>` : ''}</li>`).join('')}</ul>
       <form data-form="add-player" class="guest"><input name="name" maxlength="24" placeholder="Nieuwe speler" aria-label="Naam nieuwe speler"><button class="btn secondary">+ Speler</button></form>
     </section>
+    ${T.announce() ? moveCard() : ''}
+    ${T.role() === 'new' ? `<section class="card" data-testid="fetch-more"><h3>Trainingen van het oude adres</h3><p class="muted">Speelde je eerder op martijndbesten.github.io/dartlog? Haal die trainingen hierheen. Er komt niets dubbel.</p><button class="btn secondary" data-act="transfer-receive">${icon('download', { size: 19 })}Trainingen ophalen</button></section>` : ''}
     <section class="card" data-testid="invite-card">
       <h3>Nodig een vriend uit</h3>
       <p class="muted">Stuur OKKIE. naar een vriend, je oma of je dartclub. Dit is een gewone link naar okkiedarts.nl; er worden geen scores gedeeld.</p>
@@ -937,11 +953,15 @@ VIEWS.more = () => {
       <p class="muted">Je gegevens staan alleen op dit toestel (in de browser). Ze gaan niet automatisch naar een andere telefoon. Maak af en toe een back-up, zeker voordat je de browser opschoont.</p>
       <div class="row-actions"><button class="btn primary" data-act="export">${icon('download', { size: 19 })}Back-up downloaden</button><button class="btn secondary" data-act="backup-share">${icon('share', { size: 19 })}Bewaar via Delen / iCloud</button>
       <label class="btn secondary file">${icon('upload', { size: 19 })}Back-up terugzetten<input type="file" accept="application/json,.json" data-input="import" hidden></label></div>
+      <h4>Naar een andere telefoon of app</h4>
+      <p class="muted small">Met een overzetcode zet je alles over via kopiëren en plakken, bijvoorbeeld van Safari naar OKKIE. op je beginscherm. Er komt niets dubbel.</p>
+      <div class="row-actions"><button class="btn secondary" data-act="transfer-code" data-testid="make-code">${icon('copy', { size: 19 })}Overzetcode maken</button><button class="btn secondary" data-act="transfer-receive" data-testid="enter-code">${icon('download', { size: 19 })}Code invoeren</button></div>
     </section>
     <section class="card" data-testid="install-help">
       <h3>Installeren op je telefoon</h3>
       ${standalone ? `<p class="ok-line">${icon('check', { size: 18 })}OKKIE. draait als app op dit toestel.</p>` : ''}
       ${ui.installEvent ? `<button class="btn primary" data-act="install">${icon('install', { size: 19 })}Installeer OKKIE.</button>` : ''}
+      ${T.announce() ? `<p class="note">OKKIE. verhuist naar <b>app.okkiedarts.nl</b>. Zet liever die nieuwe app op je beginscherm, nadat je je trainingen hebt overgezet.</p>` : ''}
       <h4>Installeren op iPhone</h4>
       <p>Open OKKIE in <b>Safari</b>, gebruik <b>Delen</b> en kies <b>'Zet op beginscherm'</b>.</p>
       <h4>Installeren op Android</h4>
@@ -1250,6 +1270,169 @@ async function inviteCopy() {
   } catch { toast('Kopiëren lukt niet. Houd de tekst ingedrukt om hem te kopiëren.'); }
 }
 
+// ---------- Verhuizen en overzetten (js/transfer.js, VERHUIZING.md) ----------
+const MOVED_KEY = 'okkie.verhuisd';
+function moved() { try { return JSON.parse(localStorage.getItem(MOVED_KEY) || 'null'); } catch { return null; } }
+function moveCard() {
+  const m = moved();
+  if (m) {
+    const changed = m.count !== data.trainings.length + data.matches.length;
+    return `<section class="card move-card" data-testid="move-card"><h3>Overgezet naar app.okkiedarts.nl</h3>
+      <p class="muted">Op ${esc(new Date(m.at).toLocaleDateString('nl-NL'))}: ${esc(T.summaryText(m.summary))}. Je gegevens blijven hier ook bewaard.</p>
+      ${changed ? '<p class="note">Je hebt hier sindsdien nog gegooid. Zet opnieuw over; er komt niets dubbel.</p>' : ''}
+      <div class="row-actions"><a class="btn primary" href="${T.NEW_APP()}">Open de nieuwe app</a><button class="btn ghost" data-act="transfer-send">Nog eens overzetten</button></div></section>`;
+  }
+  return `<section class="card move-card" data-testid="move-card"><h3>OKKIE. verhuist naar app.okkiedarts.nl</h3>
+    <p>Zet je spelers en trainingen in één minuut over naar het nieuwe adres. Hier wordt niets gewist.</p>
+    <div class="row-actions"><button class="btn primary" data-act="transfer-send">Zet mijn trainingen over</button></div></section>`;
+}
+const iosApp = () => I.platform() === 'ios' && I.isStandalone();
+// De code en het pakket worden vooraf gemaakt, zodat kopiëren en het nieuwe venster direct bij de tik
+// gebeuren (Safari staat die anders niet toe).
+async function prepareTransfer() {
+  ui.transferPkg = await T.makePackage(data, T.readExtras(localStorage));
+  ui.transferCode = await T.pack(data, T.readExtras(localStorage));
+}
+async function transferSendModal() {
+  await prepareTransfer();
+  modal(`<h3>Overzetten naar app.okkiedarts.nl</h3>
+    <p>Dit gaat mee: <b>${esc(T.summaryText(T.summary(data)))}</b>. Hier wordt niets gewist.</p>
+    <div class="modal-actions col">
+      ${iosApp() ? '' : '<button class="btn primary" data-act="transfer-auto" data-testid="transfer-auto">Automatisch overzetten</button>'}
+      <button class="btn ${iosApp() ? 'primary' : 'secondary'}" data-act="transfer-code">Met een overzetcode</button>
+      <button class="btn ghost" data-act="export">${icon('download', { size: 19 })}Back-upbestand (reserve)</button>
+    </div>
+    <p class="muted small">${iosApp() ? 'Je gebruikt OKKIE. vanaf je beginscherm. Kies <b>Met een overzetcode</b>.' : '<b>Automatisch</b> opent de nieuwe app in een nieuw venster.'} Op iPhone: zet de nieuwe app eerst op je beginscherm en plak de code dáár.</p>`);
+}
+async function transferCodeModal() {
+  if (!ui.transferCode) await prepareTransfer();
+  const target = T.role() === 'old' ? `<a href="${T.NEW_APP()}" target="_blank" rel="noopener">app.okkiedarts.nl</a>` : 'de andere OKKIE.';
+  modal(`<h3>Jouw overzetcode</h3>
+    <p class="muted">In deze code zitten ${esc(T.summaryText(T.summary(data)))}. Deel hem met niemand anders.</p>
+    <textarea class="transfer-code" readonly rows="4" data-testid="transfer-code" aria-label="Overzetcode">${esc(ui.transferCode)}</textarea>
+    <div class="modal-actions col"><button class="btn primary" data-act="transfer-copy">${icon('copy', { size: 19 })}Kopieer de code</button></div>
+    <ol class="steps"><li>Open ${target}${T.role() === 'old' ? ' (op iPhone: eerst op je beginscherm zetten en dáár openen)' : ''}.</li><li>Tik op <b>Trainingen ophalen</b> of kies <b>Meer → Code invoeren</b>.</li><li>Plak de code en tik op <b>Controleren</b>.</li></ol>
+    <div class="modal-actions"><button class="btn ghost" data-act="modal-close">Klaar</button></div>`);
+}
+function transferCopy() {
+  const code = ui.transferCode;
+  const fallback = () => { const ta = $('#modal .transfer-code'); if (ta) { ta.hidden = false; ta.focus(); ta.select(); } toast('Kopiëren lukt hier niet vanzelf. De code is geselecteerd: kies Kopiëren.'); };
+  try {
+    Promise.race([navigator.clipboard.writeText(code), new Promise((_, no) => setTimeout(() => no(new Error('klembord')), 2000))])
+      .then(() => { try { localStorage.setItem(MOVED_KEY + '.code', new Date().toISOString()); } catch { /* niet nodig */ } toast('Code gekopieerd. Plak hem in de andere OKKIE.'); }, fallback);
+  } catch { fallback(); }
+}
+function transferReceiveModal() {
+  modal(`<h3>Trainingen ophalen</h3>
+    <p class="muted">Maak in je andere OKKIE. een overzetcode (<b>Meer → Overzetcode maken</b>${T.role() === 'new' ? ', of op het oude adres <b>Zet mijn trainingen over</b>' : ''}) en plak hem hier.</p>
+    <form data-form="transfer-code"><textarea name="code" rows="4" class="transfer-code" data-testid="transfer-input" placeholder="OKKIE-OVERZETTEN-1:…" aria-label="Overzetcode"></textarea>
+    <div class="modal-actions"><button type="button" class="btn secondary" data-act="transfer-paste">Plakken</button><button class="btn primary">Controleren</button></div></form>
+    <p class="muted small">Heb je een back-upbestand? <label class="link file">Kies het bestand<input type="file" accept="application/json,.json" data-input="import" hidden></label></p>
+    <div class="modal-actions"><button class="btn ghost" data-act="modal-close">Annuleren</button></div>`);
+}
+// Eerst laten zien wat erin zit, pas na bevestiging samenvoegen.
+async function previewTransfer(text) {
+  const r = await T.unpack(text);
+  if (r.error) return toast(r.error, 'error');
+  ui.transferIncoming = r;
+  modal(`<h3>Klopt dit?</h3><p>In deze code: <b>${esc(T.summaryText(T.summary(r.data)))}</b>.</p>
+    <p class="muted">Wordt samengevoegd met wat hier staat. Niets wordt gewist en niets komt dubbel.</p>
+    <div class="modal-actions"><button class="btn ghost" data-act="modal-close">Annuleren</button><button class="btn primary" data-act="transfer-apply" data-testid="transfer-apply">Overzetten</button></div>`);
+}
+async function applyIncoming(opened) {
+  const { data: next, report } = await T.receive(data, opened);
+  data = next;
+  sanitizeActive();
+  save();
+  try { T.writeExtras(localStorage, opened.extras); } catch { /* privémodus */ }
+  return report;
+}
+function resultModal(report) {
+  const ok = report.ok && report.sameContent;
+  const rows = report.players.map(p => `<tr><th>${esc(p.name)}</th><td>${p.trainings}</td><td>${int(p.darts)}</td><td>${fmt(p.avg, 2)}</td><td>${p.same ? icon('check', { size: 16, label: 'klopt' }) : '✗'}</td></tr>`).join('');
+  const pairs = T.sameNamePairs(data);
+  const active = report.active === 'overgenomen' ? 'De lopende training is overgenomen.' : report.active === 'niet overgenomen'
+    ? (report.skippedActive === 'afgerond' ? 'De lopende training was hier al afgerond; die telt niet dubbel.' : 'Hier liep al een training. De lopende training van de andere app staat daar nog: rond hem daar af en zet opnieuw over.') : '';
+  modal(`<h3 data-testid="transfer-result">${ok ? 'Overgezet en gecontroleerd' : 'Overgezet, maar controleer dit'}</h3>
+    <p class="muted">${ok ? 'Elke speler, training, pijl en wedstrijd staat er precies zo in als in de andere app.' : 'Niet alles is gelijk. Er is niets gewist: de andere app heeft alles nog. Maak daar een back-upbestand als reserve.'}</p>
+    <table class="mtable" data-testid="transfer-table"><thead><tr><th></th><th>Trainingen</th><th>Pijlen</th><th>Gem.</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+    <p class="small">${report.received.matches ? `${report.received.matches} wedstrijd${report.received.matches === 1 ? '' : 'en'} meegekomen. ` : ''}${active}</p>
+    <p class="muted small">Hier staan nu: ${esc(T.summaryText(report.here))}.</p>
+    ${pairs.map(([a, b]) => `<div class="note" data-testid="same-name">Er zijn nu twee spelers met de naam <b>${esc(a.name)}</b>. Is dat dezelfde persoon?
+      <div class="row-actions" style="margin-top:8px"><button class="btn small secondary" data-act="merge-players" data-arg="${esc(b.id)}|${esc(a.id)}">Ja, samenvoegen</button><button class="btn small ghost" data-act="modal-close">Nee, apart houden</button></div></div>`).join('')}
+    <div class="modal-actions"><button class="btn primary" data-act="modal-close">Klaar</button></div>`);
+}
+async function transferAuto() {
+  const mine = await T.fingerprint(data);
+  try {
+    const result = await T.sendViaWindow(ui.transferPkg);
+    if (!result?.ok || !result.sameContent) throw new Error('controle');
+    try { localStorage.setItem(MOVED_KEY, JSON.stringify({ at: new Date().toISOString(), summary: T.summary(data), count: data.trainings.length + data.matches.length, fingerprint: mine })); } catch { /* niet nodig */ }
+    render();
+    modal(`<h3 data-testid="transfer-sent">Overgezet en gecontroleerd</h3>
+      <p>${esc(T.summaryText(result.received))} staan nu op app.okkiedarts.nl, precies zoals hier. Je gegevens blijven hier ook bewaard.</p>
+      <p class="muted small">Zet de nieuwe app op je beginscherm en gebruik vanaf nu die.</p>
+      <div class="modal-actions"><button class="btn ghost" data-act="modal-close">Sluiten</button><a class="btn primary" href="${T.NEW_APP()}">Open de nieuwe app</a></div>`);
+  } catch (e) {
+    toast(e.message === 'controle' ? 'De controle klopt niet. Gebruik de overzetcode; hier is niets gewist.' : 'Automatisch overzetten lukte hier niet. Gebruik de overzetcode.', 'error');
+  }
+}
+function mergePlayersAction(arg) {
+  const [keep, drop] = String(arg).split('|');
+  const accounts = (() => { try { return JSON.parse(localStorage.getItem('okkie.community.v1') || '{}').accounts || {}; } catch { return {}; } })();
+  const r = T.mergePlayers(data, keep, drop, accounts);
+  if (r.error) return toast(r.error, 'error');
+  if (r.moveAccount) { accounts[keep] = accounts[drop]; delete accounts[drop]; localStorage.setItem('okkie.community.v1', JSON.stringify({ version: 1, accounts })); }
+  data = r.data; sanitizeActive(); save(); closeModal(); render();
+  toast(`${player(keep)?.name} is nu één speler met alle trainingen.`);
+}
+
+// ---------- Installatiebegeleiding (js/install.js) ----------
+function installCtx() { return { allowed: I.originAllowed(), standalone: I.isStandalone(), state: I.readState(), finished: data.trainings.length }; }
+function installReminder() {
+  if (!I.remindOnHome(installCtx())) return '';
+  return `<section class="card next-badge" data-testid="install-reminder"><span class="a-icon">${icon('install')}</span><div><b>OKKIE. op je beginscherm?</b><p>Eén tik en je bent er, ook zonder internet.</p></div>
+    <div class="row-actions"><button class="btn small primary" data-act="install-start">Installeren</button><button class="btn small ghost" data-act="install-later" data-arg="remind">Niet nu</button></div></section>`;
+}
+function installSheet() {
+  I.writeState({ offeredAt: now() });
+  modal(`<div data-testid="install-sheet"><h3>Zet OKKIE. op je beginscherm</h3>
+    <p class="muted">Dan open je OKKIE. met één tik, net als een echte app. Ook zonder internet. Installeren hoeft niet: je kunt ook gewoon zo verder.</p>
+    <div class="modal-actions col"><button class="btn primary" data-act="install-start">${icon('install', { size: 19 })}OKKIE. installeren</button><button class="btn ghost" data-act="install-later">Eerst proberen</button></div></div>`);
+}
+async function installStart() {
+  const hasData = data.trainings.length || data.matches.length || data.active.training || data.active.match;
+  if (ui.installEvent && !hasData) {
+    const e = ui.installEvent; ui.installEvent = null;
+    closeModal(); e.prompt();
+    const choice = await e.userChoice.catch(() => null);
+    if (choice?.outcome === 'accepted') { I.writeState({ installedAt: now() }); toast('OKKIE. staat op je beginscherm.'); }
+    return render();
+  }
+  if (hasData) await prepareTransfer();
+  const p = I.platform();
+  const backup = hasData ? `<li><b>Neem eerst je trainingen mee.</b> ${p === 'ios' ? 'Op iPhone begint OKKIE. op je beginscherm soms leeg.' : 'Voor de zekerheid.'}
+      <div class="row-actions" style="margin-top:8px"><button class="btn small primary" data-act="transfer-copy" data-testid="install-copy">${icon('copy', { size: 17 })}Kopieer overzetcode</button><button class="btn small secondary" data-act="backup-share">Back-up bewaren</button></div>
+      <textarea class="transfer-code" readonly rows="2" hidden>${esc(ui.transferCode || '')}</textarea></li>` : '';
+  const steps = p === 'ios' ? (I.iosBrowser() === 'firefox'
+      ? '<li>Open <b>okkiedarts.nl</b> in <b>Safari</b>. Firefox kan OKKIE. niet op je beginscherm zetten.</li>'
+      : `<li>Tik op de <b>deelknop</b> ${icon('share', { size: 18 })} ${I.iosBrowser() === 'safari' ? '(onderaan of bovenaan; zie je hem niet, tik dan eerst op <b>•••</b>)' : '(rechtsboven in de adresbalk)'}.</li>
+      <li>Kies <b>Zet op beginscherm</b>. Staat hij er niet tussen? Scroll in het menu naar beneden.</li>
+      <li>Tik op <b>Voeg toe</b>.</li>`)
+    : p === 'android' ? (ui.installEvent ? '<li>Tik op <b>Installeren</b> hieronder en bevestig.</li>'
+      : '<li>Tik in Chrome op <b>⋮</b> (rechtsboven).</li><li>Kies <b>App installeren</b> of <b>Toevoegen aan startscherm</b>.</li>')
+    : (ui.installEvent ? '<li>Klik op <b>Installeren</b> hieronder.</li>' : '<li>Klik in de adresbalk op het installatie-icoon, of kies in het menu <b>App installeren</b>.</li>');
+  const after = hasData ? '<li>Open OKKIE. vanaf je beginscherm. Is hij leeg? Tik op <b>Trainingen ophalen</b> en plak de code.</li>' : '<li>Open OKKIE. voortaan vanaf je beginscherm.</li>';
+  modal(`<h3>OKKIE. installeren</h3><ol class="steps install-steps" data-testid="install-steps">${backup}${steps}${after}</ol>
+    <div class="modal-actions">${ui.installEvent ? `<button class="btn primary" data-act="install-prompt">${icon('install', { size: 19 })}Installeren</button>` : ''}<button class="btn ghost" data-act="install-later">Klaar</button></div>`);
+}
+async function installPrompt() {
+  const e = ui.installEvent; if (!e) return;
+  ui.installEvent = null; e.prompt();
+  const choice = await e.userChoice.catch(() => null);
+  if (choice?.outcome === 'accepted') { I.writeState({ installedAt: now() }); closeModal(); toast('OKKIE. staat op je beginscherm.'); render(); }
+}
+
 function switchPlayerModal() {
   modal(`<h3>Wie gooit er?</h3><ul class="pick">${data.players.map(p => `<li><button class="pick-btn ${p.id === data.activePlayerId ? 'on' : ''}" data-act="use-player" data-arg="${esc(p.id)}"><span class="dot" style="background:${esc(p.color)}"></span>${esc(p.name)}</button></li>`).join('')}</ul>
     <form data-form="add-player" class="guest"><input name="name" maxlength="24" placeholder="Nieuwe speler" aria-label="Naam nieuwe speler"><button class="btn secondary">+ Toevoegen</button></form>
@@ -1258,6 +1441,20 @@ function switchPlayerModal() {
 
 const ACTIONS = {
   'modal-close': closeModal,
+  'transfer-send': transferSendModal,
+  'transfer-auto': transferAuto,
+  'transfer-code': transferCodeModal,
+  'transfer-copy': transferCopy,
+  'transfer-receive': transferReceiveModal,
+  'transfer-paste': async () => {
+    try { const t = await navigator.clipboard.readText(); if (!t) throw new Error('leeg'); $('#modal [name=code]').value = t; await previewTransfer(t); }
+    catch { toast('Plakken lukt hier niet vanzelf. Houd het vak ingedrukt en kies Plak.'); }
+  },
+  'transfer-apply': async () => { const r = ui.transferIncoming; ui.transferIncoming = null; if (!r) return closeModal(); const report = await applyIncoming(r); goAfterTransfer(); resultModal(report); },
+  'merge-players': mergePlayersAction,
+  'install-start': installStart,
+  'install-prompt': installPrompt,
+  'install-later': v => { if (v === 'remind') I.writeState({ remindedAt: now() }); closeModal(); render(); },
   'invite': inviteModal,
   'invite-share': inviteShare,
   'invite-copy': inviteCopy,
@@ -1380,15 +1577,28 @@ const ACTIONS = {
       save(); closeModal(); render(); toast(`${list.length} trainingen toegevoegd.`);
     }, false);
   },
-  'import-merge': () => { data = S.mergeData(data, importBackup.pending); sanitizeActive(); save(); closeModal(); render(); toast('Back-up samengevoegd.'); },
+  'import-merge': async () => { const report = await applyIncoming({ data: importBackup.pending, extras: {}, fingerprint: null }); goAfterTransfer(); resultModal(report); },
   'import-replace': () => confirmBox('Echt alles vervangen?', 'Alles wat nu op dit toestel staat wordt overschreven door de back-up.', 'Ja, vervangen', () => {
-    data = importBackup.pending; sanitizeActive(); save(); closeModal(); render(); toast('Back-up teruggezet.');
+    const inc = importBackup.pending; data = structuredClone(inc); sanitizeActive(); save(); goAfterTransfer();
+    const v = T.verifyTransfer(inc, data);
+    resultModal({ ...v, sameContent: v.ok, skippedActive: null, received: T.summary(inc), here: T.summary(data) });
   }),
   'theme': v => { data.settings.theme = v; applyTheme(); save(); render(); },
   'install': async () => { const e = ui.installEvent; if (!e) return; e.prompt(); await e.userChoice; ui.installEvent = null; render(); },
 };
 
+// Na overzetten vanaf het (lege) welkomstscherm: naar de lopende sessie als die er is, anders naar Home.
+// Vanuit Meer (back-up terugzetten, code invoeren) blijf je waar je was.
+function goAfterTransfer() {
+  closeModal();
+  if (ui.view === 'welcome' || !data.players.length) {
+    ui.view = data.players.length ? (data.active.training ? (data.active.training.kind === 'clock' ? 'play-clock' : 'play-score') : data.active.match ? 'play-match' : 'home') : 'welcome';
+  }
+  render();
+}
+
 const FORMS = {
+  'transfer-code': fd => previewTransfer(fd.get('code')),
   welcome: fd => {
     const name = S.cleanName(fd.get('name'));
     if (!name) return toast('Vul je naam in.');
@@ -1397,6 +1607,7 @@ const FORMS = {
     data.activePlayerId = p.id;
     save();
     go('home');
+    if (I.offerAfterWelcome(installCtx())) installSheet();
   },
   'add-player': fd => {
     const name = S.cleanName(fd.get('name'));
@@ -1512,6 +1723,13 @@ const at = data.active.training;
 if (at) ui.view = at.kind === 'clock' ? 'play-clock' : 'play-score';
 else if (data.active.match) ui.view = 'play-match';
 render();
+T.receiveViaWindow(async opened => {
+  const report = await applyIncoming(opened);
+  goAfterTransfer();
+  resultModal(report);
+  return report;
+});
+window.addEventListener('appinstalled', () => I.writeState({ installedAt: now() }));
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   const hadController = !!navigator.serviceWorker.controller;

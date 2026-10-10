@@ -194,3 +194,24 @@ test('WhatsApp-voorvertoning: Open Graph en Twitter Card met absolute HTTPS-afbe
   }
   assert.match(read('index.html'), /<meta property="og:image" content="https:\/\/okkiedarts\.nl\/og-image\.jpg">/, 'ook de app heeft een voorvertoning');
 });
+
+test('app-build voor app.okkiedarts.nl: alleen de app, met CNAME, en de verhuizing staat standaard uit', async () => {
+  execFileSync(process.execPath, [join(root, 'tools/build-app-site.mjs')], { cwd: root, stdio: 'pipe' });
+  const dist = join(root, 'dist-app');
+  assert.equal(readFileSync(join(dist, 'CNAME'), 'utf8').trim(), 'app.okkiedarts.nl');
+  const files = readdirSync(dist, { recursive: true }).map(f => String(f).replaceAll('\\', '/'));
+  for (const f of ['index.html', 'sw.js', 'manifest.webmanifest', 'js/app.js', 'js/transfer.js', 'js/install.js', 'icons/icon-512.png', 'uitleg/index.html', '.nojekyll']) assert.ok(files.includes(f), 'ontbreekt: ' + f);
+  for (const f of files) assert.doesNotMatch(f, /^(cloud|tests|tools|node_modules)\/|\.md$(?<!README\.md)|package/, 'hoort niet in de app-publicatie: ' + f);
+  // Dezelfde app als op het oude adres: bestanden byte-gelijk
+  for (const f of ['index.html', 'sw.js', 'js/app.js', 'css/app.css']) assert.equal(readFileSync(join(dist, f), 'utf8'), read(f), f);
+  // Community-pagina: stijl aanwezig, geen verwijzing naar een websitekopie op het app-adres
+  assert.ok(files.includes('ontdek/site.css'));
+  assert.ok(!files.includes('ontdek/index.html'), 'geen kopie van de website op app.okkiedarts.nl');
+  assert.doesNotMatch(readFileSync(join(dist, 'community/index.html'), 'utf8'), /href="\.\.\/ontdek\/"/);
+  const { PROD } = await import(new URL('../../js/transfer.js', import.meta.url));
+  assert.equal(PROD.open, false, 'verhuizing pas aankondigen na tests op echte toestellen (VERHUIZING.md)');
+  // Het oude adres krijgt nooit een eigen domein (dat zou automatisch doorverwijzen).
+  assert.ok(!existsSync(join(root, 'CNAME')), 'geen CNAME in de dartlog-repo');
+  const { INSTALL_ORIGINS } = await import(new URL('../../js/install.js', import.meta.url));
+  assert.deepEqual(INSTALL_ORIGINS, ['https://app.okkiedarts.nl']);
+});
