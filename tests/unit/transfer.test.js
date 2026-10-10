@@ -142,3 +142,24 @@ test('rollen: oud en nieuw adres; aankondiging staat standaard uit', () => {
   assert.equal(T.role(), null, 'buiten de browser geen rol');
   assert.equal(T.announce(), false);
 });
+
+test('nog eens overzetten na hernoemen in de nieuwe app: alles is er, de nieuwe naam blijft, geen foutmelding', async () => {
+  const opened = await T.openPackage(await T.makePackage(sample()));
+  const first = (await T.receive(emptyData(), opened)).data;
+  first.players.find(p => p.id === 'p1').name = 'Senn de Jong';
+  const again = await T.receive(first, opened);
+  assert.equal(again.report.ok, true);
+  assert.equal(again.report.sameContent, false);
+  assert.deepEqual(again.report.different, ['players:p1']);
+  assert.equal(again.data.players.find(p => p.id === 'p1').name, 'Senn de Jong');
+  assert.equal(again.data.trainings.length, 42);
+});
+
+test('ontbrekende training na samenvoegen wordt als fout gemeld', () => {
+  const inc = sample();
+  const merged = structuredClone(inc);
+  merged.trainings = merged.trainings.filter(t => t.id !== 't5');
+  const r = T.verifyTransfer(inc, merged);
+  assert.equal(r.ok, false);
+  assert.deepEqual(r.missing, ['trainings:t5']);
+});
