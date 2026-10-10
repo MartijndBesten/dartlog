@@ -29,7 +29,7 @@ De bestaande PWA en zijn lokale gegevens blijven op hetzelfde adres bewaard.
 - **Uitslag**: gemiddelde, totaal, hoogste beurt, records en een vergelijking met je vorige training met hetzelfde aantal pijlen; badges en extra statistieken uitklapbaar.
 - **Meerdere spelers** op één toestel, elk met eigen statistieken.
 - **Geschiedenis**: elke training en wedstrijd terugkijken (alle pijlen), verwijderen met bevestiging.
-- **Back-up**: exporteren naar JSON en terugzetten (samenvoegen of vervangen), met validatie.
+- **Back-up**: exporteren naar JSON en terugzetten (samenvoegen of vervangen), met validatie. In de komende versie: een herinnering na tien afgeronde trainingen per speler, en de iPhone-deelfunctie om het bestand handmatig in Bestanden/iCloud Drive te bewaren.
 - **Installeerbaar (PWA)** en werkt offline.
 
 ## Op de telefoon zetten
