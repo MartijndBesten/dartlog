@@ -27,7 +27,7 @@ INACTIVE_DAYS = "730"
 [[d1_databases]]
 binding = "DB"
 database_name = "okkie-community-staging"
-database_id = "REPLACE_WITH_STAGING_D1_DATABASE_ID"
+database_id = "ddf81dd7-c1e8-4482-8e5b-75d485966e8b"
 migrations_dir = "migrations"
 
 # Rate limiting (per IP bij registratie/herstel, per account bij wijzigingen).
@@ -59,7 +59,7 @@ INACTIVE_DAYS = "730"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "okkie-community"
-database_id = "REPLACE_WITH_PRODUCTION_D1_DATABASE_ID"
+database_id = "6d496b27-7bc4-4c39-85cb-d77002d578bb"
 migrations_dir = "migrations"
 
 [[env.production.ratelimits]]
