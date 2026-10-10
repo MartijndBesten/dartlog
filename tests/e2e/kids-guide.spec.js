@@ -31,8 +31,8 @@ test('eerstekind-gebruiker vindt de instructie vanuit de app',async({page},info)
   await expect(page.locator('.welcome a[href="./uitleg/"]')).toBeVisible();
   await page.locator('.welcome a[href="./uitleg/"]').click();
   await expect(page).toHaveURL(/\/uitleg\/$/);
-  await page.getByRole('link',{name:/Open de app/}).click();
-  await expect(page).toHaveURL(/github\.io\/dartlog\/$/);
+  await expect(page.getByRole('link',{name:/Open de app/}))
+    .toHaveAttribute('href','https://martijndbesten.github.io/dartlog/');
 });
 test('de introductiewebsite laat kinderen naar de uitleg klikken',async({page},info)=>{
   test.skip(info.project.name!=='iphone','één browser is genoeg');
