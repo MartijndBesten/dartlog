@@ -57,7 +57,9 @@ test('homepage: blokken schuiven in en zijn na scrollen allemaal zichtbaar', asy
   await page.goto(SITE + '/');
   await expect(page.locator('html')).toHaveClass(/\bjs\b/);
   // Onderaan de pagina beginnen de blokken nog verborgen (inschuiven bij scrollen).
-  expect(await page.evaluate(REVEALED)).toBeGreaterThan(0);
+  await page.waitForLoadState('load');
+  expect(await page.evaluate(() => [...document.querySelectorAll('.reveal, .stagger')]
+    .filter(b => b.getBoundingClientRect().top > innerHeight && !b.classList.contains('in')).length)).toBeGreaterThan(0);
   for (let y = 0; y < 12; y++) { await page.mouse.wheel(0, 700); await page.waitForTimeout(120); }
   await expect.poll(() => page.evaluate(REVEALED), { timeout: 4000 }).toBe(0);
   // Een sprong via een menulink laat ook de overgeslagen blokken zien.
