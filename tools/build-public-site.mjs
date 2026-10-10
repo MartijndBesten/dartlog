@@ -23,7 +23,7 @@ landing = landing
   .replaceAll('href="./"','href="/"');
 writeFileSync(join(dest,'index.html'),landing);
 cpSync(join(root,'ontdek','site.css'),join(dest,'site.css'));
-writeFileSync(join(dest,'_headers'),\`/*
+writeFileSync(join(dest,'_headers'),`/*
   Referrer-Policy: strict-origin-when-cross-origin
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
@@ -31,17 +31,17 @@ writeFileSync(join(dest,'_headers'),\`/*
 
 /app/*
   Service-Worker-Allowed: /app/
-\`);
-writeFileSync(join(dest,'robots.txt'),\`User-agent: *
+`);
+writeFileSync(join(dest,'robots.txt'),`User-agent: *
 Allow: /
 Disallow: /beheer/
 Sitemap: https://okkiedarts.nl/sitemap.xml
-\`);
-writeFileSync(join(dest,'sitemap.xml'),\`<?xml version="1.0" encoding="UTF-8"?>
+`);
+writeFileSync(join(dest,'sitemap.xml'),`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 <url><loc>https://okkiedarts.nl/</loc></url>
 <url><loc>https://okkiedarts.nl/app/</loc></url>
 <url><loc>https://okkiedarts.nl/app/community/</loc></url>
 </urlset>
-\`);
+`);
 console.log('OKKIE. publieke site opgebouwd in dist/. Publicatie is NIET uitgevoerd.');
