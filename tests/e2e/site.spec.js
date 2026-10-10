@@ -15,22 +15,40 @@ function collectErrors(page) {
 
 test('homepage: demo-beurt telt op tot 85, tikken en Enter spelen opnieuw af', async ({ page }) => {
   const errors = collectErrors(page);
+  // Leg elke getoonde score vast: de statische HTML staat al op 85 (eindstand zonder JavaScript),
+  // dus alleen de reeks waarden bewijst dat de beurt echt wordt afgespeeld.
+  await page.addInitScript(() => {
+    window.__scores = [];
+    document.addEventListener('DOMContentLoaded', () => {
+      const el = document.querySelector('[data-demo-total]');
+      new MutationObserver(() => window.__scores.push(el.textContent)).observe(el, { childList: true, characterData: true, subtree: true });
+    });
+  });
   await page.goto(SITE + '/');
   const demo = page.locator('[data-demo]');
   const total = page.locator('[data-demo-total]');
+  const played = async () => {
+    await expect(demo).toHaveClass(/\bdone\b/, { timeout: 8000 });
+    const scores = (await page.evaluate(() => window.__scores.splice(0))).map(Number);
+    expect(scores[0], 'begint bij 0').toBe(0);
+    expect(scores.some(s => s > 0 && s < 85), 'telt zichtbaar op').toBe(true);
+    expect(scores.at(-1), 'eindigt op 85').toBe(85);
+    expect(scores.every((s, i) => i === 0 || s >= scores[i - 1]), 'telt alleen op').toBe(true);
+    await expect(total).toHaveText('85');
+    await expect(page.locator('[data-dart].hit')).toHaveCount(3);
+    await expect(page.locator('[data-demo-avg]')).toHaveText('57,30');
+  };
   await demo.scrollIntoViewIfNeeded();
-  // Tijdens het afspelen ligt de score tussen 0 en 85, daarna precies 85 met drie raak gegooide pijlen.
-  await expect.poll(async () => Number(await total.textContent()), { timeout: 5000 }).toBeGreaterThan(0);
-  await expect(total).toHaveText('85', { timeout: 6000 });
-  await expect(page.locator('[data-dart].hit')).toHaveCount(3);
-  await expect(page.locator('[data-demo-avg]')).toHaveText('57,30');
+  await played();
   await demo.click();
-  await expect(total).toHaveText('0');
-  await expect(total).toHaveText('85', { timeout: 6000 });
+  await expect(demo).not.toHaveClass(/\bdone\b/);
+  await played();
   await demo.focus();
   await page.keyboard.press('Enter');
-  await expect(total).toHaveText('0');
-  await expect(total).toHaveText('85', { timeout: 6000 });
+  await expect(demo).not.toHaveClass(/\bdone\b/);
+  await played();
+  // Een demo slaat nooit iets op.
+  expect(await page.evaluate(() => localStorage.length + sessionStorage.length)).toBe(0);
   expect(errors).toEqual([]);
 });
 

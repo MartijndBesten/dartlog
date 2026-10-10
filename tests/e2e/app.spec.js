@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
 
-const key = (page, n) => page.locator(`.nums [data-act=key][data-arg="${n}"], .specials [data-act=key][data-arg="${n}"]`).first().click();
+// De app negeert dezelfde toets twee keer binnen 35 ms (spook-tik). Een snelle CI-runner klikt sneller
+// dan een mens kan tikken; daarom tussen pijlen een realistisch, kort tikritme aanhouden.
+const TAP_GAP = 60;
+const key = async (page, n) => {
+  await page.locator(`.nums [data-act=key][data-arg="${n}"], .specials [data-act=key][data-arg="${n}"]`).first().click();
+  await page.waitForTimeout(TAP_GAP);
+};
 const mod = (page, m) => page.click(`[data-act=mod][data-arg="${m}"]`);
 async function dart(page, code) {
   if (code === 'M') return key(page, 0);

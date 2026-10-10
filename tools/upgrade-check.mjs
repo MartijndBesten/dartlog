@@ -32,10 +32,12 @@ await page.evaluate(() => { const d = JSON.parse(localStorage.getItem('oche.data
 await page.reload();
 await page.click('.action.train');
 await page.click('[data-testid=start-score]');
-for (let i = 0; i < 30; i++) await page.click('.nums [data-arg="20"]');
+// Tikritme ≥ 35 ms: de app negeert dezelfde toets sneller dan dat als spook-tik.
+const tap = async sel => { await page.click(sel); await wait(60); };
+for (let i = 0; i < 30; i++) await tap('.nums [data-arg="20"]');
 await page.click('.tabbar [data-go=train]');
 await page.click('[data-testid=start-score]');
-for (const n of ['5', '5', '5', '1']) await page.click(`.nums [data-arg="${n}"]`);
+for (const n of ['5', '5', '5', '1']) await tap(`.nums [data-arg="${n}"]`);
 await page.evaluate(() => navigator.serviceWorker.ready);
 check((await page.evaluate(() => caches.keys())).includes(oldCache), 'oude versie draait (' + oldCache + ')');
 

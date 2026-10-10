@@ -237,6 +237,16 @@ test('beheer: alleen op beheer.okkiedarts.nl met geldig Access-JWT van een toege
   const wrongAud = await sign({ aud: ['ander'], iss: 'https://okkie.cloudflareaccess.com', exp, email: 'beheer@denckh.nl' });
   assert.equal((await admin(access, '/v1/admin/members', { jwt: wrongAud })).status, 403);
   assert.equal((await admin(access, '/v1/admin/members', { jwt: good.slice(0, -4) + 'AAAA' })).status, 403);
+  // Productie zonder (volledige) Access-configuratie: beheerdomein bestaat, maar alles blijft dicht, ook met geldig JWT.
+  for (const missing of ['CF_ACCESS_TEAM_DOMAIN', 'CF_ACCESS_AUD', 'ADMIN_ALLOWED_EMAILS']) {
+    const partial = { ...access, [missing]: '' };
+    for (const p of ['/beheer', '/v1/admin/overview', '/v1/admin/members', '/v1/admin/audit']) {
+      // Zonder volledige configuratie bestaat beheer niet (404): dicht, en verraadt niets.
+      const res = await admin(partial, p, { jwt: good });
+      assert.equal(res.status, 404, `${p} zonder ${missing}`);
+      assert.doesNotMatch(await res.text(), /Senn|totals|members|<html/i);
+    }
+  }
 
   // Moderatie: verbergen en verwijderen, met logboek
   r = await admin(access, '/v1/admin/members/' + a.account.handle, { method: 'PATCH', body: { visible: false }, jwt: good });
