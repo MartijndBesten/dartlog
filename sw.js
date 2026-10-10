@@ -1,6 +1,6 @@
 // OKKIE serviceworker: app-bestanden offline beschikbaar. Gebruikersgegevens staan in localStorage
 // en worden hier nooit aangeraakt. Verhoog VERSION bij elke release.
-const VERSION = 'okkie-v1.3.1';
+const VERSION = 'okkie-v1.4.0';
 const ASSETS = [
   './',
   './index.html',
@@ -17,6 +17,12 @@ const ASSETS = [
   './js/achievements.js',
   './js/brand.js',
   './js/imports.js',
+  './js/group-stats.js',
+  './vrienden/',
+  './vrienden/index.html',
+  './vrienden/vrienden.css',
+  './vrienden/vrienden.js',
+  './ontdek/site.css',
   './uitleg/',
   './uitleg/index.html',
   './uitleg/uitleg.css',
@@ -62,6 +68,7 @@ self.addEventListener('fetch', event => {
       if (req.mode === 'navigate') {
         const pathname = new URL(req.url).pathname;
         if (pathname.endsWith('/uitleg/')) return caches.match('./uitleg/index.html');
+        if (pathname.endsWith('/vrienden/')) return caches.match('./vrienden/index.html');
         if (pathname.endsWith('/')) return caches.match('./index.html');
       }
       return Response.error();

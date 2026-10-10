@@ -1,5 +1,6 @@
 import { adminHtml } from './admin-page.js';
 import { isAdminRequest, adminEmail, adminHostMatches } from './admin-auth.js';
+import { handleGroups, groupsOpen, inviteValid, releaseMemberships } from './groups.js';
 
 // Cloudflare Worker + D1 API voor OKKIE. Community.
 // De database bewaart uitsluitend een nickname, account-credentials (gehasht) en geaggregeerde statistieken.
@@ -59,6 +60,11 @@ function snapshotOkay(x) {
     x.hits140 > x.hits100 || x.hits180 > x.hits140) return false;
   for (const k of ['best30','challenge30']) {
     if (x[k] !== null && (!Number.isSafeInteger(x[k]) || x[k] < 0 || x[k] > 1800 || x.darts < 30)) return false;
+  }
+  // Nieuw sinds Mijn vrienden; oudere apps sturen ze niet mee (dan null).
+  for (const [k, darts] of [['best60', 60], ['best99', 99]]) {
+    if (x[k] === undefined) continue;
+    if (x[k] !== null && (!Number.isSafeInteger(x[k]) || x[k] < 0 || x[k] > darts * 60 || x.darts < darts)) return false;
   }
   return true;
 }
@@ -127,6 +133,9 @@ async function audit(env, actor, action, target) {
   await env.DB.prepare("INSERT INTO admin_audit(at, actor, action, target) VALUES(datetime('now'),?,?,?)").bind(actor, action, target).run();
 }
 
+// Hulpfuncties voor groups.js (geen dubbele implementatie van auth, hashing of rate limiting).
+const H = { json, fail, bodyJson, auth, limited, clientIp, hash, randomKey };
+
 export default {
   async fetch(request, env) {
     const cors = corsHeaders(request, env);
@@ -135,7 +144,7 @@ export default {
     if (request.method === 'OPTIONS') {
       return originAllowed(request, env) ? new Response(null, { status: 204, headers: { ...SECURITY_HEADERS, ...cors } }) : fail('Niet toegestaan.', 403);
     }
-    if (path === '/v1/health' && request.method === 'GET') return json({ ok: true, version: 1, registration: registrationOpen(env) }, 200, cors);
+    if (path === '/v1/health' && request.method === 'GET') return json({ ok: true, version: 1, registration: registrationOpen(env), groups: groupsOpen(env) }, 200, cors);
     if (!env.DB) return fail('Database niet geconfigureerd.', 503, cors);
     if (request.method !== 'GET' && !originAllowed(request, env)) return fail('Onbekende herkomst.', 403, cors);
     try {
@@ -172,20 +181,36 @@ export default {
           { 'Cache-Control':'no-store, private', 'X-Content-Type-Options':'nosniff' });
       }
       if (path === '/v1/register' && request.method === 'POST') {
-        if (!registrationOpen(env)) return fail('Registratie is nog gesloten.', 403, cors);
+        // Twee wegen: openbare registratie (REGISTRATION_ENABLED) of, als Mijn vrienden aanstaat, alleen met een geldige
+        // uitnodiging voor een besloten groep. Beide staan standaard uit.
+        if (!registrationOpen(env) && !groupsOpen(env)) return fail('Registratie is nog gesloten.', 403, cors);
         if (await limited(env.RL_REGISTER, clientIp(request))) return fail('Te veel registraties vanaf dit adres. Probeer het over een minuut opnieuw.', 429, cors);
         const body = await bodyJson(request);
         const nickname = cleanNickname(body.nickname);
-        if (!nickname || body.share !== true) return fail('Kies een nickname en geef toestemming voor het publiceren van statistieken.', 400, cors);
-        if (body.ageConsent !== true) return fail('Voor spelers jonger dan 16 jaar is toestemming en beheer door ouder/voogd nodig.', 400, cors);
-        const check = await checkTurnstile(body, request, env);
-        if (!check.ok) return fail(check.error, 403, cors);
+        const viaInvite = typeof body.inviteToken === 'string';
+        const viaFounder = !viaInvite && typeof body.founderCode === 'string';
+        if (viaInvite || viaFounder) {
+          // Besloten groep: geen openbaar profiel (visible = 0). Alleen 16+; jongere spelers wachten op ouderlijke toestemming.
+          // Oprichterscode: geheim GROUP_FOUNDER_CODE (min. 16 tekens) voor het allereerste account zonder uitnodiging.
+          const founderOk = viaFounder && groupsOpen(env) && String(env.GROUP_FOUNDER_CODE || '').length >= 16 &&
+            await hash(body.founderCode) === await hash(env.GROUP_FOUNDER_CODE);
+          if (viaFounder && !founderOk) return fail('Deze oprichterscode klopt niet.', 403, cors);
+          if (viaInvite && !await inviteValid(env, H, body.inviteToken)) return fail('Deze uitnodiging is niet (meer) geldig. Vraag om een nieuwe link.', 403, cors);
+          if (!nickname) return fail('Kies een nickname van 2 tot 24 tekens.', 400, cors);
+          if (body.age !== 'adult') return fail('Voor spelers jonger dan 16 is eerst toestemming van een ouder of verzorger nodig. Dat kan nog niet in OKKIE.', 403, cors);
+        } else {
+          if (!registrationOpen(env)) return fail('Registratie is nog gesloten.', 403, cors);
+          if (!nickname || body.share !== true) return fail('Kies een nickname en geef toestemming voor het publiceren van statistieken.', 400, cors);
+          if (body.ageConsent !== true) return fail('Voor spelers jonger dan 16 jaar is toestemming en beheer door ouder/voogd nodig.', 400, cors);
+          const check = await checkTurnstile(body, request, env);
+          if (!check.ok) return fail(check.error, 403, cors);
+        }
         const id = crypto.randomUUID();
         const handle = id.replaceAll('-', '').slice(0, 12);
         const token = randomKey(), recovery = randomKey();
-        await env.DB.prepare("INSERT INTO members(id,handle,nickname,token_hash,recovery_hash,visible,created_at,updated_at) VALUES(?,?,?,?,?,1,datetime('now'),datetime('now'))")
-          .bind(id,handle,nickname,await hash(token),await hash(recovery)).run();
-        return json({ account: { id, handle, nickname }, token, recovery }, 201, cors);
+        await env.DB.prepare("INSERT INTO members(id,handle,nickname,token_hash,recovery_hash,visible,age_group,created_at,updated_at) VALUES(?,?,?,?,?,?,'adult',datetime('now'),datetime('now'))")
+          .bind(id,handle,nickname,await hash(token),await hash(recovery),viaInvite || viaFounder ? 0 : 1).run();
+        return json({ account: { id, handle, nickname }, token, recovery, public: !(viaInvite || viaFounder) }, 201, cors);
       }
       if (path === '/v1/recover' && request.method === 'POST') {
         if (await limited(env.RL_REGISTER, clientIp(request))) return fail('Te veel herstelpogingen. Probeer het over een minuut opnieuw.', 429, cors);
@@ -238,11 +263,18 @@ export default {
         }
         if (path === '/v1/me' && request.method === 'DELETE') {
           // Stats verdwijnen via ON DELETE CASCADE (PRAGMA foreign_keys aan in D1); expliciet voor de zekerheid.
+          // Eerst groepseigenaarschap doorgeven, zodat een vriendengroep niet zonder eigenaar achterblijft.
+          await releaseMemberships(env, member.id);
           await env.DB.batch([
             env.DB.prepare('DELETE FROM stats WHERE member_id = ?').bind(member.id),
             env.DB.prepare('DELETE FROM entitlements WHERE member_id = ?').bind(member.id),
             env.DB.prepare('DELETE FROM members WHERE id = ?').bind(member.id),
           ]);
+          return json({ deleted: true }, 200, cors);
+        }
+        // Delen stoppen: alle gedeelde statistieken wissen; profiel en groepslidmaatschappen blijven.
+        if (path === '/v1/me/snapshots' && request.method === 'DELETE') {
+          await env.DB.prepare('DELETE FROM stats WHERE member_id = ?').bind(member.id).run();
           return json({ deleted: true }, 200, cors);
         }
         if (path === '/v1/me/snapshots' && request.method === 'PUT') {
@@ -254,9 +286,9 @@ export default {
           const statements = [env.DB.prepare('DELETE FROM stats WHERE member_id = ?').bind(member.id)];
           for (const s of body.snapshots) {
             statements.push(env.DB.prepare(
-              'INSERT INTO stats (member_id,period,darts,points,sessions,highest_turn,hits100,hits140,hits180,best30,challenge30,updated_at) ' +
-              "VALUES (?,?,?,?,?,?,?,?,?,?,?,datetime('now'))"
-            ).bind(member.id,s.period,s.darts,s.points,s.sessions,s.highestTurn,s.hits100,s.hits140,s.hits180,s.best30,s.challenge30));
+              'INSERT INTO stats (member_id,period,darts,points,sessions,highest_turn,hits100,hits140,hits180,best30,best60,best99,challenge30,updated_at) ' +
+              "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))"
+            ).bind(member.id,s.period,s.darts,s.points,s.sessions,s.highestTurn,s.hits100,s.hits140,s.hits180,s.best30,s.best60 ?? null,s.best99 ?? null,s.challenge30));
           }
           statements.push(env.DB.prepare("UPDATE members SET updated_at = datetime('now') WHERE id = ?").bind(member.id));
           await env.DB.batch(statements);
@@ -289,6 +321,7 @@ export default {
         if (target && request.method === 'DELETE') {
           const member = await env.DB.prepare('SELECT id FROM members WHERE handle = ?').bind(target).first();
           if (!member) return fail('Profiel niet gevonden.', 404, cors);
+          await releaseMemberships(env, member.id);
           await env.DB.batch([
             env.DB.prepare('DELETE FROM stats WHERE member_id = ?').bind(member.id),
             env.DB.prepare('DELETE FROM entitlements WHERE member_id = ?').bind(member.id),
@@ -303,6 +336,8 @@ export default {
         }
         return fail('Onbekende beheerroute.', 404, cors);
       }
+      const groups = await handleGroups(request, env, path, H, cors);
+      if (groups) return groups;
       return fail('Onbekende route.', 404, cors);
     } catch (e) {
       // Interne details mogen nooit aan bezoekers worden getoond.
@@ -322,10 +357,11 @@ export default {
     const emptyDays = Math.max(1, Number(env.EMPTY_ACCOUNT_DAYS || 30));
     const inactiveDays = Math.max(30, Number(env.INACTIVE_DAYS || 730));
     const empty = await env.DB.prepare(
-      "DELETE FROM members WHERE id IN (SELECT m.id FROM members m LEFT JOIN stats s ON s.member_id = m.id WHERE s.member_id IS NULL AND m.created_at < datetime('now', ?))"
+      "DELETE FROM members WHERE id IN (SELECT m.id FROM members m LEFT JOIN stats s ON s.member_id = m.id WHERE s.member_id IS NULL AND m.created_at < datetime('now', ?) AND NOT EXISTS (SELECT 1 FROM group_members gm WHERE gm.member_id = m.id))"
     ).bind(`-${emptyDays} days`).run();
     const stale = await env.DB.prepare('SELECT id FROM members WHERE updated_at < datetime(\'now\', ?)').bind(`-${inactiveDays} days`).all();
     for (const row of stale.results || []) {
+      await releaseMemberships(env, row.id);
       await env.DB.batch([
         env.DB.prepare('DELETE FROM stats WHERE member_id = ?').bind(row.id),
         env.DB.prepare('DELETE FROM entitlements WHERE member_id = ?').bind(row.id),

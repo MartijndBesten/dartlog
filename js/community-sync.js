@@ -35,7 +35,7 @@ function weekStart(iso) {
   return d.toISOString().slice(0, 10);
 }
 function summaryTemplate(period) {
-  return { period, darts: 0, points: 0, sessions: 0, highestTurn: 0, hits100: 0, hits140: 0, hits180: 0, best30: null, challenge30: null };
+  return { period, darts: 0, points: 0, sessions: 0, highestTurn: 0, hits100: 0, hits140: 0, hits180: 0, best30: null, best60: null, best99: null, challenge30: null };
 }
 function addSummary(target, source) {
   target.darts += source.darts;
@@ -45,6 +45,9 @@ function addSummary(target, source) {
   target.hits100 += source.hits100;
   target.hits140 += source.hits140;
   target.hits180 += source.hits180;
+  // Beste training van precies 60 / 99 pijlen (voor Mijn vrienden).
+  if (source.darts === 60) target.best60 = Math.max(target.best60 ?? 0, source.points);
+  if (source.darts === 99) target.best99 = Math.max(target.best99 ?? 0, source.points);
   if (source.darts === 30) {
     target.best30 = Math.max(target.best30 ?? 0, source.points);
     // De eerste afgeronde 30-pijlentraining per periode telt voor de challenge.

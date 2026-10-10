@@ -10,6 +10,8 @@ export default defineConfig({
   use: { baseURL: 'http://localhost:4173', serviceWorkers: 'allow' },
   webServer: [
     { command: 'node tools/serve.mjs 4173', url: 'http://localhost:4173', reuseExistingServer: true },
+    // Afgeschermde test-API voor Mijn vrienden (echte Worker-code, tijdelijke SQLite in het geheugen).
+    { command: 'node tools/dev-api.mjs 8799', url: 'http://127.0.0.1:8799/v1/health', reuseExistingServer: true },
     // De gebouwde website zoals op okkiedarts.nl (dist/), voor tests/e2e/site.spec.js.
     { command: 'node tools/build-public-site.mjs && node tools/serve.mjs 4174 dist', url: 'http://localhost:4174', reuseExistingServer: true },
   ],

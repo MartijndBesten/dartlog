@@ -23,6 +23,8 @@ crons = ["30 3 * * *"]
 ALLOWED_ORIGINS = "https://martijndbesten.github.io,https://okkiedarts.nl,https://www.okkiedarts.nl,http://localhost:4173"
 # Openbare registratie dicht tot privacyverklaring + ouderlijke toestemming (<16) geregeld zijn. Alleen "true" opent.
 REGISTRATION_ENABLED = "false"
+# Mijn vrienden (besloten groepen): alleen "true" opent. Productie pas na akkoord + bijgewerkte privacyverklaring.
+GROUPS_ENABLED = "false"
 EMPTY_ACCOUNT_DAYS = "30"
 INACTIVE_DAYS = "730"
 
@@ -57,6 +59,8 @@ ALLOWED_ORIGINS = "https://martijndbesten.github.io,https://okkiedarts.nl,https:
 ADMIN_HOST = "beheer.okkiedarts.nl"
 # Openbare registratie dicht tot privacyverklaring + ouderlijke toestemming (<16) geregeld zijn. Alleen "true" opent.
 REGISTRATION_ENABLED = "false"
+# Mijn vrienden (besloten groepen): alleen "true" opent. Productie pas na akkoord + bijgewerkte privacyverklaring.
+GROUPS_ENABLED = "false"
 EMPTY_ACCOUNT_DAYS = "30"
 INACTIVE_DAYS = "730"
 

@@ -9,7 +9,7 @@ import { BADGES, earnedBadges } from './achievements.js';
 import { logoSVG, TAGLINE } from './brand.js';
 import { DARTCOUNTER_SET, dartCounterTrainings, hasDartCounterSet } from './imports.js';
 
-export const APP_VERSION = '1.3.1';
+export const APP_VERSION = '1.4.0';
 
 const $ = sel => document.querySelector(sel);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -295,6 +295,9 @@ VIEWS.home = () => {
       <button class="action stats" data-go="stats">
         <span class="a-icon">📈</span><span><b>Mijn statistieken</b><small>Word ik beter?</small></span>
       </button>
+      <a class="action stats" href="./vrienden/" aria-label="Open Mijn vrienden">
+        <span class="a-icon">👥</span><span><b>Mijn vrienden</b><small>Besloten groep met je vrienden</small></span>
+      </a>
       <a class="action stats" href="./community/" aria-label="Open de community-ranglijst">
         <span class="a-icon">🏆</span><span><b>Community</b><small>Vergelijk je scores met anderen</small></span>
       </a>
@@ -900,6 +903,11 @@ VIEWS.more = () => {
       <h3>Geschiedenis</h3>
       <p class="muted">Alle trainingen en wedstrijden terugkijken, corrigeren of verwijderen.</p>
       <button class="btn secondary" data-go="history">Open geschiedenis</button>
+    </section>
+    <section class="card">
+      <h3>Mijn vrienden</h3>
+      <p class="muted">Een besloten groep om met vrienden gemiddelden, records en de weekchallenge te vergelijken. Je kiest zelf wat je deelt.</p>
+      <a class="btn secondary" href="./vrienden/">Open Mijn vrienden ↗</a>
     </section>
     <section class="card">
       <h3>Community en ranglijst</h3>

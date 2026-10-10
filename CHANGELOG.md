@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.0 (in ontwikkeling, branch feature/okkie-vrienden — nog niet live)
+
+- **Mijn vrienden**: besloten vriendengroepen. Groep maken, vrienden uitnodigen met een persoonlijke link (delen via WhatsApp of het deelmenu), lid worden, meerdere groepen, verlaten, leden en uitnodigingen beheren.
+- Groepsdashboard: beste deze week, meest verbeterd, 30-pijlenchallenge, records deze week; ranglijsten (algemeen, week, challenge, verbetering, records) met stijg-/daalpijlen; spelers naast elkaar vergelijken met balken en een weekgrafiek.
+- Per groep kiest een speler expliciet wat hij deelt (gemiddelde, records, challenge). Delen stoppen wist de gedeelde cijfers; profiel verwijderen haalt je uit alle groepen. Losse pijlen blijven altijd op de telefoon.
+- De app deelt nu ook de beste 60- en 99-pijlentraining (samenvatting).
+- Server: GROUPS_ENABLED (standaard uit), uitnodigingstokens alleen gehasht, toegang uitsluitend voor leden, oprichterscode voor het eerste account, minderjarigen geblokkeerd tot er verifieerbare ouderlijke toestemming is.
+- Spelers, trainingen en offline gebruik blijven ongewijzigd; zonder account werkt OKKIE. zoals altijd.
+
 ## 1.3.1
 
 - Interactieve uitleg voor jonge darters (`uitleg/`): vier stappen en een oefenscorebord, zonder dat echte scores veranderen. Bereikbaar vóór de eerste training, op het beginscherm en onder Meer; ook offline.

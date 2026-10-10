@@ -2,7 +2,7 @@ name: OKKIE community checks
 on:
   workflow_dispatch:
   push:
-    branches: [main, 'release/**', feature/okkie-public-community, infra/cloudflare-community]
+    branches: [main, 'release/**', 'feature/**', feature/okkie-public-community, infra/cloudflare-community]
   pull_request:
     paths:
       - 'cloud/**'
