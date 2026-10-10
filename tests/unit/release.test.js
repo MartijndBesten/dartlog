@@ -96,3 +96,21 @@ test('launch-check herkent open velden', async () => {
   assert.deepEqual(pendingFields('<dd><span data-pending="kvk">volgt</span></dd><span data-pending="btw"></span>'), ['kvk', 'btw']);
   assert.deepEqual(pendingFields('<dd>12345678</dd>'), []);
 });
+
+test('website-worker: www en http naar https://okkiedarts.nl, pad blijft, beveiligingsheaders', async () => {
+  const { default: site, HEADERS } = await import('../../ontdek/pages-worker.js');
+  const env = { ASSETS: { fetch: async () => new Response('ok', { status: 200, headers: { 'Content-Type': 'text/html' } }) } };
+  for (const from of ['https://www.okkiedarts.nl/uitleg/?x=1', 'http://okkiedarts.nl/uitleg/?x=1', 'http://www.okkiedarts.nl/uitleg/?x=1']) {
+    const r = await site.fetch(new Request(from), env);
+    assert.equal(r.status, 301, from);
+    assert.equal(r.headers.get('Location'), 'https://okkiedarts.nl/uitleg/?x=1', from);
+  }
+  const r = await site.fetch(new Request('https://okkiedarts.nl/privacy/'), env);
+  assert.equal(r.status, 200);
+  assert.equal(await r.text(), 'ok');
+  for (const [k, v] of Object.entries(HEADERS)) assert.equal(r.headers.get(k), v, k);
+  // pages.dev-voorbeeldadres blijft gewoon werken (geen doorverwijzing)
+  assert.equal((await site.fetch(new Request('https://okkiedarts.pages.dev/'), env)).status, 200);
+  const files = readdirSync(join(root, 'dist'));
+  assert.ok(files.includes('_worker.js') && files.includes('google873828225866c738.html'));
+});
