@@ -12,6 +12,8 @@ const read = file => readFileSync(join(root, file), 'utf8');
 const APP = 'https://martijndbesten.github.io/dartlog/';
 // Enige toegestane externe bestemmingen vanaf okkiedarts.nl.
 const EXTERNAL = [APP, APP + 'community/', 'https://denckh.nl/', 'https://okkiedarts.nl/privacy/', 'https://okkiedarts.nl/contact/',
+  // canonieke adressen van de pagina's zelf
+  'https://okkiedarts.nl/', 'https://okkiedarts.nl/uitleg/',
   'https://autoriteitpersoonsgegevens.nl/', 'mailto:info@denckh.nl', 'mailto:info@denckh.nl?subject=OKKIE.'];
 const PAGES = ['index.html', 'uitleg/index.html', 'privacy/index.html', 'contact/index.html'];
 
@@ -74,7 +76,9 @@ test('juridisch: elke pagina toont maker, privacy en contact; geen privételefoo
   execFileSync(process.execPath, [join(root, 'tools/build-public-site.mjs')], { cwd: root, stdio: 'pipe' });
   for (const page of PAGES) {
     const html = readFileSync(join(root, 'dist', page), 'utf8');
-    assert.match(html, /Ontwikkeld door <a[^>]+href="https:\/\/denckh\.nl\/"/, `${page}: Denckh. met link`);
+    // Denckh-merkregel: officieel signatuurlogo met krul, kleine roltekst, geen kaal getypte "Denckh." en geen pijltje.
+    assert.match(html, /<a class="maker" href="https:\/\/denckh\.nl\/"[^>]*><span class="maker-role">Ontwikkeld door<\/span><img src="\/denckh-logo-signature-light\.svg" alt="Denckh"/, `${page}: Denckh-signatuur`);
+    assert.doesNotMatch(html, /<strong>Denckh\.<\/strong>|Denckh\.<\/strong> <span aria-hidden="true">↗/, `${page}: geen getypt makerlabel`);
     assert.match(html, /href="(\/|https:\/\/okkiedarts\.nl\/)privacy\/"/, `${page}: link naar privacy`);
     assert.match(html, /href="(\/|https:\/\/okkiedarts\.nl\/)contact\/"/, `${page}: link naar contact`);
     const text = html.replace(/<[^>]+>/g, ' ');
@@ -124,4 +128,93 @@ test('website-worker levert het Google-verificatiebestand zelf, zonder doorverwi
   const r = await site.fetch(new Request('https://okkiedarts.nl/google873828225866c738.html'), env);
   assert.equal(r.status, 200);
   assert.equal(await r.text(), 'google-site-verification: google873828225866c738.html');
+});
+
+test('Denckh-signatuur: originele merkassets (ongewijzigd) en overal in app en site gebruikt', async () => {
+  const { createHash } = await import('node:crypto');
+  const sha = f => createHash('sha256').update(readFileSync(join(root, f))).digest('hex');
+  // Ongewijzigde bestanden uit MartijndBesten/denckh public/brand/ (commit 01c66eb).
+  assert.equal(sha('icons/denckh-logo-signature-light.svg'), '20bbb812a15920f38e15fcec68aad74de930197b33ae33a22fd7557ac4c09b97');
+  assert.equal(sha('icons/denckh-logo-signature.svg'), 'b8322458ef7f5b654da730d3c8cd02428eaa5e469e6aedd73479136a7eb1712f');
+  const app = read('js/app.js');
+  assert.equal((app.match(/class="maker"/g) || []).length, 2, 'welkomstscherm en Meer');
+  assert.doesNotMatch(app, /<b>Denckh\.<\/b>/);
+  assert.match(read('community/index.html'), /<img src="\.\.\/icons\/denckh-logo-signature-light\.svg" alt="Denckh"/);
+});
+
+test('OKKIE.-logo: één woordmerk (O met dubbele ring en pijl, KKIE, ronde stip) op alle websitepagina\'s', () => {
+  for (const page of PAGES) {
+    const html = readFileSync(join(root, 'dist', page), 'utf8');
+    assert.match(html, /<img class="logo-img" src="\/logo\.svg" alt="OKKIE\."/, page);
+    assert.doesNotMatch(html, /◎KKIE|class="bull">◎|>KKIE<span/, page);
+  }
+  assert.match(read('icons/okkie-o.svg'), /<title>O van OKKIE\./);
+  const logo = read('icons/logo.svg');
+  assert.match(logo, /<circle cx="358" cy="77" r="9\.5"/, 'ronde stip');
+  assert.doesNotMatch(logo, /<text|font-family/, 'woordmerk als vectorpad, onafhankelijk van lettertypen');
+});
+
+// PNG-afmetingen uit de IHDR-kop, JPEG uit de SOF-marker.
+function pngSize(file) { const b = readFileSync(join(root, file)); return [b.readUInt32BE(16), b.readUInt32BE(20)]; }
+function jpegSize(file) {
+  const b = readFileSync(join(root, file));
+  for (let i = 2; i < b.length;) {
+    const marker = b[i + 1], len = b.readUInt16BE(i + 2);
+    if (marker >= 0xc0 && marker <= 0xc2) return [b.readUInt16BE(i + 7), b.readUInt16BE(i + 5)];
+    i += 2 + len;
+  }
+  return null;
+}
+
+test('app-iconen en favicons in de juiste formaten, ook voor iPhone en Android', () => {
+  for (const [f, n] of [['icons/favicon-16.png', 16], ['icons/favicon-32.png', 32], ['icons/favicon-48.png', 48], ['icons/apple-touch-icon.png', 180], ['icons/icon-192.png', 192], ['icons/icon-512.png', 512], ['icons/icon-maskable-512.png', 512]]) {
+    assert.deepEqual(pngSize(f), [n, n], f);
+  }
+  const manifest = JSON.parse(read('manifest.webmanifest'));
+  const sizes = manifest.icons.map(i => i.sizes + ':' + i.purpose);
+  for (const need of ['192x192:any', '512x512:any', '512x512:maskable']) assert.ok(sizes.includes(need), need);
+  for (const i of manifest.icons) assert.ok(existsSync(join(root, i.src)), i.src);
+  const html = read('index.html');
+  assert.match(html, /<link rel="apple-touch-icon" href="icons\/apple-touch-icon\.png">/);
+  assert.match(html, /<link rel="icon" href="icons\/favicon\.svg" type="image\/svg\+xml">/);
+  assert.equal(manifest.name, 'OKKIE.');
+});
+
+test('WhatsApp-voorvertoning: Open Graph en Twitter Card met absolute HTTPS-afbeelding van 1200 x 630', () => {
+  execFileSync(process.execPath, [join(root, 'tools/build-public-site.mjs')], { cwd: root, stdio: 'pipe' });
+  assert.deepEqual(jpegSize('dist/og-image.jpg'), [1200, 630]);
+  assert.ok(readFileSync(join(root, 'dist/og-image.jpg')).length < 300 * 1024, 'klein genoeg voor WhatsApp (< 300 kB)');
+  for (const page of PAGES) {
+    const html = readFileSync(join(root, 'dist', page), 'utf8');
+    const meta = name => (html.match(new RegExp(`<meta (?:property|name)="${name}" content="([^"]*)"`)) || [])[1];
+    assert.equal(meta('og:image'), 'https://okkiedarts.nl/og-image.jpg', page);
+    assert.equal(meta('og:image:width'), '1200', page);
+    assert.equal(meta('og:image:height'), '630', page);
+    assert.ok(meta('og:title')?.includes('OKKIE.'), page);
+    assert.ok(meta('og:description')?.length > 40, page);
+    assert.match(meta('og:url') || '', /^https:\/\/okkiedarts\.nl\//, page);
+    assert.equal(meta('twitter:card'), 'summary_large_image', page);
+  }
+  assert.match(read('index.html'), /<meta property="og:image" content="https:\/\/okkiedarts\.nl\/og-image\.jpg">/, 'ook de app heeft een voorvertoning');
+});
+
+test('app-build voor app.okkiedarts.nl: alleen de app, met CNAME, en de verhuizing staat standaard uit', async () => {
+  execFileSync(process.execPath, [join(root, 'tools/build-app-site.mjs')], { cwd: root, stdio: 'pipe' });
+  const dist = join(root, 'dist-app');
+  assert.equal(readFileSync(join(dist, 'CNAME'), 'utf8').trim(), 'app.okkiedarts.nl');
+  const files = readdirSync(dist, { recursive: true }).map(f => String(f).replaceAll('\\', '/'));
+  for (const f of ['index.html', 'sw.js', 'manifest.webmanifest', 'js/app.js', 'js/transfer.js', 'js/install.js', 'icons/icon-512.png', 'uitleg/index.html', '.nojekyll']) assert.ok(files.includes(f), 'ontbreekt: ' + f);
+  for (const f of files) assert.doesNotMatch(f, /^(cloud|tests|tools|node_modules)\/|\.md$(?<!README\.md)|package/, 'hoort niet in de app-publicatie: ' + f);
+  // Dezelfde app als op het oude adres: bestanden byte-gelijk
+  for (const f of ['index.html', 'sw.js', 'js/app.js', 'css/app.css']) assert.equal(readFileSync(join(dist, f), 'utf8'), read(f), f);
+  // Community-pagina: stijl aanwezig, geen verwijzing naar een websitekopie op het app-adres
+  assert.ok(files.includes('ontdek/site.css'));
+  assert.ok(!files.includes('ontdek/index.html'), 'geen kopie van de website op app.okkiedarts.nl');
+  assert.doesNotMatch(readFileSync(join(dist, 'community/index.html'), 'utf8'), /href="\.\.\/ontdek\/"/);
+  const { PROD } = await import(new URL('../../js/transfer.js', import.meta.url));
+  assert.equal(PROD.open, false, 'verhuizing pas aankondigen na tests op echte toestellen (VERHUIZING.md)');
+  // Het oude adres krijgt nooit een eigen domein (dat zou automatisch doorverwijzen).
+  assert.ok(!existsSync(join(root, 'CNAME')), 'geen CNAME in de dartlog-repo');
+  const { INSTALL_ORIGINS } = await import(new URL('../../js/install.js', import.meta.url));
+  assert.deepEqual(INSTALL_ORIGINS, ['https://app.okkiedarts.nl']);
 });

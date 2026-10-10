@@ -10,13 +10,17 @@ const dest = join(root, 'dist');
 const APP = 'https://martijndbesten.github.io/dartlog/';
 rmSync(dest, {recursive: true, force:true});
 mkdirSync(dest,{recursive:true});
-for(const file of ['ontdek/pages-worker.js','ontdek/index.html','ontdek/privacy/index.html','ontdek/contact/index.html','ontdek/site.css','ontdek/site.js','uitleg/index.html','icons/favicon-32.png']) {
+// Merkbestanden uit icons/ komen op okkiedarts.nl in de root (/logo.svg, /og-image.jpg, ...).
+// Het Denckh-signatuurlogo (met krul) is ongewijzigd overgenomen uit de Denckh-merkassets.
+const BRAND_FILES = ['favicon.ico','favicon.svg','favicon-16.png','favicon-32.png','favicon-48.png','apple-touch-icon.png','icon-192.png','icon-512.png','logo.svg','okkie-o.svg','og-image.jpg','denckh-logo-signature-light.svg'];
+for(const file of ['ontdek/pages-worker.js','ontdek/index.html','ontdek/privacy/index.html','ontdek/contact/index.html','ontdek/site.css','ontdek/site.js','uitleg/index.html',...BRAND_FILES.map(f=>'icons/'+f)]) {
   if(!existsSync(join(root,file))) throw new Error('Ontbrekend bestand: '+file);
 }
-cpSync(join(root,'icons','favicon-32.png'),join(dest,'favicon-32.png'));
+for(const f of BRAND_FILES) cpSync(join(root,'icons',f),join(dest,f));
+// In de repo staan de pagina's onder ontdek/ en verwijzen ze naar ../icons/ of ../../icons/; op de site naar /.
+const rootIcons = html => html.replace(/(?:\.\.\/)+icons\//g,'/');
 let landing = readFileSync(join(root,'ontdek','index.html'),'utf8');
-landing = landing
-  .replaceAll('href="../icons/favicon-32.png"','href="/favicon-32.png"')
+landing = rootIcons(landing)
   .replaceAll('href="../community/"','href="'+APP+'community/"')
   .replaceAll('href="../uitleg/"','href="/uitleg/"')
   .replaceAll('href="../"','href="'+APP+'"')
@@ -31,8 +35,7 @@ cpSync(join(root,'ontdek','site.js'),join(dest,'site.js'));
 // Privacy en contact: in de repo relatief onder ontdek/, op okkiedarts.nl vanaf de root.
 for(const page of ['privacy','contact']) {
   mkdirSync(join(dest,page),{recursive:true});
-  writeFileSync(join(dest,page,'index.html'),readFileSync(join(root,'ontdek',page,'index.html'),'utf8')
-    .replaceAll('href="../../icons/favicon-32.png"','href="/favicon-32.png"')
+  writeFileSync(join(dest,page,'index.html'),rootIcons(readFileSync(join(root,'ontdek',page,'index.html'),'utf8'))
     .replaceAll('href="../site.css"','href="/site.css"')
     .replaceAll('src="../site.js"','src="/site.js"')
     .replaceAll('href="../privacy/"','href="/privacy/"')
@@ -42,8 +45,7 @@ for(const page of ['privacy','contact']) {
 // De les is een zelfstandige pagina: geen gebruikersgegevens en geen tweede PWA.
 cpSync(join(root,'uitleg'),join(dest,'uitleg'),{recursive:true});
 const tutorialFile = join(dest,'uitleg','index.html');
-writeFileSync(tutorialFile,readFileSync(tutorialFile,'utf8')
-  .replace('href="../icons/favicon-32.png"','href="/favicon-32.png"'));
+writeFileSync(tutorialFile,rootIcons(readFileSync(tutorialFile,'utf8')));
 
 // Google Search Console: verificatiebestand van het account m.denbesten@live.nl (ook gebruikt voor denckh.nl).
 writeFileSync(join(dest,'google873828225866c738.html'),'google-site-verification: google873828225866c738.html');

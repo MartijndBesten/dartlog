@@ -16,6 +16,9 @@ const ASSETS = [
   './js/chart.js',
   './js/achievements.js',
   './js/brand.js',
+  './js/icons.js',
+  './js/transfer.js',
+  './js/install.js',
   './js/imports.js',
   './js/group-stats.js',
   './js/guest-sync.js',
@@ -30,11 +33,15 @@ const ASSETS = [
   './uitleg/uitleg.js',
   './uitleg/score-oefening.js',
   './icons/icon.svg',
+  './icons/favicon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png',
   './icons/favicon-32.png',
+  './icons/denckh-logo-signature-light.svg',
+  './icons/denckh-logo-signature.svg',
+  './icons/okkie-o.svg',
 ];
 
 self.addEventListener('install', event => {
