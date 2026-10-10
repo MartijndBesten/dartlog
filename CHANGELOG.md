@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.3
+
+- Licht thema: goud voor records en badges donkerder (contrast 4,4 → 5,7, WCAG AA).
+- Extra regressietests: 60/99 pijlen, eigen lengte, rond de klok, 301 straight out, dezelfde voornaam, kleurcontrast, verminderde beweging.
+
 ## 1.3.2
 
 - Eén merk op app en website: de O met dubbele limoenring en pijl, het woordmerk KKIE als vectorpad (overal gelijk, ook op Android) en de ronde OKKIE.-stip. Nieuwe app-iconen, favicons (16/32/48, .ico, SVG), Apple Touch Icon en maskable Android-icoon, allemaal uit `js/brand.js` (`npm run icons`).
