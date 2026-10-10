@@ -17,19 +17,23 @@ test('homepage: demo-beurt telt op tot 85, tikken en Enter spelen opnieuw af', a
   const errors = collectErrors(page);
   // Leg elke getoonde score vast: de statische HTML staat al op 85 (eindstand zonder JavaScript),
   // dus alleen de reeks waarden bewijst dat de beurt echt wordt afgespeeld.
+  // Observeren vanaf het allereerste begin van het document: onder belasting kan de demo al starten
+  // voordat DOMContentLoaded valt (daardoor miste de test soms de beginwaarde 0).
   await page.addInitScript(() => {
     window.__scores = [];
-    document.addEventListener('DOMContentLoaded', () => {
+    new MutationObserver(records => {
       const el = document.querySelector('[data-demo-total]');
-      new MutationObserver(() => window.__scores.push(el.textContent)).observe(el, { childList: true, characterData: true, subtree: true });
-    });
+      if (el && records.some(r => el.contains(r.target) || r.target === el)) window.__scores.push(el.textContent);
+    }).observe(document, { childList: true, characterData: true, subtree: true });
   });
   await page.goto(SITE + '/');
   const demo = page.locator('[data-demo]');
   const total = page.locator('[data-demo-total]');
   const played = async () => {
     await expect(demo).toHaveClass(/\bdone\b/, { timeout: 8000 });
-    const scores = (await page.evaluate(() => window.__scores.splice(0))).map(Number);
+    const all = (await page.evaluate(() => window.__scores.splice(0))).map(Number);
+    // De HTML zelf staat al op 85 (eindstand zonder JavaScript): pas tellen vanaf de start van de beurt.
+    const scores = all.slice(Math.max(0, all.indexOf(0)));
     expect(scores[0], 'begint bij 0').toBe(0);
     expect(scores.some(s => s > 0 && s < 85), 'telt zichtbaar op').toBe(true);
     expect(scores.at(-1), 'eindigt op 85').toBe(85);
