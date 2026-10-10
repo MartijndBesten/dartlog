@@ -1,0 +1,58 @@
+DARTLOG — EENVOUDIGE DARTTRAINER
+================================
+
+Gebruik
+-------
+1. Open index.html in een browser of plaats het bestand op een statische website.
+2. Kies Training en begin met 30 pijlen (10 beurten), 99 pijlen (33 beurten),
+   of een onbeperkte training.
+3. Gooi steeds drie pijlen en vul PAS DAARNA drie aparte worpen in.
+   Voorbeeld: T20 + 5 + 1 = 66 punten.
+4. Klik 'Bewaar deze 3 pijlen'. De app berekent automatisch het gemiddelde
+   over alle gegooide pijlen (teruggerekend naar drie pijlen).
+5. Kies Statistieken voor voortgang en treffers per vak.
+6. Kies 501 / 301 om met z'n tweeën een wedstrijd te spelen.
+
+Worpen noteren
+--------------
+T20  = triple 20 (60 punten)
+D16  = dubbel 16 (32 punten)
+S20  = single 20 (20 punten)
+20   = single 20 (20 punten)
+5    = single 5 (5 punten)
+25   = buitenste bull (25 punten)
+BULL = binnenste bull (50 punten, telt als dubbel)
+0    = mis
+60   = 60 punten (maar niet duidelijk welk vak: geen vakstatistiek)
+
+Bij 501/301 is een geldige dubbel vereist om precies op nul uit te komen.
+Als je bij pijl 1 of 2 uitgooit of bust gaat, laat je de resterende invoervakken leeg.
+
+Opslag, privacy en back-ups
+--------------------------
+Dartlog heeft geen account en slaat resultaten lokaal op in de browser via
+localStorage. Dat betekent: geen synchronisatie met andere telefoons of
+browsers, en gegevens kunnen verdwijnen als de browseropslag gewist wordt.
+Gebruik Geschiedenis > Download back-up en bewaar het JSON-bestand.
+Met 'Back-up importeren' kun je het bestand terugzetten (dit vervangt
+alle bestaande resultaten op dat apparaat).
+
+Online beschikbaar maken op iPhone
+----------------------------------
+Het bestand index.html bevat ALLES (HTML, CSS, JavaScript) en heeft geen server
+of externe onderdelen nodig, maar moet voor normaal iPhone-gebruik als
+website via HTTPS gepubliceerd worden. Zet index.html bijvoorbeeld in de root
+van een GitHub Pages-repository en activeer GitHub Pages. Open daarna de
+URL in Safari en kies Delen > Zet op beginscherm.
+
+Niet inbegrepen
+--------------
+Geen automatische cameraregistratie, geen accounts, geen cloudsync,
+geen online matchmaking. De sectorkaart toont welk nummer is geraakt,
+niet de exacte locatie van de punt op het dartbord.
+
+Status
+------
+Scoreregels en de mobiele trainings-/wedstrijdbediening zijn geautomatiseerd
+getest in een Chromium-weergave. Opslag gedurende meerdere browsersessies en
+Safari op een fysieke iPhone zijn nog niet in de praktijk gevalideerd.
