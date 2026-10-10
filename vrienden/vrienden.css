@@ -86,3 +86,10 @@ label.field input,label.field select{display:block;width:100%;margin-top:6px;pad
   .cbar .fill,.group-card{transition:none}
 }
 @media(max-width:560px){.mine-vs{grid-template-columns:1fr}.hl{padding:13px;min-height:104px}.hl b{font-size:16px}.hl .num{font-size:23px}.cbar{grid-template-columns:84px 1fr 48px}.vr-wrap{padding:18px 14px 70px}}
+/* Spelersprofiel, ouderpagina en wachtscherm */
+.who .name{background:none;border:0;padding:6px 0;margin:-6px 0;color:inherit;font:inherit;font-weight:800;cursor:pointer;text-align:left;text-decoration:underline dotted #587262;text-underline-offset:4px;min-height:36px}
+.player-card h3{font-size:24px;margin:4px 0}
+.player-card .hl{min-height:92px}.player-card .help{display:block;margin-top:2px}
+.steps{padding-left:22px}.steps li{margin:6px 0}
+.vr-ok{font-weight:800;color:var(--green)}
+.consent-list li{margin:10px 0;list-style:none}.consent-list{padding-left:0}

@@ -57,14 +57,20 @@ test('standaard uit: zonder GROUPS_ENABLED bestaat Mijn vrienden niet en blijft 
   assert.equal((await (await call(env0(), '/v1/health')).json()).groups, true);
 });
 
-test('oprichterscode: alleen met het juiste geheim, nooit een openbaar profiel', async () => {
+test('oprichterscode: alleen met het juiste geheim, precies één keer, nooit een openbaar profiel', async () => {
   const env = env0();
-  assert.equal((await call(env, '/v1/register', { method: 'POST', body: { nickname: 'X', founderCode: 'fout', age: 'adult' } })).status, 403);
-  assert.equal((await call({ ...env, GROUP_FOUNDER_CODE: 'kort' }, '/v1/register', { method: 'POST', body: { nickname: 'Xx', founderCode: 'kort', age: 'adult' } })).status, 403);
+  assert.equal((await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Xander', founderCode: 'fout', age: 'adult' } })).status, 403);
+  assert.equal((await call({ ...env, GROUP_FOUNDER_CODE: 'kort' }, '/v1/register', { method: 'POST', body: { nickname: 'Xander', founderCode: 'kort', age: 'adult' } })).status, 403);
   assert.equal((await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Kind', founderCode: FOUNDER, age: 'minor' } })).status, 403);
+  assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM app_flags').get().n, 0, 'mislukte pogingen verbruiken de code niet');
   const acc = await founder(env);
   assert.equal(acc.public, false);
   assert.equal(env.DB.raw.prepare('SELECT visible FROM members WHERE handle = ?').get(acc.account.handle).visible, 0);
+  // tweede gebruik, ook gelijktijdig, wordt geweigerd
+  const again = await Promise.all([1, 2, 3].map(() => call(env, '/v1/register', { method: 'POST', body: { nickname: 'Tweede', founderCode: FOUNDER, age: 'adult' }, newIp: true })));
+  assert.deepEqual(again.map(r => r.status), [403, 403, 403]);
+  assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM members').get().n, 1);
+  assert.equal(env.DB.raw.prepare('SELECT value FROM app_flags').get().value, null, 'geen naam in de vlag');
   // niet zichtbaar in de openbare ranglijst of als openbaar profiel
   await ok(await call(env, '/v1/me/snapshots', { method: 'PUT', token: acc.token, body: { snapshots: [snap('all', 1500, 90), snap(week, 600)] } }));
   assert.deepEqual((await ok(await call(env, '/v1/leaderboard?period=all'))).ranking, []);
@@ -236,18 +242,125 @@ test('meerdere groepen per speler, met een maximum; volle groep weigert', async 
   assert.equal((await call(env, '/v1/invites/accept', { method: 'POST', token: derde.token, body: { token: inv.token, share: SHARE_ALL } })).status, 409);
 });
 
-test('kinderen: minderjarige accounts kunnen (nog) niet deelnemen', async () => {
+test('alle leeftijden: kind (<16) doet mee na eenmalige ouderlink, zonder ouderaccount', async () => {
+  const env = env0();
+  const o = await founder(env, 'Trainer');
+  const g = await makeGroup(env, o, 'Jeugd en ouders');
+  const inv = await invite(env, o, g.id);
+  // leeftijd is verplicht, maar alleen als groep (geen geboortedatum)
+  assert.equal((await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Kind', inviteToken: inv.token } })).status, 400);
+  const kid = await ok(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Daan', inviteToken: inv.token, age: 'minor' }, newIp: true }), 201);
+  assert.equal(kid.needsParent, true);
+  const row = env.DB.raw.prepare('SELECT age_group, consent_at, visible FROM members WHERE handle = ?').get(kid.account.handle);
+  assert.deepEqual({ ...row }, { age_group: 'minor', consent_at: null, visible: 0 });
+  // zonder toestemming: niet lid worden, geen groep maken, en gedeelde cijfers worden niet bewaard
+  const direct = await call(env, '/v1/invites/accept', { method: 'POST', token: kid.token, body: { token: inv.token, share: SHARE_ALL } });
+  assert.equal(direct.status, 403);
+  assert.equal((await direct.json()).needsParent, true);
+  assert.equal((await call(env, '/v1/groups', { method: 'POST', token: kid.token, body: { name: 'Kindergroep', share: SHARE_ALL } })).status, 403);
+  const put = await ok(await call(env, '/v1/me/snapshots', { method: 'PUT', token: kid.token, body: { snapshots: [snap('all', 600, 30)] } }));
+  assert.equal(put.saved, 0);
+  assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM stats').get().n, 0);
+  // kind vraagt toestemming; volwassene hoeft dat niet
+  assert.equal((await call(env, '/v1/consent/request', { method: 'POST', token: o.token, body: { inviteToken: inv.token, share: SHARE_ALL } })).status, 400);
+  const req = await ok(await call(env, '/v1/consent/request', { method: 'POST', token: kid.token, body: { inviteToken: inv.token, share: { average: true, records: false, challenge: true } } }), 201);
+  assert.match(req.token, /^[a-f0-9]{64}$/);
+  const me = await ok(await call(env, '/v1/groups', { token: kid.token }));
+  assert.deepEqual(me.me, { ageGroup: 'minor', consent: false, waitingForParent: 'Jeugd en ouders' });
+  // ouder bekijkt: alleen wat nodig is om te beslissen
+  const pv = await ok(await call(env, '/v1/consent/preview', { method: 'POST', body: { token: req.token } }));
+  assert.deepEqual(pv.share, { average: true, records: false, challenge: true });
+  assert.equal(pv.child, 'Daan');
+  assert.equal(pv.group, 'Jeugd en ouders');
+  assert.equal(JSON.stringify(pv).includes('Trainer'), false, 'geen andere leden');
+  assert.equal((await call(env, '/v1/consent/confirm', { method: 'POST', body: { token: req.token } })).status, 400, 'ouder moet bevestigen dat hij ouder is');
+  const conf = await ok(await call(env, '/v1/consent/confirm', { method: 'POST', body: { token: req.token, parent: true } }));
+  assert.deepEqual({ confirmed: conf.confirmed, joined: conf.joined }, { confirmed: true, joined: true });
+  assert.equal(env.DB.raw.prepare('SELECT consent_method FROM members WHERE handle = ?').get(kid.account.handle).consent_method, 'ouderlink');
+  // nu deelt het kind binnen de groep, met precies de goedgekeurde keuze
+  await ok(await call(env, '/v1/me/snapshots', { method: 'PUT', token: kid.token, body: { snapshots: [snap('all', 600, 30), snap(week, 600, 30)] } }));
+  const d = await ok(await call(env, `/v1/groups/${g.id}`, { token: o.token }));
+  const daan = d.members.find(m => m.nickname === 'Daan');
+  assert.deepEqual(daan.share, { average: true, records: false, challenge: true });
+  assert.equal(daan.records, undefined);
+  assert.equal(JSON.stringify(d).match(/age_?group|minor|consent/i), null, 'leeftijd en toestemming zijn voor anderen niet zichtbaar');
+  // tweede bevestiging is onschuldig; kind mag nu zelf een groep maken, maar voor een andere groep opnieuw de ouder
+  await ok(await call(env, '/v1/consent/confirm', { method: 'POST', body: { token: req.token, parent: true } }));
+  await ok(await call(env, '/v1/groups', { method: 'POST', token: kid.token, body: { name: 'Daan en vrienden', share: SHARE_ALL } }), 201);
+  const g2 = await makeGroup(env, o, 'Tweede groep');
+  assert.equal((await call(env, '/v1/invites/accept', { method: 'POST', token: kid.token, body: { token: (await invite(env, o, g2.id)).token, share: SHARE_ALL } })).status, 403);
+  // ouder trekt in: profiel van het kind en alles online verdwijnt
+  await ok(await call(env, '/v1/consent/withdraw', { method: 'POST', body: { token: req.token } }));
+  assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM members WHERE handle = ?').get(kid.account.handle).n, 0);
+  assert.equal((await call(env, '/v1/groups', { token: kid.token })).status, 401);
+  assert.equal((await ok(await call(env, `/v1/groups/${g.id}`, { token: o.token }))).members.some(m => m.nickname === 'Daan'), false);
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) n FROM groups WHERE name = 'Daan en vrienden'").get().n, 0, 'groep van het kind zonder andere leden is weg');
+  assert.equal((await call(env, '/v1/consent/preview', { method: 'POST', body: { token: req.token } })).status, 404);
+});
+
+test('ouderlink: verlopen of ongeldig werkt niet; nieuwe aanvraag vervangt de oude', async () => {
   const env = env0();
   const o = await founder(env);
   const g = await makeGroup(env, o);
   const inv = await invite(env, o, g.id);
-  assert.equal((await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Kind', inviteToken: inv.token, age: 'minor' } })).status, 403);
-  assert.equal((await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Kind', inviteToken: inv.token } })).status, 403);
-  // ook een (bijv. later aangemaakt) minderjarig account zonder geverifieerde toestemming wordt server-side geweigerd
-  const kid = await viaInvite(env, inv.token, 'Bijna kind');
-  env.DB.raw.prepare("UPDATE members SET age_group = 'minor' WHERE handle = ?").run(kid.account.handle);
-  assert.equal((await call(env, '/v1/groups', { method: 'POST', token: kid.token, body: { name: 'Kindergroep', share: SHARE_ALL } })).status, 403);
-  assert.equal((await call(env, '/v1/invites/accept', { method: 'POST', token: kid.token, body: { token: (await invite(env, o, g.id)).token, share: SHARE_ALL } })).status, 403);
+  const kid = await ok(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Fenna', inviteToken: inv.token, age: 'minor' }, newIp: true }), 201);
+  const first = await ok(await call(env, '/v1/consent/request', { method: 'POST', token: kid.token, body: { inviteToken: inv.token, share: SHARE_ALL } }), 201);
+  const second = await ok(await call(env, '/v1/consent/request', { method: 'POST', token: kid.token, body: { inviteToken: inv.token, share: SHARE_ALL } }), 201);
+  assert.equal((await call(env, '/v1/consent/preview', { method: 'POST', body: { token: first.token } })).status, 404);
+  env.DB.raw.prepare("UPDATE parent_consents SET expires_at = datetime('now','-1 minute')").run();
+  assert.equal((await call(env, '/v1/consent/confirm', { method: 'POST', body: { token: second.token, parent: true } })).status, 404);
+  for (const token of ['', 'x', 'f'.repeat(64), 7]) assert.equal((await call(env, '/v1/consent/preview', { method: 'POST', body: { token } })).status, 404);
+  assert.equal((await call(env, '/v1/consent/preview', { method: 'PUT', body: { token: second.token } })).status, 405);
+  // verlopen, onbevestigde aanvragen worden door de opschoning gewist
+  await worker.scheduled({}, env);
+  assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM parent_consents').get().n, 0);
+});
+
+test('MINOR_CONSENT = "dienst" (alleen na juridisch besluit): kind doet direct mee', async () => {
+  const env = env0({ MINOR_CONSENT: 'dienst' });
+  const o = await founder(env);
+  const g = await makeGroup(env, o);
+  const inv = await invite(env, o, g.id);
+  const kid = await ok(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Sam', inviteToken: inv.token, age: 'minor' }, newIp: true }), 201);
+  assert.equal(kid.needsParent, false);
+  await ok(await call(env, '/v1/invites/accept', { method: 'POST', token: kid.token, body: { token: inv.token, share: SHARE_ALL } }), 201);
+  assert.equal(env.DB.raw.prepare('SELECT consent_method FROM members WHERE handle = ?').get(kid.account.handle).consent_method, 'dienst');
+});
+
+test('fictieve spelers van alle leeftijden in meerdere groepen', async () => {
+  const env = env0();
+  const o = await founder(env, 'Opa Jan');
+  const familie = await makeGroup(env, o, 'Familie');
+  const club = await makeGroup(env, o, 'Dartclub');
+  const invF = await invite(env, o, familie.id), invC = await invite(env, o, club.id);
+  const volwassenen = [];
+  for (const n of ['Mama', 'Papa', 'Tante Lies', 'Opa Piet']) volwassenen.push(await viaInvite(env, invF.token, n));
+  for (const [n, age] of [['Senn', 'minor'], ['Mila', 'minor'], ['Noah', 'minor']]) {
+    const k = await ok(await call(env, '/v1/register', { method: 'POST', body: { nickname: n, inviteToken: invF.token, age }, newIp: true }), 201);
+    const r = await ok(await call(env, '/v1/consent/request', { method: 'POST', token: k.token, body: { inviteToken: invF.token, share: SHARE_ALL } }), 201);
+    if (n !== 'Noah') await ok(await call(env, '/v1/consent/confirm', { method: 'POST', body: { token: r.token, parent: true } })); // Noah: ouder nog niet
+  }
+  await ok(await call(env, '/v1/invites/accept', { method: 'POST', token: volwassenen[1].token, body: { token: invC.token, share: { average: true, records: true, challenge: false } } }), 201);
+  const f = await ok(await call(env, `/v1/groups/${familie.id}`, { token: volwassenen[0].token }));
+  assert.deepEqual(f.members.map(m => m.nickname).sort(), ['Mama', 'Mila', 'Opa Jan', 'Opa Piet', 'Papa', 'Senn', 'Tante Lies']);
+  const c = await ok(await call(env, `/v1/groups/${club.id}`, { token: o.token }));
+  assert.deepEqual(c.members.map(m => m.nickname).sort(), ['Opa Jan', 'Papa']);
+  assert.equal((await call(env, `/v1/groups/${club.id}`, { token: volwassenen[0].token })).status, 404, 'Mama zit niet in de club');
+});
+
+test('dataminimalisatie: een besloten profiel bewaart alleen totaal en de laatste 8 weken', async () => {
+  const env = env0();
+  const o = await founder(env);
+  const snaps = [snap('all', 9000, 600), snap('month:2026-01', 900, 30), snap(week, 900, 30)];
+  for (let i = 1; i <= 14; i++) snaps.push(snap(weekKey(new Date(), i), 600, 30));
+  const r = await ok(await call(env, '/v1/me/snapshots', { method: 'PUT', token: o.token, body: { snapshots: snaps } }));
+  assert.equal(r.saved, 1 + 8);
+  const periods = env.DB.raw.prepare('SELECT period FROM stats ORDER BY period').all().map(x => x.period);
+  assert.equal(periods.includes('month:2026-01'), false);
+  assert.equal(periods.filter(p => p.startsWith('week:')).length, 8);
+  // kolommen: geen geboortedatum, e-mail of telefoon in het datamodel
+  const cols = env.DB.raw.prepare("SELECT name FROM pragma_table_info('members')").all().map(c => c.name);
+  assert.equal(cols.some(c => /birth|geboorte|email|mail|phone|telefoon|adres|address/i.test(c)), false);
 });
 
 test('rate limiting op uitnodigingen en groepswijzigingen', async () => {
@@ -267,4 +380,16 @@ test('statistiekvalidatie: best60/best99 alleen bij genoeg pijlen; oude apps zon
   assert.equal((await put(snap('all', 1800, 60, { best60: 1800 }))).status, 200);
   const legacy = snap('all', 900, 30); // zonder best60/best99
   assert.equal((await put(legacy)).status, 200);
+});
+
+test('meerdere oprichterscodes: elk precies één keer', async () => {
+  const A = 'oprichter-code-nummer-een-0001', B = 'oprichter-code-nummer-twee-002';
+  const env = env0({ GROUP_FOUNDER_CODE: `${A}, ${B}` });
+  const reg = code => call(env, '/v1/register', { method: 'POST', body: { nickname: 'Org', founderCode: code, age: 'adult' }, newIp: true });
+  assert.equal((await reg(A)).status, 201);
+  assert.equal((await reg(A)).status, 403);
+  assert.equal((await reg(B)).status, 201);
+  assert.equal((await reg(B)).status, 403);
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) n FROM app_flags WHERE key LIKE 'founder:%'").get().n, 2);
+  assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM app_flags WHERE key LIKE ? OR key LIKE ?').get('%' + A + '%', '%' + B + '%').n, 0, 'codes zelf worden niet opgeslagen');
 });

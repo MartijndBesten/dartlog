@@ -3,7 +3,8 @@
 // - Een uitnodigingslink geeft geen toegang tot gegevens: alleen naam en ledenaantal, en lid worden vereist een
 //   ingelogd account. Tokens worden alleen als SHA-256 bewaard.
 // - Per groep kiest een speler expliciet wat hij deelt (gemiddelde, records, challenge); de rest komt nooit mee.
-// - Minderjarigen (<16) kunnen pas meedoen na verifieerbare ouderlijke toestemming (nog niet actief, zie VRIENDEN.md).
+// - Voor alle leeftijden. Jonger dan 16: een ouder/verzorger bevestigt eenmalig via een link, zonder ouderaccount
+//   (tenzij MINOR_CONSENT = "dienst" na een juridisch besluit). Zie VRIENDEN.md.
 // Staat standaard UIT: GROUPS_ENABLED moet exact "true" zijn.
 
 export const LIMITS = {
@@ -119,50 +120,125 @@ async function groupStats(env, groupId, viewerId) {
   });
 }
 
-// Afhandeling van /v1/groups* en /v1/invites*. Geeft null terug voor andere paden.
+// Lid worden via een (nog geldige) uitnodiging. Gedeeld door direct lid worden en door ouderlijke toestemming.
+async function joinViaInvite(env, invite, memberId, share) {
+  if (await membership(env, invite.groupId, memberId)) return { status: 200, body: { group: { id: invite.groupId, name: invite.name }, already: true } };
+  const mine = (await env.DB.prepare('SELECT COUNT(*) AS n FROM group_members WHERE member_id = ?').bind(memberId).first()).n;
+  if (mine >= LIMITS.groupsPerMember) return { status: 409, error: `Je zit al in ${LIMITS.groupsPerMember} groepen; verlaat er eerst één.` };
+  if (await memberCount(env, invite.groupId) >= invite.maxMembers) return { status: 409, error: 'Deze groep is vol.' };
+  // Gebruik atomair ophogen, zodat een link nooit vaker werkt dan toegestaan.
+  const used = await env.DB.prepare(
+    "UPDATE group_invites SET uses = uses + 1 WHERE id = ? AND uses < max_uses AND revoked_at IS NULL AND expires_at > datetime('now')"
+  ).bind(invite.id).run();
+  if (!used.meta?.changes) return { status: 404, error: 'Deze uitnodiging is niet (meer) geldig. Vraag om een nieuwe link.' };
+  await env.DB.prepare(
+    "INSERT INTO group_members(group_id, member_id, role, share_average, share_records, share_challenge, joined_at) VALUES(?,?,'member',?,?,?,datetime('now'))"
+  ).bind(invite.groupId, memberId, +share.average, +share.records, +share.challenge).run();
+  return { status: 201, body: { group: { id: invite.groupId, name: invite.name }, joined: true } };
+}
+async function consentByToken(env, h, token) {
+  if (typeof token !== 'string' || !TOKEN.test(token)) return null;
+  return env.DB.prepare(
+    'SELECT pc.member_id AS memberId, pc.invite_id AS inviteId, pc.share_average, pc.share_records, pc.share_challenge, ' +
+    "pc.confirmed_at AS confirmedAt, pc.expires_at AS expiresAt, pc.expires_at > datetime('now') AS valid, m.nickname, " +
+    'g.name AS groupName, g.id AS groupId FROM parent_consents pc JOIN members m ON m.id = pc.member_id ' +
+    'LEFT JOIN group_invites i ON i.id = pc.invite_id LEFT JOIN groups g ON g.id = i.group_id WHERE pc.token_hash = ?'
+  ).bind(await h.hash(token)).first();
+}
+
+// Afhandeling van /v1/groups*, /v1/invites* en /v1/consent*. Geeft null terug voor andere paden.
 export async function handleGroups(request, env, path, h, cors) {
-  if (!path.startsWith('/v1/groups') && !path.startsWith('/v1/invites')) return null;
+  if (!path.startsWith('/v1/groups') && !path.startsWith('/v1/invites') && !path.startsWith('/v1/consent')) return null;
   if (!groupsOpen(env)) return h.fail('Mijn vrienden is nog niet beschikbaar.', 404, cors);
   const method = request.method;
+  const ipLimited = async () => h.limited(env.RL_REGISTER, 'invite:' + h.clientIp(request));
 
   // Uitnodiging bekijken: alleen groepsnaam en aantal leden, geen gegevens van leden.
   if (path === '/v1/invites/preview' && method === 'POST') {
-    if (await h.limited(env.RL_REGISTER, 'invite:' + h.clientIp(request))) return h.fail('Te veel pogingen. Probeer het over een minuut opnieuw.', 429, cors);
+    if (await ipLimited()) return h.fail('Te veel pogingen. Probeer het over een minuut opnieuw.', 429, cors);
     const body = await h.bodyJson(request);
     const invite = await findInvite(env, h, body.token);
     if (!invite) return h.fail('Deze uitnodiging is niet (meer) geldig. Vraag om een nieuwe link.', 404, cors);
     return h.json({ group: { name: invite.name, members: await memberCount(env, invite.groupId) }, expiresAt: invite.expiresAt.slice(0, 10) }, 200, cors);
   }
 
+  // Ouder/verzorger, zonder account: bekijken, toestemming geven of intrekken via de eenmalige link van het kind.
+  if (path.startsWith('/v1/consent/') && path !== '/v1/consent/request') {
+    if (method !== 'POST') return h.fail('Niet toegestaan.', 405, cors);
+    if (await ipLimited()) return h.fail('Te veel pogingen. Probeer het over een minuut opnieuw.', 429, cors);
+    const body = await h.bodyJson(request);
+    const c = await consentByToken(env, h, body.token);
+    if (!c || (!c.confirmedAt && !c.valid)) return h.fail('Deze toestemmingslink is niet (meer) geldig. Vraag je kind om een nieuwe.', 404, cors);
+    const share = { average: !!c.share_average, records: !!c.share_records, challenge: !!c.share_challenge };
+    if (path === '/v1/consent/preview') {
+      return h.json({ child: c.nickname, group: c.groupName, share, confirmed: !!c.confirmedAt, expiresAt: c.expiresAt.slice(0, 10) }, 200, cors);
+    }
+    if (path === '/v1/consent/confirm') {
+      if (body.parent !== true) return h.fail('Bevestig dat je de ouder of verzorger bent.', 400, cors);
+      if (!c.confirmedAt) {
+        await env.DB.batch([
+          env.DB.prepare("UPDATE parent_consents SET confirmed_at = datetime('now') WHERE member_id = ?").bind(c.memberId),
+          env.DB.prepare("UPDATE members SET consent_at = datetime('now'), consent_method = 'ouderlink', updated_at = datetime('now') WHERE id = ?").bind(c.memberId),
+        ]);
+      }
+      const invite = c.inviteId ? await env.DB.prepare(
+        'SELECT i.id, i.group_id AS groupId, g.name, g.max_members AS maxMembers FROM group_invites i JOIN groups g ON g.id = i.group_id ' +
+        "WHERE i.id = ? AND i.revoked_at IS NULL AND i.uses < i.max_uses AND i.expires_at > datetime('now')"
+      ).bind(c.inviteId).first() : null;
+      if (!invite) return h.json({ confirmed: true, joined: false, notice: 'Toestemming gegeven. De uitnodiging is verlopen; je kind kan een nieuwe link vragen.' }, 200, cors);
+      const r = await joinViaInvite(env, invite, c.memberId, share);
+      return h.json(r.error ? { confirmed: true, joined: false, notice: r.error } : { confirmed: true, joined: true, group: invite.name }, 200, cors);
+    }
+    if (path === '/v1/consent/withdraw') {
+      // Intrekken = het online profiel van het kind en alles wat het deelde verdwijnt. Trainingen op de telefoon blijven.
+      await releaseMemberships(env, c.memberId);
+      await env.DB.batch([
+        env.DB.prepare('DELETE FROM stats WHERE member_id = ?').bind(c.memberId),
+        env.DB.prepare('DELETE FROM entitlements WHERE member_id = ?').bind(c.memberId),
+        env.DB.prepare('DELETE FROM members WHERE id = ?').bind(c.memberId),
+      ]);
+      return h.json({ withdrawn: true }, 200, cors);
+    }
+    return h.fail('Onbekende route.', 404, cors);
+  }
+
   const member = await h.auth(request, env);
   if (!member) return h.fail('Niet ingelogd; maak eerst je OKKIE.-profiel aan of herstel het.', 401, cors);
   if (method !== 'GET' && await h.limited(env.RL_WRITE, member.id)) return h.fail('Te veel wijzigingen achter elkaar. Probeer het zo opnieuw.', 429, cors);
-  const full = await env.DB.prepare('SELECT age_group AS ageGroup, guardian_verified_at AS guardianVerifiedAt FROM members WHERE id = ?').bind(member.id).first();
-  const mayParticipate = full.ageGroup === 'adult' || !!full.guardianVerifiedAt;
-  const childBlock = () => h.fail('Voor spelers jonger dan 16 is eerst toestemming van een ouder of verzorger nodig. Dat kan nog niet in OKKIE.', 403, cors);
+  // Jonger dan 16 met ouderlink: per groep vraagt het kind toestemming. Na één bevestiging mag het ook zelf een groep maken.
+  const needsParentPerGroup = member.ageGroup === 'minor' && member.consentMethod !== 'dienst';
+  const mayCreate = member.ageGroup === 'adult' || !!member.consentAt;
+  const parentFirst = () => h.json({ needsParent: true, error: 'Vraag eerst een ouder of verzorger om toestemming.' }, 403, cors);
+
+  // Kind vraagt toestemming voor een groep: eenmalige link voor de ouder (7 dagen geldig).
+  if (path === '/v1/consent/request' && method === 'POST') {
+    if (member.ageGroup !== 'minor') return h.fail('Alleen nodig voor spelers jonger dan 16.', 400, cors);
+    const body = await h.bodyJson(request);
+    const share = shareFlags(body.share);
+    if (!share || !Object.values(share).some(Boolean)) return h.fail('Kies wat je met de groep wilt delen.', 400, cors);
+    const invite = await findInvite(env, h, body.inviteToken);
+    if (!invite) return h.fail('Deze uitnodiging is niet (meer) geldig. Vraag om een nieuwe link.', 404, cors);
+    const token = h.randomKey();
+    await env.DB.prepare(
+      'INSERT INTO parent_consents(member_id, token_hash, invite_id, share_average, share_records, share_challenge, created_at, expires_at, confirmed_at) ' +
+      "VALUES(?,?,?,?,?,?,datetime('now'),datetime('now','+7 days'),NULL) ON CONFLICT(member_id) DO UPDATE SET token_hash = excluded.token_hash, " +
+      'invite_id = excluded.invite_id, share_average = excluded.share_average, share_records = excluded.share_records, ' +
+      'share_challenge = excluded.share_challenge, created_at = excluded.created_at, expires_at = excluded.expires_at, confirmed_at = NULL'
+    ).bind(member.id, await h.hash(token), invite.id, +share.average, +share.records, +share.challenge).run();
+    return h.json({ token, group: invite.name }, 201, cors);
+  }
 
   // Lid worden via uitnodiging.
   if (path === '/v1/invites/accept' && method === 'POST') {
-    if (!mayParticipate) return childBlock();
-    if (await h.limited(env.RL_REGISTER, 'invite:' + h.clientIp(request))) return h.fail('Te veel pogingen. Probeer het over een minuut opnieuw.', 429, cors);
+    if (needsParentPerGroup) return parentFirst();
+    if (await ipLimited()) return h.fail('Te veel pogingen. Probeer het over een minuut opnieuw.', 429, cors);
     const body = await h.bodyJson(request);
     const share = shareFlags(body.share);
     if (!share) return h.fail('Kies wat je met deze groep deelt.', 400, cors);
     const invite = await findInvite(env, h, body.token);
     if (!invite) return h.fail('Deze uitnodiging is niet (meer) geldig. Vraag om een nieuwe link.', 404, cors);
-    if (await membership(env, invite.groupId, member.id)) return h.json({ group: { id: invite.groupId, name: invite.name }, already: true }, 200, cors);
-    const mine = (await env.DB.prepare('SELECT COUNT(*) AS n FROM group_members WHERE member_id = ?').bind(member.id).first()).n;
-    if (mine >= LIMITS.groupsPerMember) return h.fail(`Je zit al in ${LIMITS.groupsPerMember} groepen; verlaat er eerst één.`, 409, cors);
-    if (await memberCount(env, invite.groupId) >= invite.maxMembers) return h.fail('Deze groep is vol.', 409, cors);
-    // Gebruik atomair ophogen, zodat een link nooit vaker werkt dan toegestaan.
-    const used = await env.DB.prepare(
-      "UPDATE group_invites SET uses = uses + 1 WHERE id = ? AND uses < max_uses AND revoked_at IS NULL AND expires_at > datetime('now')"
-    ).bind(invite.id).run();
-    if (!used.meta?.changes) return h.fail('Deze uitnodiging is niet (meer) geldig. Vraag om een nieuwe link.', 404, cors);
-    await env.DB.prepare(
-      "INSERT INTO group_members(group_id, member_id, role, share_average, share_records, share_challenge, joined_at) VALUES(?,?,'member',?,?,?,datetime('now'))"
-    ).bind(invite.groupId, member.id, +share.average, +share.records, +share.challenge).run();
-    return h.json({ group: { id: invite.groupId, name: invite.name }, joined: true }, 201, cors);
+    const r = await joinViaInvite(env, invite, member.id, share);
+    return r.error ? h.fail(r.error, r.status, cors) : h.json(r.body, r.status, cors);
   }
 
   // Mijn groepen.
@@ -171,10 +247,15 @@ export async function handleGroups(request, env, path, h, cors) {
       'SELECT g.id, g.name, gm.role, (SELECT COUNT(*) FROM group_members x WHERE x.group_id = g.id) AS members ' +
       'FROM group_members gm JOIN groups g ON g.id = gm.group_id WHERE gm.member_id = ? ORDER BY g.name'
     ).bind(member.id).all();
-    return h.json({ groups: rows.results || [], limits: LIMITS }, 200, cors);
+    const pending = member.ageGroup === 'minor' ? await env.DB.prepare(
+      'SELECT g.name FROM parent_consents pc JOIN group_invites i ON i.id = pc.invite_id JOIN groups g ON g.id = i.group_id ' +
+      "WHERE pc.member_id = ? AND pc.confirmed_at IS NULL AND pc.expires_at > datetime('now')"
+    ).bind(member.id).first() : null;
+    return h.json({ groups: rows.results || [], limits: LIMITS,
+      me: { ageGroup: member.ageGroup, consent: !!member.consentAt, waitingForParent: pending?.name || null } }, 200, cors);
   }
   if (path === '/v1/groups' && method === 'POST') {
-    if (!mayParticipate) return childBlock();
+    if (!mayCreate) return parentFirst();
     const body = await h.bodyJson(request);
     const name = cleanGroupName(body.name);
     const share = shareFlags(body.share);

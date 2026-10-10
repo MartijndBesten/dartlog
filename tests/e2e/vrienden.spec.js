@@ -3,7 +3,8 @@ import { test, expect } from '@playwright/test';
 // Mijn vrienden in de afgeschermde testomgeving (tools/dev-api.mjs): echte Worker-code, tijdelijke database,
 // alleen fictieve spelers en scores. Twee browsercontexten = twee telefoons.
 const DEV = { api: 'http://127.0.0.1:8799', groups: true };
-const FOUNDER = 'okkie-test-oprichter-2026';
+// Eenmalige oprichterscodes van de testserver (tools/dev-api.mjs): één per test en per toestel.
+const FOUNDER = (info, test) => `okkie-test-${info.project.name}-${test}-2026`;
 const DAY = 86400000;
 
 function seed(name, scores) {
@@ -20,7 +21,7 @@ async function phone(browser, info, data) {
   const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch } = info.project.use;
   const context = await browser.newContext({ viewport, userAgent, deviceScaleFactor, isMobile, hasTouch });
   await context.addInitScript(([d, dev]) => {
-    if (!localStorage.getItem('oche.data')) localStorage.setItem('oche.data', JSON.stringify(d));
+    if (d && !localStorage.getItem('oche.data')) localStorage.setItem('oche.data', JSON.stringify(d));
     localStorage.setItem('okkie.dev', JSON.stringify(dev));
   }, [data, DEV]);
   const page = await context.newPage();
@@ -42,8 +43,8 @@ test('groep oprichten, vriend uitnodigen, samen vergelijken, link intrekken en v
   await A.page.goto('/vrienden/');
   const reg = A.page.locator('#register');
   await expect(reg).toContainText('Groep oprichten');
-  await reg.getByLabel('Je nickname in de groep').fill('Martijn');
-  await reg.getByLabel('Oprichterscode').fill(FOUNDER);
+  await reg.getByLabel('Je voornaam of bijnaam').fill('Martijn');
+  await reg.getByLabel('Oprichterscode').fill(FOUNDER(info, 'groep'));
   await reg.getByText('16 jaar of ouder').click();
   await shareAll(reg);
   await reg.getByLabel('Naam van je groep').fill('Dartvrienden ' + suffix);
@@ -64,7 +65,7 @@ test('groep oprichten, vriend uitnodigen, samen vergelijken, link intrekken en v
   await expect(B.page.locator('#vr')).not.toContainText('Martijn');
   expect(B.page.url()).not.toContain('uitnodiging='); // token uit de adresbalk gehaald
   const join = B.page.locator('#register');
-  await join.getByLabel('Je nickname in de groep').fill('Senn');
+  await join.getByLabel('Je voornaam of bijnaam').fill('Senn');
   await join.getByText('16 jaar of ouder').click();
   await join.getByText('Gemiddelde en aantal trainingen').click();
   await join.getByText('30-pijlenchallenge').click();
@@ -114,21 +115,69 @@ test('groep oprichten, vriend uitnodigen, samen vergelijken, link intrekken en v
   for (const p of [A, B, C]) await p.context.close();
 });
 
-test('jonger dan 16: geen account, wel gewoon trainen', async ({ browser }, info) => {
-  test.skip(info.project.name !== 'iphone', 'één keer is genoeg');
-  const K = await phone(browser, info, seed('Kind', [{ daysAgo: 0, darts: ['S20', 'S20', 'S20'] }]));
-  await K.page.goto('/vrienden/');
-  const reg = K.page.locator('#register');
-  await reg.getByLabel('Oprichterscode').fill(FOUNDER);
-  await reg.getByText('Jonger dan 16').click();
-  await reg.getByText('Records').click();
-  await reg.getByLabel('Naam van je groep').fill('Kinderen');
+test('jong en oud: kind (12) doet mee na één tik van een ouder, zonder ouderaccount', async ({ browser }, info) => {
+  // Opa richt op, kleinkind wordt uitgenodigd, moeder geeft op haar eigen telefoon (zonder OKKIE.) toestemming.
+  const A = await phone(browser, info, seed('Opa Jan', [{ daysAgo: 0, darts: ['S20', 'S20', 'S20'] }, { daysAgo: 1, darts: ['S20', 'S20', 'S5'] }, { daysAgo: 2, darts: ['S20', 'S5', 'S5'] }]));
+  const K = await phone(browser, info, seed('Daan', [{ daysAgo: 0, darts: ['S20', 'S5', 'S1'] }, { daysAgo: 1, darts: ['S20', 'S20', 'S1'] }, { daysAgo: 2, darts: ['S5', 'S5', 'S5'] }]));
+  const M = await phone(browser, info, null);
+  const beforeK = await (async () => { await K.page.goto('/'); return training(K.page); })();
+  await A.page.goto('/vrienden/');
+  const reg = A.page.locator('#register');
+  await reg.getByLabel('Oprichterscode').fill(FOUNDER(info, 'kind'));
+  await reg.getByText('16 jaar of ouder').click();
+  await shareAll(reg);
+  await reg.getByLabel('Naam van je groep').fill('Familie ' + info.project.name);
   await reg.getByRole('button', { name: 'Maak mijn groep' }).click();
-  await expect(K.page.locator('#status')).toContainText('ouder of verzorger');
-  expect(await K.page.evaluate(() => localStorage.getItem('okkie.community.v1'))).toBeNull();
+  await A.page.getByRole('button', { name: 'Maak uitnodigingslink' }).click();
+  const link = (await A.page.getByTestId('invite-link').textContent()).replace(/^https?:\/\/[^/]+/, '');
+
+  // Kind meldt zich aan als "jonger dan 16": er wordt nog niets gedeeld, wel een link voor de ouder
+  await K.page.goto(link);
+  const join = K.page.locator('#register');
+  await join.getByLabel('Je voornaam of bijnaam').fill('Daan');
+  await join.getByText('Jonger dan 16').click();
+  await join.getByText('Gemiddelde en aantal trainingen').click();
+  await join.getByText('30-pijlenchallenge').click();
+  await join.getByRole('button', { name: 'Doe mee' }).click();
+  await expect(K.page.locator('#vr')).toContainText('Vraag even je ouder om “ja”');
+  const consent = (await K.page.getByTestId('consent-link').textContent()).replace(/^https?:\/\/[^/]+/, '');
+  expect(consent).toMatch(/\/vrienden\/#toestemming=[a-f0-9]{64}$/);
+  await K.page.getByRole('button', { name: 'Kijk of ik mee mag doen' }).click();
+  await expect(K.page.locator('#vr')).toContainText('Vraag even je ouder'); // nog geen ja
+
+  // Ouder: geen account, ziet precies wat er gedeeld wordt
+  await M.page.goto(consent);
+  await expect(M.page.locator('#vr')).toContainText('Daan wil meedoen met “Familie ' + info.project.name + '”');
+  await expect(M.page.locator('.consent-list')).toContainText('Records (niet gedeeld)');
+  await expect(M.page.locator('#vr')).not.toContainText('Opa Jan');
+  await M.page.getByRole('button', { name: 'Ik geef toestemming' }).click();
+  await expect(M.page.locator('#status')).toContainText('Vink eerst aan');
+  await M.page.getByText('Ik ben de ouder of verzorger van Daan').click();
+  await M.page.getByRole('button', { name: 'Ik geef toestemming' }).click();
+  await expect(M.page.locator('#status')).toContainText('doet nu mee');
+  await expect(M.page.locator('#vr')).toContainText('Toestemming intrekken');
+  expect(await M.page.evaluate(() => Object.keys(localStorage).filter(k => k !== 'okkie.dev'))).toEqual([]); // ouder hoeft niets op te slaan
+
+  // Kind is nu lid; opa ziet Daan in de groep (zonder records)
+  await K.page.getByRole('button', { name: 'Kijk of ik mee mag doen' }).click();
+  await expect(K.page.locator('#status')).toContainText('Welkom bij Familie');
+  await A.page.reload();
+  await expect(A.page.locator('.board').first()).toContainText('Daan');
+  await A.page.locator('.board button.name', { hasText: 'Daan' }).first().click();
+  await expect(A.page.locator('.player-card')).toContainText('Deelt met deze groep: gemiddelde en aantal trainingen, 30-pijlenchallenge');
+  await A.page.getByRole('button', { name: 'Vergelijk met mij' }).click();
+  await expect(A.page.locator('.pick button[aria-pressed="true"]')).toHaveCount(2);
+
+  // Ouder trekt in: Daan verdwijnt online, trainen op zijn eigen telefoon werkt gewoon
+  await M.page.getByRole('button', { name: 'Toestemming intrekken' }).click();
+  await expect(M.page.locator('#vr')).toContainText('Toestemming ingetrokken');
+  await A.page.reload();
+  await expect(A.page.locator('#vr')).not.toContainText('Daan');
   await K.page.goto('/');
-  await expect(K.page.locator('.hero h2')).toHaveText('Kind');
-  await K.context.close();
+  await expect(K.page.locator('.hero h2')).toHaveText('Daan');
+  expect(await training(K.page)).toBe(beforeK);
+  for (const p of [A, K, M]) expect(p.errors).toEqual([]);
+  for (const p of [A, K, M]) await p.context.close();
 });
 
 test('zonder testinstelling (zoals nu live): "binnenkort", app ongewijzigd, link vanuit de app', async ({ page }, info) => {
@@ -154,7 +203,7 @@ test('offline: app blijft werken, Mijn vrienden geeft een begrijpelijke melding'
   await P.context.setOffline(true);
   await P.page.reload();
   const reg = P.page.locator('#register');
-  await reg.getByLabel('Oprichterscode').fill(FOUNDER);
+  await reg.getByLabel('Oprichterscode').fill(FOUNDER(info, 'offline'));
   await reg.getByText('16 jaar of ouder').click();
   await reg.getByText('Records').click();
   await reg.getByLabel('Naam van je groep').fill('Offline groep');
@@ -171,13 +220,13 @@ test('toetsenbord en verminderde beweging in het groepsdashboard', async ({ brow
   const { viewport, userAgent } = info.project.use;
   const context = await browser.newContext({ viewport, userAgent, reducedMotion: 'reduce' });
   await context.addInitScript(([d, dev]) => {
-    if (!localStorage.getItem('oche.data')) localStorage.setItem('oche.data', JSON.stringify(d));
+    if (d && !localStorage.getItem('oche.data')) localStorage.setItem('oche.data', JSON.stringify(d));
     localStorage.setItem('okkie.dev', JSON.stringify(dev));
   }, [seed('Toets', [{ daysAgo: 0, darts: ['S20', 'S20', 'S20'] }, { daysAgo: 1, darts: ['S20', 'S20', 'S20'] }, { daysAgo: 2, darts: ['S20', 'S20', 'S20'] }]), DEV]);
   const page = await context.newPage();
   await page.goto('/vrienden/');
   const reg = page.locator('#register');
-  await reg.getByLabel('Oprichterscode').fill(FOUNDER);
+  await reg.getByLabel('Oprichterscode').fill(FOUNDER(info, 'toets'));
   await reg.getByLabel('16 jaar of ouder').check();
   await reg.getByLabel(/Gemiddelde en aantal trainingen/).check();
   await reg.getByLabel('Naam van je groep').fill('Toetsenbord');

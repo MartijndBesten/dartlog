@@ -1,6 +1,6 @@
 import { adminHtml } from './admin-page.js';
 import { isAdminRequest, adminEmail, adminHostMatches } from './admin-auth.js';
-import { handleGroups, groupsOpen, inviteValid, releaseMemberships } from './groups.js';
+import { handleGroups, groupsOpen, inviteValid, releaseMemberships, weekKey, LIMITS } from './groups.js';
 
 // Cloudflare Worker + D1 API voor OKKIE. Community.
 // De database bewaart uitsluitend een nickname, account-credentials (gehasht) en geaggregeerde statistieken.
@@ -81,7 +81,7 @@ async function auth(request, env) {
   const token = request.headers.get('Authorization')?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
   if (!token) return null;
   const digest = await hash(token);
-  return env.DB.prepare('SELECT id, handle, nickname, visible FROM members WHERE token_hash = ?').bind(digest).first();
+  return env.DB.prepare('SELECT id, handle, nickname, visible, age_group AS ageGroup, consent_at AS consentAt, consent_method AS consentMethod FROM members WHERE token_hash = ?').bind(digest).first();
 }
 function clientIp(request) {
   return request.headers.get('CF-Connecting-IP') || 'onbekend';
@@ -189,15 +189,27 @@ export default {
         const nickname = cleanNickname(body.nickname);
         const viaInvite = typeof body.inviteToken === 'string';
         const viaFounder = !viaInvite && typeof body.founderCode === 'string';
+        let ageGroup = 'adult', consent = null;
         if (viaInvite || viaFounder) {
-          // Besloten groep: geen openbaar profiel (visible = 0). Alleen 16+; jongere spelers wachten op ouderlijke toestemming.
-          // Oprichterscode: geheim GROUP_FOUNDER_CODE (min. 16 tekens) voor het allereerste account zonder uitnodiging.
-          const founderOk = viaFounder && groupsOpen(env) && String(env.GROUP_FOUNDER_CODE || '').length >= 16 &&
-            await hash(body.founderCode) === await hash(env.GROUP_FOUNDER_CODE);
-          if (viaFounder && !founderOk) return fail('Deze oprichterscode klopt niet.', 403, cors);
-          if (viaInvite && !await inviteValid(env, H, body.inviteToken)) return fail('Deze uitnodiging is niet (meer) geldig. Vraag om een nieuwe link.', 403, cors);
-          if (!nickname) return fail('Kies een nickname van 2 tot 24 tekens.', 400, cors);
-          if (body.age !== 'adult') return fail('Voor spelers jonger dan 16 is eerst toestemming van een ouder of verzorger nodig. Dat kan nog niet in OKKIE.', 403, cors);
+          // Besloten groep, voor alle leeftijden: nooit een openbaar profiel (visible = 0). Alleen leeftijdsgroep, geen geboortedatum.
+          // 16+: zelf toestemming. Jonger dan 16: eerst een ouder/verzorger via een eenmalige link (zie groups.js), tenzij
+          // MINOR_CONSENT = "dienst" na een juridisch besluit over een andere grondslag.
+          if (body.age !== 'adult' && body.age !== 'minor') return fail('Kies je leeftijd: 16 of ouder, of jonger dan 16.', 400, cors);
+          if (!nickname) return fail('Vul je voornaam of bijnaam in (2 tot 24 tekens).', 400, cors);
+          ageGroup = body.age;
+          consent = ageGroup === 'adult' ? 'zelf' : env.MINOR_CONSENT === 'dienst' ? 'dienst' : null;
+          if (viaFounder) {
+            // Oprichterscode(s): geheim GROUP_FOUNDER_CODE, één of meer codes (komma-gescheiden, min. 16 tekens).
+            // Elke code werkt precies één keer; alleen de hash van een gebruikte code wordt onthouden.
+            const given = await hash(body.founderCode);
+            const codes = String(env.GROUP_FOUNDER_CODE || '').split(',').map(c => c.trim()).filter(c => c.length >= 16);
+            let founderOk = false;
+            for (const c of codes) if (await hash(c) === given) founderOk = true;
+            if (!groupsOpen(env) || !founderOk) return fail('Deze oprichterscode klopt niet.', 403, cors);
+            if (ageGroup !== 'adult') return fail('De oprichter van OKKIE. Mijn vrienden moet 16 jaar of ouder zijn.', 403, cors);
+            const claimed = await env.DB.prepare("INSERT INTO app_flags(key, value, at) VALUES(?, NULL, datetime('now')) ON CONFLICT(key) DO NOTHING").bind('founder:' + given).run();
+            if (!claimed.meta?.changes) return fail('Deze oprichterscode is al gebruikt. Vraag een uitnodigingslink aan een groepslid.', 403, cors);
+          } else if (!await inviteValid(env, H, body.inviteToken)) return fail('Deze uitnodiging is niet (meer) geldig. Vraag om een nieuwe link.', 403, cors);
         } else {
           if (!registrationOpen(env)) return fail('Registratie is nog gesloten.', 403, cors);
           if (!nickname || body.share !== true) return fail('Kies een nickname en geef toestemming voor het publiceren van statistieken.', 400, cors);
@@ -208,9 +220,10 @@ export default {
         const id = crypto.randomUUID();
         const handle = id.replaceAll('-', '').slice(0, 12);
         const token = randomKey(), recovery = randomKey();
-        await env.DB.prepare("INSERT INTO members(id,handle,nickname,token_hash,recovery_hash,visible,age_group,created_at,updated_at) VALUES(?,?,?,?,?,?,'adult',datetime('now'),datetime('now'))")
-          .bind(id,handle,nickname,await hash(token),await hash(recovery),viaInvite || viaFounder ? 0 : 1).run();
-        return json({ account: { id, handle, nickname }, token, recovery, public: !(viaInvite || viaFounder) }, 201, cors);
+        await env.DB.prepare("INSERT INTO members(id,handle,nickname,token_hash,recovery_hash,visible,age_group,consent_at,consent_method,created_at,updated_at) " +
+          "VALUES(?,?,?,?,?,?,?,CASE WHEN ? IS NULL THEN NULL ELSE datetime('now') END,?,datetime('now'),datetime('now'))")
+          .bind(id,handle,nickname,await hash(token),await hash(recovery),viaInvite || viaFounder ? 0 : 1,ageGroup,consent,consent).run();
+        return json({ account: { id, handle, nickname }, token, recovery, public: !(viaInvite || viaFounder), needsParent: consent === null && ageGroup === 'minor' }, 201, cors);
       }
       if (path === '/v1/recover' && request.method === 'POST') {
         if (await limited(env.RL_REGISTER, clientIp(request))) return fail('Te veel herstelpogingen. Probeer het over een minuut opnieuw.', 429, cors);
@@ -283,8 +296,13 @@ export default {
               body.snapshots.some(x => !snapshotOkay(x))) return fail('Statistieken hebben een ongeldig formaat.', 400, cors);
           const periods = body.snapshots.map(x => x.period);
           if (new Set(periods).size !== periods.length) return fail('Dubbele perioden.', 400, cors);
+          // Dataminimalisatie: zonder toestemming (jonger dan 16, ouder nog niet akkoord) niets bewaren; een besloten
+          // groepsprofiel bewaart alleen het totaal en de laatste weken die de groep laat zien.
+          if (member.ageGroup === 'minor' && !member.consentAt) return json({ saved: 0, waitingForParent: true }, 200, cors);
+          const oldest = weekKey(new Date(), LIMITS.trendWeeks - 1);
+          const keep = member.visible ? body.snapshots : body.snapshots.filter(x => x.period === 'all' || (x.period.startsWith('week:') && x.period >= oldest));
           const statements = [env.DB.prepare('DELETE FROM stats WHERE member_id = ?').bind(member.id)];
-          for (const s of body.snapshots) {
+          for (const s of keep) {
             statements.push(env.DB.prepare(
               'INSERT INTO stats (member_id,period,darts,points,sessions,highest_turn,hits100,hits140,hits180,best30,best60,best99,challenge30,updated_at) ' +
               "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))"
@@ -292,7 +310,7 @@ export default {
           }
           statements.push(env.DB.prepare("UPDATE members SET updated_at = datetime('now') WHERE id = ?").bind(member.id));
           await env.DB.batch(statements);
-          return json({ saved: body.snapshots.length }, 200, cors);
+          return json({ saved: keep.length }, 200, cors);
         }
       }
       // ----- Beheer: basis voor het privédashboard. Nooit hashes of tokens teruggeven. -----
@@ -368,6 +386,7 @@ export default {
         env.DB.prepare('DELETE FROM members WHERE id = ?').bind(row.id),
       ]);
     }
+    await env.DB.prepare("DELETE FROM parent_consents WHERE confirmed_at IS NULL AND expires_at < datetime('now')").run();
     console.log(`OKKIE opschoning: ${empty.meta?.changes || 0} lege accounts, ${(stale.results || []).length} inactieve accounts verwijderd.`);
   },
 };
