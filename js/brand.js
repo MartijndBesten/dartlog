@@ -1,5 +1,7 @@
-// OCHE — logo en app-icoon als SVG. Ook gebruikt door tools/make-icons.mjs.
-// "Oche" is de werplijn waar een darter achter staat.
+// OKKIE — logo en app-icoon als SVG. Ook gebruikt door tools/make-icons.mjs.
+// OKKIE komt van "oche" (uitgesproken als okkie): de werplijn waar een darter achter staat.
+
+export const TAGLINE = 'Gooi. Scoor. Word beter.';
 
 function boardRings(cx, cy, r) {
   const seg = [];
@@ -52,15 +54,16 @@ export function iconSVG({ size = 512, maskable = false, rounded = true } = {}) {
 </svg>`;
 }
 
-// Logo: dartbord als "O" + woordmerk.
+// Logo: dartbord als "O" + woordmerk "KKIE".
 export function logoSVG({ height = 40, mono = false } = {}) {
   const text = mono ? 'currentColor' : 'var(--logo-text, #f3eedf)';
-  return `<svg class="logo" height="${height}" viewBox="0 0 330 100" role="img" aria-label="OCHE">${DEFS}
+  return `<svg class="logo" height="${height}" viewBox="0 0 378 100" role="img" aria-label="OKKIE.">${DEFS}
   <g>
     <circle cx="50" cy="50" r="47" fill="#0a0f0c"/>
     ${boardRings(50, 50, 43)}
     ${dartShape(50, 50, 0.46)}
   </g>
-  <text x="104" y="78" fill="${text}" font-family="'Arial Black','Segoe UI Black',system-ui,sans-serif" font-weight="900" font-style="italic" font-size="74" letter-spacing="2">CHE</text>
+  <text x="104" y="78" fill="${text}" font-family="'Arial Black','Segoe UI Black',system-ui,sans-serif" font-weight="900" font-style="italic" font-size="74" textLength="246" lengthAdjust="spacingAndGlyphs">KKIE</text>
+  <circle cx="364" cy="70" r="8.5" fill="#b8ff3c"/>
 </svg>`;
 }

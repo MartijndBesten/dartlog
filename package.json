@@ -1,8 +1,8 @@
 {
-  "name": "oche",
-  "version": "1.0.0",
+  "name": "okkie",
+  "version": "1.2.0",
   "private": true,
-  "description": "OCHE — persoonlijke darttrainer (PWA) met scoretraining, 301/501 en statistieken",
+  "description": "OKKIE — persoonlijke darttrainer (PWA) met scoretraining, 301/501 en statistieken",
   "type": "module",
   "scripts": {
     "start": "node tools/serve.mjs",

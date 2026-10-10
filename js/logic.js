@@ -1,4 +1,4 @@
-// OCHE — pure spelregels en berekeningen. Geen DOM, geen opslag: alles hier is testbaar in Node.
+// OKKIE — pure spelregels en berekeningen. Geen DOM, geen opslag: alles hier is testbaar in Node.
 
 export const SECTORS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
 
@@ -92,6 +92,16 @@ export function round2(n) {
 
 // ---------- Scoretraining ----------
 export function trainingTotals(training) {
+  // Training uit een andere app: alleen de eindstand is bekend, geen losse pijlen.
+  if (training.summary && !(training.turns || []).length) {
+    const s = training.summary;
+    const high = Number.isFinite(s.high) ? s.high : null;
+    return {
+      points: s.points, darts: s.darts, turns: Math.ceil(s.darts / 3), avg: avg3(s.points, s.darts), high, low: null,
+      // ondergrens: een hoogste beurt van 100+ betekent minstens één keer 100+
+      tons: s.tons ?? (high >= 100 ? 1 : 0), t140: s.t140 ?? (high >= 140 ? 1 : 0), t180: s.t180 ?? (high === 180 ? 1 : 0),
+    };
+  }
   let pts = 0, darts = 0, high = null, low = null, tons = 0, t140 = 0, t180 = 0;
   for (const turn of training.turns || []) {
     const s = turnScore(turn.darts);

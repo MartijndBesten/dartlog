@@ -19,4 +19,4 @@ createServer(async (req, res) => {
   } catch {
     res.writeHead(404); res.end('Niet gevonden');
   }
-}).listen(port, () => console.log(`OCHE draait op http://localhost:${port}`));
+}).listen(port, () => console.log(`OKKIE draait op http://localhost:${port}`));

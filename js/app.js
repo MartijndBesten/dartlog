@@ -1,12 +1,13 @@
-// OCHE — interface. Spelregels staan in logic.js, opslag in store.js.
+// OKKIE — interface. Spelregels staan in logic.js, opslag in store.js.
 import * as L from './logic.js';
 import * as S from './store.js';
 import { boardSVG, heatLegend } from './board.js';
 import { lineChart, bindChart } from './chart.js';
 import { BADGES, earnedBadges } from './achievements.js';
-import { logoSVG } from './brand.js';
+import { logoSVG, TAGLINE } from './brand.js';
+import { DARTCOUNTER_SET, dartCounterTrainings, hasDartCounterSet } from './imports.js';
 
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.2.0';
 
 const $ = sel => document.querySelector(sel);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -46,6 +47,11 @@ function sanitizeActive() {
   const okTraining = a.training && Array.isArray(a.training.turns) && Array.isArray(a.training.pending);
   const okMatch = a.match && Array.isArray(a.match.legs) && a.match.legs.length && Array.isArray(a.match.pending);
   data.active = { training: okTraining ? a.training : null, match: okMatch ? a.match : null };
+  // Oudere lopende trainingen hadden één speler; nu kunnen 1-4 spelers om de beurt gooien.
+  const t = data.active.training;
+  if (t && !Array.isArray(t.players)) { t.players = [t.playerId]; t.turns.forEach(x => { x.p = 0; }); }
+  if (t) t.players = t.players.filter(id => data.players.some(p => p.id === id));
+  if (t && !t.players.length) data.active.training = null;
   if (data.activePlayerId && !data.players.some(p => p.id === data.activePlayerId)) data.activePlayerId = data.players[0]?.id || null;
 }
 
@@ -67,6 +73,7 @@ function myMatches() {
 
 function trainingTitle(t) {
   if (t.kind === 'clock') return 'Rond de klok';
+  if (t.source) return `Scoretraining ${t.summary.darts} pijlen`;
   return t.limitTurns ? `Scoretraining ${t.limitTurns * 3} pijlen` : 'Vrije scoretraining';
 }
 
@@ -92,7 +99,7 @@ function overview(playerId = data.activePlayerId) {
     high,
     best,
     tons, t140, t180,
-    streak: L.dayStreak(all.map(t => t.startedAt)),
+    streak: L.dayStreak(all.filter(t => !t.dateUnknown).map(t => t.startedAt)),
   };
 }
 
@@ -129,28 +136,44 @@ function toast(msg, type = '') {
   toastTimer = setTimeout(() => (el.className = 'toast'), 3200);
 }
 
-// Grote viering over het scherm heen (TON!, 180, BUST, GAME SHOT).
+// Scoreviering: korte banner bovenin het scherm (blokkeert nooit de invoer). Eén per afgeronde beurt.
 function celebrate(big, small = '', kind = 'ton') {
   const el = $('#celebrate');
   el.innerHTML = `<div class="cel-inner ${kind}"><div class="cel-big">${esc(big)}</div>${small ? `<div class="cel-small">${esc(small)}</div>` : ''}</div>`;
   if (kind === 'max' || kind === 'win') {
     const colors = ['#3ddc84', '#ff4d4f', '#ffc53d', '#f3eedf', '#b8ff3c'];
-    el.insertAdjacentHTML('beforeend', Array.from({ length: 40 }, (_, i) =>
-      `<i class="confetti" style="left:${Math.random() * 100}%;background:${colors[i % 5]};animation-delay:${Math.random() * 0.4}s;transform:rotate(${Math.random() * 360}deg)"></i>`).join(''));
+    el.insertAdjacentHTML('beforeend', Array.from({ length: 24 }, (_, i) =>
+      `<i class="confetti" style="left:${Math.random() * 100}%;background:${colors[i % 5]};animation-delay:${Math.random() * 0.3}s;transform:rotate(${Math.random() * 360}deg)"></i>`).join(''));
   }
   el.className = 'celebrate show';
   clearTimeout(celebrate.t);
-  celebrate.t = setTimeout(() => (el.className = 'celebrate'), kind === 'max' || kind === 'win' ? 2200 : 1100);
+  celebrate.t = setTimeout(hideCelebration, kind === 'max' ? 2200 : 1500);
 }
 
+function hideCelebration() {
+  clearTimeout(celebrate.t);
+  const el = $('#celebrate');
+  el.className = 'celebrate';
+  el.innerHTML = '';
+}
+
+// Meldingen en vieringen nooit laten hangen op een ander scherm.
+function hideOverlays() {
+  hideCelebration();
+  clearTimeout(toastTimer);
+  $('#toast').className = 'toast';
+}
+
+// 100–139: "100+!", 140–179: "140+!", 180: "ONE HUNDRED AND EIGHTY!". Altijd met de echte score.
 function turnCelebration(score) {
-  if (score === 180) { celebrate('180!', 'ONE HUNDRED AND EIGHTY', 'max'); beep('max'); haptic([40, 40, 40, 40, 120]); }
-  else if (score >= 140) { celebrate(String(score), 'TON-FORTY!', 'ton'); beep('ton'); haptic(60); }
-  else if (score >= 100) { celebrate(String(score), 'TON!', 'ton'); beep('ton'); haptic(40); }
+  if (score === 180) { celebrate('180', 'ONE HUNDRED AND EIGHTY!', 'max'); beep('max'); haptic([40, 40, 40, 40, 120]); }
+  else if (score >= 140) { celebrate(String(score), '140+!', 'ton'); beep('ton'); haptic(60); }
+  else if (score >= 100) { celebrate(String(score), '100+!', 'ton'); beep('ton'); haptic(40); }
 }
 
 // ---------- Modal ----------
 function modal(html, { onClose } = {}) {
+  hideOverlays();
   const el = $('#modal');
   el.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true">${html}</div>`;
   el.hidden = false;
@@ -177,6 +200,7 @@ function confirmBox(title, text, okLabel, onOk, danger = true) {
 
 // ---------- Navigatie ----------
 function go(view) {
+  hideOverlays();
   ui.view = view;
   ui.typing = false;
   render();
@@ -210,6 +234,7 @@ const VIEWS = {};
 VIEWS.welcome = () => `
   <section class="welcome">
     <div class="welcome-logo">${logoSVG({ height: 76 })}</div>
+    <p class="tagline">${TAGLINE}</p>
     <p class="lead">Jouw eigen darttrainer. Gooi, tik je pijlen in en zie of je beter wordt.</p>
     <form class="card" data-form="welcome">
       <label for="wname">Hoe heet je?</label>
@@ -279,10 +304,19 @@ function tile(label, value, extra = '') {
   return `<div class="tile ${extra}"><span>${esc(label)}</span><strong>${value}</strong></div>`;
 }
 
+// ----- Samen trainen: 1-4 spelers gooien om de beurt 3 pijlen -----
+function curIdx(t) { return t.turns.length % t.players.length; }
+function playerTurns(t, i) { return t.turns.filter(x => x.p === i); }
+function subTotals(t, i) { return L.trainingTotals({ turns: playerTurns(t, i) }); }
+function trainingDone(t) { return !!t.limitTurns && t.players.every((_, i) => playerTurns(t, i).length >= t.limitTurns); }
+function names(ids) { return ids.map(id => player(id)?.name || '?'); }
+
 function resumeCard(type, a) {
   if (type === 'training') {
-    const tot = L.trainingTotals(a);
-    const sub = a.kind === 'clock' ? `Bij doel ${L.clockState(a).target === 25 ? 'Bull' : L.clockState(a).target}` : `${tot.darts}${a.limitTurns ? ' / ' + a.limitTurns * 3 : ''} pijlen · gem. ${fmt(tot.avg)}`;
+    const tot = a.players.length > 1 ? subTotals(a, curIdx(a)) : L.trainingTotals(a);
+    const sub = a.kind === 'clock' ? `Bij doel ${L.clockState(a).target === 25 ? 'Bull' : L.clockState(a).target}`
+      : a.players.length > 1 ? `${names(a.players).map(esc).join(', ')} · ${esc(names([a.players[curIdx(a)]])[0])} is aan de beurt`
+      : `${tot.darts}${a.limitTurns ? ' / ' + a.limitTurns * 3 : ''} pijlen · gem. ${fmt(tot.avg)}`;
     return `<section class="resume"><div><small>Bezig</small><b>${esc(trainingTitle(a))}</b><span>${sub}</span></div>
       <button class="btn primary" data-act="resume-training">Verder</button></section>`;
   }
@@ -292,8 +326,17 @@ function resumeCard(type, a) {
 }
 
 // ----- Training kiezen -----
+function setupPlayers() {
+  const s = ui.setup;
+  s.players = (s.players || []).filter(id => player(id));
+  if (!s.players.length) s.players = [data.activePlayerId];
+  return s.players;
+}
+
 VIEWS.train = () => {
   const s = ui.setup;
+  const ps = setupPlayers();
+  const others = data.players.filter(p => !ps.includes(p.id));
   const opt = (turns, label, sub) => `<button class="choice ${s.kind === 'score' && s.turns === turns ? 'on' : ''}" data-act="setup-turns" data-arg="${turns}"><b>${label}</b><small>${sub}</small></button>`;
   return `${header('Trainen', 'home')}
   <main class="page">
@@ -309,11 +352,19 @@ VIEWS.train = () => {
         ${opt(-1, 'Eigen', `${s.custom} beurten`)}
       </div>
       ${s.turns === -1 ? `<label class="inline">Aantal beurten <input type="number" min="1" max="200" inputmode="numeric" value="${s.custom}" data-input="custom-turns"></label>` : ''}
-      <button class="btn primary big" data-act="start-score" data-testid="start-score">Start scoretraining</button>
+      <h4>Wie gooien er? <span class="muted">(max. 4, om de beurt 3 pijlen)</span></h4>
+      <ol class="match-players" data-testid="train-players">${ps.map((id, i) => `<li><span><i class="dot" style="background:${esc(player(id).color)}"></i> ${esc(player(id).name)}</span>
+        ${i > 0 ? `<button class="icon-btn small" data-act="tp-up" data-arg="${i}" aria-label="Eerder gooien">↑</button>` : ''}
+        ${ps.length > 1 ? `<button class="icon-btn small" data-act="tp-remove" data-arg="${i}" aria-label="Niet meedoen">✕</button>` : ''}</li>`).join('')}</ol>
+      ${ps.length < 4 ? `<div class="add-player">
+        <div class="chips">${others.map(p => `<button class="chip" data-act="tp-add" data-arg="${esc(p.id)}">+ ${esc(p.name)}</button>`).join('')}</div>
+        <form data-form="train-player" class="guest"><input name="name" maxlength="24" placeholder="Naam vriend of familie" aria-label="Naam nieuwe speler"><button class="btn secondary">+ Speler</button></form>
+      </div>` : ''}
+      <button class="btn primary big" data-act="start-score" data-testid="start-score">${ps.length > 1 ? `Start met ${ps.length} spelers` : 'Start scoretraining'}</button>
     </section>
     <section class="card">
       <h3>Rond de klok 🕐</h3>
-      <p class="muted">Raak 1 t/m 20 en daarna de bull, in volgorde. Hoe minder pijlen, hoe beter. Enkel, dubbel of triple: alles telt.</p>
+      <p class="muted">Raak 1 t/m 20 en daarna de bull, in volgorde. Hoe minder pijlen, hoe beter. Enkel, dubbel of triple: alles telt. (Alleen voor ${esc(player().name)}.)</p>
       <button class="btn secondary big" data-act="start-clock">Start rond de klok</button>
     </section>
   </main>`;
@@ -342,8 +393,9 @@ function keypad({ highlight = null } = {}) {
 function dartSlots(pending, extra = '') {
   return `<div class="slots ${extra}">${[0, 1, 2].map(i => {
     const c = pending[i];
-    return `<div class="slot ${c ? 'filled' : ''} ${i === pending.length ? 'current' : ''}" data-testid="slot-${i}">
-      <small>Pijl ${i + 1}</small><b>${c ? esc(L.label(c)) : ''}</b>${c ? `<span>${L.points(c)}</span>` : ''}</div>`;
+    const tag = c ? 'button' : 'div';
+    return `<${tag} class="slot ${c ? 'filled' : ''} ${i === pending.length ? 'current' : ''}" data-testid="slot-${i}"${c ? ` data-act="slot" data-arg="${i}" aria-label="Pijl ${i + 1} (${esc(L.label(c))}) wissen"` : ''}>
+      <small>Pijl ${i + 1}</small><b>${c ? esc(L.label(c)) : ''}</b>${c ? `<span>${L.points(c)}</span>` : ''}</${tag}>`;
   }).join('')}</div>`;
 }
 
@@ -355,21 +407,29 @@ function typeBox() {
 VIEWS['play-score'] = () => {
   const t = data.active.training;
   if (!t) return VIEWS.home();
-  const tot = L.trainingTotals(t);
+  const n = t.players.length;
+  const cur = curIdx(t);
+  const tot = subTotals(t, cur);
   const limit = L.trainingLimitDarts(t);
   const pend = t.pending;
-  const turnNo = t.turns.length + 1;
-  const last = t.turns[t.turns.length - 1];
-  const pct = limit ? Math.min(100, (tot.darts / limit) * 100) : 0;
+  const mine = playerTurns(t, cur);
+  const turnNo = mine.length + 1;
+  const last = mine[mine.length - 1];
+  const pct = limit ? Math.min(100, (t.turns.length / (t.limitTurns * n)) * 100) : 0;
+  const strip = n > 1 ? `<section class="gp n${n}" data-testid="group-strip">${t.players.map((id, i) => {
+    const st = subTotals(t, i), p = player(id);
+    return `<div class="gp-p ${i === cur ? 'up' : ''}" data-testid="gp-${i}"><b><i class="dot" style="background:${esc(p?.color)}"></i>${esc(p?.name)}</b><strong>${int(st.points)}</strong><small>gem. ${fmt(st.avg, 1)}</small></div>`;
+  }).join('')}</section>` : '';
   return `<div class="play">
     <header class="play-top">
       <button class="icon-btn" data-act="pause" aria-label="Pauzeren">⏸</button>
-      <div class="play-title"><b>${esc(trainingTitle(t))}</b><small>Beurt ${turnNo}${t.limitTurns ? ' van ' + t.limitTurns : ''}</small></div>
+      <div class="play-title"><b>${esc(trainingTitle(t))}</b><small>${n > 1 ? `<span data-testid="now-up">${esc(player(t.players[cur])?.name)}</span> · ` : ''}Beurt ${turnNo}${t.limitTurns ? ' van ' + t.limitTurns : ''}</small></div>
       <button class="icon-btn" data-act="toggle-type" aria-label="Typen">⌨</button>
     </header>
     ${limit ? `<div class="progress"><i style="width:${pct}%"></i></div>` : ''}
-    <section class="scoreboard">
-      <div class="sb-main"><span>Gemiddelde</span><strong data-testid="live-avg">${fmt(tot.avg, 2)}</strong></div>
+    ${strip}
+    <section class="scoreboard ${n > 1 ? 'compact' : ''}">
+      <div class="sb-main"><span>${n > 1 ? esc(player(t.players[cur])?.name) + ' · gem.' : 'Gemiddelde'}</span><strong data-testid="live-avg">${fmt(tot.avg, 2)}</strong></div>
       <div class="sb-side">
         <div><span>Totaal</span><b data-testid="live-total">${int(tot.points)}</b></div>
         <div><span>Pijlen</span><b>${tot.darts}${limit ? '/' + limit : ''}</b></div>
@@ -436,23 +496,48 @@ VIEWS['result-training'] = () => {
       <div class="row-actions"><button class="btn primary big" data-act="again">Nog een keer</button><button class="btn ghost big" data-go="home">Home</button></div>
     </main>`;
   }
+  if (r.group) {
+    const limitDarts = (r.limitTurns || 0) * 3;
+    const rows = r.group.map(g => ({ ...g, t: data.trainings.find(x => x.id === g.id) })).filter(g => g.t)
+      .map(g => ({ ...g, tot: L.trainingTotals(g.t), p: player(g.playerId) }))
+      .sort((a, b) => b.tot.avg - a.tot.avg);
+    const medal = i => ['🥇', '🥈', '🥉', '4'][i];
+    const extra = rows.filter(g => g.newBadges.length);
+    return `${header('Uitslag', 'home')}<main class="page">
+      <section class="result-hero win"><small>${esc(trainingTitle(rows[0].t))} · ${rows.length} spelers</small><strong data-testid="group-winner">${esc(rows[0].p?.name)}</strong><span>hoogste gemiddelde: ${fmt(rows[0].tot.avg, 2)}</span></section>
+      <section class="card"><ol class="ranking">${rows.map((g, i) => `<li><span class="rk">${medal(i)}</span><span class="rk-name"><b>${esc(g.p?.name)}${limitDarts && g.tot.darts < limitDarts ? ' <small class="muted">(onvolledig)</small>' : ''}</b>
+        <small>${int(g.tot.points)} punten · hoogste beurt ${g.tot.high ?? '–'}</small>
+        ${compareLine(g.tot.avg, g.prevAvg)}
+        ${g.records.length ? `<small class="rk-rec">🏅 ${g.records.map(esc).join(' · ')}</small>` : ''}</span>
+        <strong>${fmt(g.tot.avg, 2)}<small>gem.</small></strong></li>`).join('')}</ol></section>
+      <details class="card more"><summary>Badges en meer statistieken</summary>
+        ${extra.length ? extra.map(g => `<h4>${esc(g.p?.name)}</h4>${badgeBanner(g.newBadges)}`).join('') : '<p class="muted small">Geen nieuwe badges deze keer.</p>'}
+        <h4>Per speler</h4><table class="mtable"><thead><tr><th></th><th>Pijlen</th><th>100+</th><th>140+</th><th>180</th><th>Laagste</th></tr></thead><tbody>
+        ${rows.map(g => `<tr><th>${esc(g.p?.name)}</th><td>${g.tot.darts}</td><td>${g.tot.tons}</td><td>${g.tot.t140}</td><td>${g.tot.t180}</td><td>${g.tot.low ?? '–'}</td></tr>`).join('')}</tbody></table>
+      </details>
+      <div class="row-actions"><button class="btn primary big" data-act="again">Nog een potje</button><button class="btn ghost big" data-go="home">Home</button></div>
+    </main>`;
+  }
   const tot = L.trainingTotals(t);
+  const limitDarts = (t.limitTurns || 0) * 3;
   return `${header('Uitslag', 'home')}<main class="page">
-    <section class="result-hero"><small>${esc(trainingTitle(t))}</small><strong data-testid="result-avg">${fmt(tot.avg, 2)}</strong><span>gemiddelde per 3 pijlen</span>
-      ${r.prevAvg !== null ? `<em class="${tot.avg >= r.prevAvg ? 'up' : 'down'}">${tot.avg >= r.prevAvg ? '▲' : '▼'} ${fmt(Math.abs(tot.avg - r.prevAvg), 2)} t.o.v. je gemiddelde hiervoor</em>` : ''}</section>
+    <section class="result-hero"><small>${esc(trainingTitle(t))}${limitDarts && tot.darts < limitDarts ? ' · onvolledig' : ''}</small><strong data-testid="result-avg">${fmt(tot.avg, 2)}</strong><span>gemiddelde per 3 pijlen</span>
+      ${compareLine(tot.avg, r.prevAvg)}</section>
     ${r.records.length ? `<section class="records-banner">🏅 <b>Nieuw record!</b> ${r.records.map(esc).join(' · ')}</section>` : ''}
-    ${r.newBadges.length ? badgeBanner(r.newBadges) : ''}
     <section class="tiles">
-      ${tile('Totaal', int(tot.points))}${tile('Pijlen', tot.darts)}${tile('Hoogste', tot.high ?? '–')}${tile('Laagste', tot.low ?? '–')}
-      ${tile('100+', tot.tons)}${tile('140+', tot.t140)}${tile('180', tot.t180)}${tile('Beurten', tot.turns)}
+      ${tile('Totaal', int(tot.points))}${tile('Hoogste beurt', tot.high ?? '–')}${tile('Pijlen', tot.darts)}${tile('100+', tot.tons)}
     </section>
-    <section class="card"><h3>Per beurt</h3>${turnBars(t.turns)}</section>
+    <details class="card more"><summary>${r.newBadges.length ? `${r.newBadges.length} nieuwe badge${r.newBadges.length === 1 ? '' : 's'} en meer statistieken` : 'Meer statistieken'}</summary>
+      ${r.newBadges.length ? badgeBanner(r.newBadges) : ''}
+      <section class="tiles mini">${tile('Laagste', tot.low ?? '–')}${tile('140+', tot.t140)}${tile('180', tot.t180)}${tile('Beurten', tot.turns)}</section>
+      <h4>Per beurt</h4>${turnBars(t.turns)}
+    </details>
     <div class="row-actions"><button class="btn primary big" data-act="again">Nog een keer</button><button class="btn ghost big" data-go="stats">Statistieken</button></div>
   </main>`;
 };
 
 function badgeBanner(ids) {
-  return `<section class="badge-banner">${ids.map(id => { const b = BADGES.find(x => x.id === id); return `<div><span class="badge-icon">${b.icon}</span><div><small>Badge verdiend!</small><b>${esc(b.name)}</b></div></div>`; }).join('')}</section>`;
+  return `<div class="badge-banner">${ids.map(id => { const b = BADGES.find(x => x.id === id); return `<div><span class="badge-icon">${b.icon}</span><div><small>Badge verdiend!</small><b>${esc(b.name)}</b></div></div>`; }).join('')}</div>`;
 }
 
 function turnBars(turns) {
@@ -580,9 +665,11 @@ VIEWS.stats = () => {
     }
   }
   const sessAvg = ts.length ? ts.reduce((a, t) => a + L.trainingTotals(t).avg, 0) / ts.length : 0;
-  const groups = L.groupAverages(ts, ui.statsPeriod);
+  const unknown = ts.filter(t => t.dateUnknown).length;
+  const groups = L.groupAverages(ui.statsPeriod === 'training' ? ts : ts.filter(t => !t.dateUnknown), ui.statsPeriod);
+  const byId = new Map(ts.map(t => [t.id, t]));
   const chartPts = groups.map(g => ({
-    label: ui.statsPeriod === 'training' || ui.statsPeriod === 'dag' ? dateLabel(g.date) : ui.statsPeriod === 'week' ? 'wk ' + g.key.split('-W')[1] : new Date(g.date).toLocaleDateString('nl-NL', { month: 'short', year: '2-digit' }),
+    label: ui.statsPeriod === 'training' && byId.get(g.key)?.dateUnknown ? (byId.get(g.key).source === 'DartCounter' ? 'DC' : '?') : ui.statsPeriod === 'training' || ui.statsPeriod === 'dag' ? dateLabel(g.date) : ui.statsPeriod === 'week' ? 'wk ' + g.key.split('-W')[1] : new Date(g.date).toLocaleDateString('nl-NL', { month: 'short', year: '2-digit' }),
     value: g.avg,
     sub: `${g.count} training${g.count === 1 ? '' : 'en'} · ${g.darts} pijlen`,
   }));
@@ -614,7 +701,7 @@ VIEWS.stats = () => {
       <div class="card-head"><h3>Ontwikkeling</h3></div>
       <div class="chips small">${chip('statsPeriod', 'training', 'Per training')}${chip('statsPeriod', 'dag', 'Dag')}${chip('statsPeriod', 'week', 'Week')}${chip('statsPeriod', 'maand', 'Maand')}</div>
       ${lineChart(chartPts)}
-      <p class="muted small">Tik op een punt voor details. De stippellijn is je trend.</p>
+      <p class="muted small">Tik op een punt voor details. De stippellijn is je trend.${unknown ? ` ${unknown} training${unknown === 1 ? '' : 'en'} zonder datum (DC = DartCounter) staan alleen in "Per training".` : ''}</p>
     </section>`}
     <section class="card">
       <div class="card-head"><h3>Trefferkaart</h3></div>
@@ -732,14 +819,16 @@ VIEWS.history = () => {
   <main class="page">
     ${!items.length ? '<section class="card empty"><p>Nog niets gespeeld. Je trainingen en wedstrijden verschijnen hier.</p></section>' : ''}
     <ul class="history">${items.map(it => {
-      const day = new Date(it.at).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const day = it.t?.dateUnknown ? `Datum onbekend${it.t.source ? ' · uit ' + it.t.source : ''}` : new Date(it.at).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
       const head = day !== lastDay ? `<li class="day">${day}</li>` : '';
       lastDay = day;
       if (it.type === 't') {
         const t = it.t;
         const main = t.kind === 'clock' ? (L.clockState(t).done ? L.clockState(t).darts + ' pijlen' : L.clockState(t).hits + '/21') : fmt(L.trainingTotals(t).avg, 2);
-        const sub = t.kind === 'clock' ? 'rond de klok' : `${L.trainingTotals(t).points} pnt · ${L.trainingTotals(t).darts} pijlen`;
-        return `${head}<li><button class="h-item" data-act="open-training" data-arg="${esc(t.id)}"><span class="h-icon">${t.kind === 'clock' ? '🕐' : '🎯'}</span><span class="h-main"><b>${esc(trainingTitle(t))}</b><small>${new Date(t.startedAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })} · ${sub}</small></span><strong>${main}</strong></button></li>`;
+        const with_ = t.groupPlayers ? ' · met ' + names(t.groupPlayers.filter(id => id !== t.playerId)).map(esc).join(', ') : '';
+        const sub = t.kind === 'clock' ? 'rond de klok' : `${L.trainingTotals(t).points} pnt · ${L.trainingTotals(t).darts} pijlen${with_}`;
+        const when = t.dateUnknown ? esc(t.source || 'Andere app') : new Date(t.startedAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+        return `${head}<li><button class="h-item" data-act="open-training" data-arg="${esc(t.id)}"><span class="h-icon">${t.kind === 'clock' ? '🕐' : t.source ? '📥' : t.groupPlayers ? '👥' : '🎯'}</span><span class="h-main"><b>${esc(trainingTitle(t))}</b><small>${when} · ${sub}</small></span><strong>${main}</strong></button></li>`;
       }
       const m = it.m, st = L.matchState(m);
       const i = m.players.findIndex(p => p.id === data.activePlayerId);
@@ -752,7 +841,11 @@ VIEWS.history = () => {
 function trainingDetail(t) {
   const isClock = t.kind === 'clock';
   const tot = L.trainingTotals(t);
-  modal(`<h3>${esc(trainingTitle(t))}</h3><p class="muted">${dateTime(t.startedAt)}</p>
+  const others = t.groupPlayers ? names(t.groupPlayers.filter(id => id !== t.playerId)) : [];
+  modal(`<h3>${esc(trainingTitle(t))}</h3><p class="muted">${t.dateUnknown ? 'Datum onbekend' : dateTime(t.startedAt)}${t.source ? ' · uit ' + esc(t.source) : ''}${t.note ? ' · ' + esc(t.note) : ''}</p>
+    ${others.length ? `<p>👥 Samen met ${others.map(esc).join(', ')}</p>` : ''}
+    ${t.source ? `<p class="muted small">Uit een andere app: alleen de eindstand is bekend. Deze training telt mee in je gemiddelde en records, maar niet in de trefferkaart.</p>
+      <form data-form="set-date" data-arg="${esc(t.id)}" class="guest"><input type="date" name="date" value="${t.dateUnknown ? '' : t.startedAt.slice(0, 10)}" max="${new Date().toISOString().slice(0, 10)}" aria-label="Datum"><button class="btn secondary">Datum opslaan</button></form>` : ''}
     ${isClock ? `<p>${L.clockState(t).done ? 'Klaar in <b>' + L.clockState(t).darts + '</b> pijlen' : 'Gestopt bij ' + L.clockState(t).hits + '/21'}</p>`
       : `<div class="tiles mini">${tile('Gemiddelde', fmt(tot.avg, 2))}${tile('Totaal', tot.points)}${tile('Pijlen', tot.darts)}${tile('Hoogste', tot.high ?? '–')}</div>`}
     <ol class="turnlist">${t.turns.map((turn, i) => `<li><span>${i + 1}</span><span class="darts">${turn.darts.map(c => `<i>${esc(L.label(c))}</i>`).join('')}</span><b>${isClock ? '' : L.turnScore(turn.darts)}</b></li>`).join('')}</ol>
@@ -792,18 +885,35 @@ VIEWS.more = () => {
       <p class="muted">Alle trainingen en wedstrijden terugkijken, corrigeren of verwijderen.</p>
       <button class="btn secondary" data-go="history">Open geschiedenis</button>
     </section>
+    <section class="card" data-testid="other-app">
+      <h3>Scores uit een andere app</h3>
+      <p class="muted">Eerdere scoretrainingen (bijv. uit DartCounter) toevoegen aan <b>${esc(player().name)}</b>, zodat je ziet of je beter wordt.</p>
+      ${hasDartCounterSet(data, data.activePlayerId) ? `<p>✅ ${DARTCOUNTER_SET.label} zijn toegevoegd.</p>`
+        : `<button class="btn primary" data-act="import-dc">📥 ${DARTCOUNTER_SET.label} toevoegen</button>`}
+      <h4>Zelf een score invullen</h4>
+      <form data-form="summary" class="summary-form">
+        <label>Pijlen<input type="number" name="darts" min="3" max="999" value="99" inputmode="numeric" required></label>
+        <label>Totaalscore<input type="number" name="points" min="0" max="59940" inputmode="numeric" required></label>
+        <label>Hoogste beurt <small class="muted">(mag leeg)</small><input type="number" name="high" min="0" max="180" inputmode="numeric"></label>
+        <label>Datum <small class="muted">(mag leeg)</small><input type="date" name="date" max="${new Date().toISOString().slice(0, 10)}"></label>
+        <button class="btn secondary">+ Score toevoegen</button>
+      </form>
+    </section>
     <section class="card">
       <h3>Back-up</h3>
       <p class="muted">Je gegevens staan alleen op dit toestel (in de browser). Ze gaan niet automatisch naar een andere telefoon. Maak af en toe een back-up, zeker voordat je de browser opschoont.</p>
       <div class="row-actions"><button class="btn primary" data-act="export">⬇ Back-up downloaden</button>
       <label class="btn secondary file">⬆ Back-up terugzetten<input type="file" accept="application/json,.json" data-input="import" hidden></label></div>
     </section>
-    <section class="card">
-      <h3>Installeren als app</h3>
-      ${standalone ? '<p>✅ OCHE draait als app. Top!</p>' : ios
-        ? '<ol class="steps"><li>Open deze pagina in <b>Safari</b>.</li><li>Tik op <b>Deel</b> (vierkantje met pijl omhoog).</li><li>Kies <b>Zet op beginscherm</b> en tik op <b>Voeg toe</b>.</li></ol>'
-        : `${ui.installEvent ? '<button class="btn primary" data-act="install">📲 Installeer OCHE</button>' : ''}<ol class="steps"><li>Open deze pagina in <b>Chrome</b>.</li><li>Tik op het menu <b>⋮</b>.</li><li>Kies <b>App installeren</b> of <b>Toevoegen aan startscherm</b>.</li></ol>`}
-      <p class="muted small">Na installatie werkt OCHE ook zonder internet.</p>
+    <section class="card" data-testid="install-help">
+      <h3>Installeren op je telefoon</h3>
+      ${standalone ? '<p>✅ OKKIE draait als app op dit toestel.</p>' : ''}
+      ${ui.installEvent ? '<button class="btn primary" data-act="install">📲 Installeer OKKIE.</button>' : ''}
+      <h4>Installeren op iPhone</h4>
+      <p>Open OKKIE in <b>Safari</b>, gebruik <b>Delen</b> en kies <b>'Zet op beginscherm'</b>.</p>
+      <h4>Installeren op Android</h4>
+      <p>Open OKKIE in <b>Chrome</b> en kies via het menu <b>⋮</b> <b>'App installeren'</b> of <b>'Toevoegen aan startscherm'</b>.</p>
+      <p class="muted small">Na installatie opent OKKIE als eigen app en werkt hij ook zonder internet. Je gegevens worden op je eigen apparaat bewaard en synchroniseren niet automatisch tussen apparaten; gebruik daarvoor de back-up hierboven.</p>
     </section>
     <section class="card">
       <h3>Instellingen</h3>
@@ -812,7 +922,7 @@ VIEWS.more = () => {
     </section>
     <section class="card about">
       ${logoSVG({ height: 34 })}
-      <p class="muted small">Versie ${APP_VERSION}. "Oche" is de werplijn waar je achter staat bij darts. Geen account, geen tracking, geen reclame.</p>
+      <p class="muted small">Versie ${APP_VERSION}. OKKIE komt van "oche" (spreek uit: okkie), de werplijn waar je achter staat bij darts. Geen account, geen tracking, geen reclame.</p>
       <p class="credit">Ontwikkeld door <b>Denckh.</b></p>
     </section>
   </main>`;
@@ -827,7 +937,8 @@ function startScore() {
   finishActiveTraining(false);
   const s = ui.setup;
   const turns = s.turns === -1 ? Math.max(1, Math.min(200, Number(s.custom) || 10)) : s.turns;
-  data.active.training = { id: S.uid(), playerId: data.activePlayerId, kind: 'score', limitTurns: turns || null, startedAt: now(), turns: [], pending: [] };
+  const players = setupPlayers().slice(0, 4);
+  data.active.training = { id: S.uid(), playerId: players[0], players, kind: 'score', limitTurns: turns || null, startedAt: now(), turns: [], pending: [] };
   ui.mod = 1;
   save();
   go('play-score');
@@ -835,34 +946,57 @@ function startScore() {
 
 function startClock() {
   finishActiveTraining(false);
-  data.active.training = { id: S.uid(), playerId: data.activePlayerId, kind: 'clock', limitTurns: null, startedAt: now(), turns: [], pending: [] };
+  data.active.training = { id: S.uid(), playerId: data.activePlayerId, players: [data.activePlayerId], kind: 'clock', limitTurns: null, startedAt: now(), turns: [], pending: [] };
   ui.mod = 1;
   save();
   go('play-clock');
 }
 
-// Training afronden en in de geschiedenis zetten. showResult: naar uitslagscherm.
+// Gemiddelde van de laatste eerdere scoretraining van deze speler met exact dezelfde instelling.
+function prevAverage(playerId, limitTurns) {
+  const prev = data.trainings
+    .filter(x => x.playerId === playerId && x.kind === 'score' && (x.limitTurns || 0) === (limitTurns || 0))
+    .sort((a, b) => (a.startedAt < b.startedAt ? -1 : 1));
+  if (!prev.length) return null;
+  const tot = L.trainingTotals(prev[prev.length - 1]);
+  return tot.darts ? tot.avg : null;
+}
+
+function compareLine(avg, prev) {
+  if (prev === null || prev === undefined) return '';
+  const d = avg - prev;
+  const txt = Math.abs(d) < 0.005 ? 'gelijk aan je vorige training' : `${fmt(Math.abs(d), 2)} ${d > 0 ? 'hoger' : 'lager'} dan je vorige training`;
+  return `<em class="cmp ${d >= 0 ? 'up' : 'down'}" data-testid="compare">Vandaag ${fmt(avg, 2)} – ${txt}.</em>`;
+}
+
+// Training afronden en in de geschiedenis zetten (bij samen trainen: één training per speler).
+// showResult: naar uitslagscherm.
 function finishActiveTraining(showResult = true) {
   const t = data.active.training;
   if (!t) return;
-  if (t.pending.length) t.turns.push({ at: now(), darts: t.pending });
+  if (t.pending.length) t.turns.push({ at: now(), darts: t.pending, p: curIdx(t) });
   data.active.training = null;
   if (!t.turns.length) { save(); if (showResult) go('home'); return; }
-  const recBefore = records(t.playerId);
-  const badgesBefore = earnedBadges(data, t.playerId);
-  const prev = data.trainings.filter(x => x.playerId === t.playerId && x.kind === 'score' && (x.limitTurns || 0) === (t.limitTurns || 0));
-  let pp = 0, pd = 0;
-  prev.forEach(x => { const tt = L.trainingTotals(x); pp += tt.points; pd += tt.darts; });
-  const { pending, ...clean } = t;
-  data.trainings.push({ ...clean, finishedAt: now() });
+  const before = new Map(t.players.map(id => [id, { rec: records(id), badges: earnedBadges(data, id), prev: prevAverage(id, t.limitTurns) }]));
+  const saved = [];
+  t.players.forEach((pid, i) => {
+    const turns = t.turns.filter(x => (x.p ?? 0) === i).map(({ p, ...rest }) => rest);
+    if (!turns.length) return;
+    const tr = { id: i === 0 ? t.id : S.uid(), playerId: pid, kind: t.kind, limitTurns: t.limitTurns, startedAt: t.startedAt, finishedAt: now(), turns };
+    if (t.players.length > 1) { tr.groupId = t.id; tr.groupPlayers = [...t.players]; }
+    data.trainings.push(tr);
+    saved.push(tr);
+  });
   save();
-  const recAfter = records(t.playerId);
-  const badgesAfter = earnedBadges(data, t.playerId);
-  const newBadges = [...badgesAfter].filter(b => !badgesBefore.has(b));
-  ui.result = { id: t.id, prevAvg: pd ? L.avg3(pp, pd) : null, records: diffRecords(recBefore, recAfter), newBadges, bestClock: recAfter.clock };
+  const per = saved.map(tr => {
+    const b = before.get(tr.playerId);
+    return { id: tr.id, playerId: tr.playerId, prevAvg: b.prev, records: diffRecords(b.rec, records(tr.playerId)), newBadges: [...earnedBadges(data, tr.playerId)].filter(x => !b.badges.has(x)) };
+  });
+  const main = per.find(x => x.playerId === data.activePlayerId) || per[0];
+  ui.result = { ...main, bestClock: records(main.playerId).clock, group: per.length > 1 ? per : null, players: [...t.players], limitTurns: t.limitTurns, kind: t.kind };
   if (showResult) {
     go('result-training');
-    if (newBadges.length || ui.result.records.length) { beep('win'); haptic([30, 30, 60]); }
+    if (per.some(x => x.newBadges.length || x.records.length)) { beep('win'); haptic([30, 30, 60]); }
   }
 }
 
@@ -881,7 +1015,7 @@ function addDart(code) {
   if (tr.kind === 'clock') {
     const st = L.clockState({ turns: [...tr.turns, { darts: tr.pending }] });
     if (st.done || tr.pending.length === 3) {
-      tr.turns.push({ at: now(), darts: tr.pending });
+      tr.turns.push({ at: now(), darts: tr.pending, p: 0 });
       tr.pending = [];
     }
     save();
@@ -891,11 +1025,11 @@ function addDart(code) {
   }
   if (tr.pending.length === 3) {
     const score = L.turnScore(tr.pending);
-    tr.turns.push({ at: now(), darts: tr.pending });
+    tr.turns.push({ at: now(), darts: tr.pending, p: curIdx(tr) });
     tr.pending = [];
     save();
     turnCelebration(score);
-    if (L.trainingIsComplete(tr)) {
+    if (trainingDone(tr)) {
       finishActiveTraining(true);
       return;
     }
@@ -1010,7 +1144,7 @@ function exportBackup() {
   const blob = new Blob([S.makeBackup(data)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `oche-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `okkie-backup-${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(a);
   a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
@@ -1019,7 +1153,7 @@ function exportBackup() {
 
 async function importBackup(file) {
   if (!file) return;
-  if (file.size > 20 * 1024 * 1024) return toast('Dit bestand is te groot voor een OCHE-back-up.', 'error');
+  if (file.size > 20 * 1024 * 1024) return toast('Dit bestand is te groot voor een OKKIE-back-up.', 'error');
   const r = S.parseBackup(await file.text());
   if (r.error) return toast(r.error, 'error');
   const inc = r.data;
@@ -1049,11 +1183,15 @@ const ACTIONS = {
     }
     data.activePlayerId = id;
     ui.match.players = [];
+    ui.setup.players = [];
     save(); closeModal(); render();
     toast(`${player().name} is nu actief.`);
   },
   'setup-turns': v => { ui.setup.kind = 'score'; ui.setup.turns = Number(v); render(); },
   'start-score': startScore,
+  'tp-add': id => { const ps = setupPlayers(); if (player(id) && ps.length < 4 && !ps.includes(id)) ps.push(id); render(); },
+  'tp-remove': i => { setupPlayers().splice(Number(i), 1); render(); },
+  'tp-up': i => { const a = setupPlayers(); const n = Number(i); [a[n - 1], a[n]] = [a[n], a[n - 1]]; render(); },
   'start-clock': startClock,
   'resume-training': () => { const t = data.active.training; if (t) { data.activePlayerId = t.playerId; go(t.kind === 'clock' ? 'play-clock' : 'play-score'); } },
   'resume-match': () => data.active.match && go('play-match'),
@@ -1068,18 +1206,26 @@ const ACTIONS = {
     addDart(code);
   },
   'undo': undo,
+  // Tik op een ingevulde pijl: die pijl (en alles erna in deze beurt) wissen en opnieuw invoeren.
+  'slot': i => {
+    const holder = ui.view === 'play-match' ? data.active.match : data.active.training;
+    if (!holder) return;
+    holder.pending = holder.pending.slice(0, Number(i));
+    haptic(15); save(); render();
+  },
   'toggle-type': () => { ui.typing = !ui.typing; render(); },
   'pause': () => { save(); go('home'); toast('Gepauzeerd. Je kunt later verder via Home.'); },
   'finish-training': () => {
     const t = data.active.training;
     if (!t.turns.length && !t.pending.length) { data.active.training = null; save(); return go('home'); }
-    const lim = L.trainingLimitDarts(t);
-    const text = lim ? `Je hebt ${L.trainingTotals(t).darts + t.pending.length} van de ${lim} pijlen gegooid. De training wordt bewaard zoals hij nu is.` : 'De training wordt bewaard in je geschiedenis.';
+    const lim = t.players.length > 1 ? null : L.trainingLimitDarts(t);
+    const text = t.players.length > 1 ? 'Iedereen krijgt zijn eigen training in de geschiedenis, zoals de stand nu is.' : lim ? `Je hebt ${L.trainingTotals(t).darts + t.pending.length} van de ${lim} pijlen gegooid. De training wordt bewaard zoals hij nu is.` : 'De training wordt bewaard in je geschiedenis.';
     confirmBox('Training afronden?', text, 'Bewaren', () => { closeModal(); finishActiveTraining(true); }, false);
   },
   'again': () => {
     const t = data.trainings.find(x => x.id === ui.result?.id);
     if (t?.kind === 'clock') return startClock();
+    if (ui.result?.players) ui.setup.players = ui.result.players.filter(id => player(id));
     if (t) { ui.setup.turns = t.limitTurns || 0; if (![0, 10, 20, 33].includes(ui.setup.turns)) { ui.setup.custom = ui.setup.turns; ui.setup.turns = -1; } }
     startScore();
   },
@@ -1126,13 +1272,22 @@ const ACTIONS = {
       data.players = data.players.filter(x => x.id !== id);
       data.trainings = data.trainings.filter(t => t.playerId !== id);
       data.matches.forEach(m => m.players.forEach(mp => { if (mp.id === id) mp.id = null; }));
-      if (data.active.training?.playerId === id) data.active.training = null;
+      if (data.active.training?.players?.includes(id)) data.active.training = null;
+      ui.setup.players = (ui.setup.players || []).filter(x => x !== id);
       if (data.activePlayerId === id) data.activePlayerId = data.players[0].id;
       ui.match.players = [];
       save(); closeModal(); render();
     });
   },
   'export': exportBackup,
+  'import-dc': () => {
+    const list = dartCounterTrainings(data.activePlayerId);
+    let p = 0, d = 0; list.forEach(t => { p += t.summary.points; d += t.summary.darts; });
+    confirmBox('DartCounter-scores toevoegen?', `${list.length} scoretrainingen van 99 pijlen (gemiddeld ${fmt(L.avg3(p, d), 2)}) worden toegevoegd aan ${player().name}. De datums waren niet bekend; die kun je per training invullen in de geschiedenis.`, 'Toevoegen', () => {
+      if (!hasDartCounterSet(data, data.activePlayerId)) data.trainings.push(...list);
+      save(); closeModal(); render(); toast(`${list.length} trainingen toegevoegd.`);
+    }, false);
+  },
   'import-merge': () => { data = S.mergeData(data, importBackup.pending); sanitizeActive(); save(); closeModal(); render(); toast('Back-up samengevoegd.'); },
   'import-replace': () => confirmBox('Echt alles vervangen?', 'Alles wat nu op dit toestel staat wordt overschreven door de back-up.', 'Ja, vervangen', () => {
     data = importBackup.pending; sanitizeActive(); save(); closeModal(); render(); toast('Back-up teruggezet.');
@@ -1162,12 +1317,38 @@ const FORMS = {
     render();
     toast(`${name} toegevoegd.`);
   },
+  // Nieuwe speler (vriend/familie) maken en meteen laten meedoen met de training.
+  'train-player': fd => {
+    const name = S.cleanName(fd.get('name'));
+    if (!name) return toast('Vul een naam in.');
+    const ps = setupPlayers();
+    let p = data.players.find(x => x.name.toLowerCase() === name.toLowerCase());
+    if (!p) { p = S.newPlayer(name, data.players.length); data.players.push(p); save(); }
+    if (ps.includes(p.id)) return toast(`${p.name} doet al mee.`);
+    if (ps.length >= 4) return toast('Maximaal 4 spelers.');
+    ps.push(p.id);
+    render();
+  },
   guest: fd => {
     const name = S.cleanName(fd.get('name'));
     if (!name) return toast('Vul een naam in.');
     const prof = data.players.find(p => p.name.toLowerCase() === name.toLowerCase());
     if (ui.match.players.length < 4) ui.match.players.push(prof && !ui.match.players.some(x => x.id === prof.id) ? { id: prof.id, name: prof.name } : { id: null, name });
     render();
+  },
+  summary: fd => {
+    const t = S.summaryTraining({ playerId: data.activePlayerId, points: fd.get('points'), darts: fd.get('darts'), high: fd.get('high'), date: fd.get('date') || null, source: 'Andere app' });
+    if (!t) return toast('Deze score klopt niet (bijv. hoogste beurt hoger dan 180 of meer punten dan mogelijk).', 'error');
+    data.trainings.push(t); save(); render();
+    toast(`Toegevoegd: ${t.summary.points} punten in ${t.summary.darts} pijlen (gem. ${fmt(L.trainingTotals(t).avg, 2)}).`);
+  },
+  'set-date': (fd, form) => {
+    const t = data.trainings.find(x => x.id === form.dataset.arg);
+    const v = fd.get('date');
+    if (!t || !v) return toast('Kies een datum.');
+    t.startedAt = new Date(v + 'T12:00:00').toISOString();
+    delete t.dateUnknown;
+    save(); closeModal(); render(); toast('Datum opgeslagen.');
   },
   rename: (fd, form) => {
     const name = S.cleanName(fd.get('name'));
@@ -1232,7 +1413,7 @@ window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); ui.ins
 // ---------- Start ----------
 applyTheme();
 if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
-if (loaded.source === 'legacy') { save(); setTimeout(() => toast('Je trainingen uit Dartlog zijn overgezet naar OCHE.'), 600); }
+if (loaded.source === 'legacy') { save(); setTimeout(() => toast('Je trainingen uit Dartlog zijn overgezet naar OKKIE.'), 600); }
 const at = data.active.training;
 if (at) ui.view = at.kind === 'clock' ? 'play-clock' : 'play-score';
 else if (data.active.match) ui.view = 'play-match';
@@ -1240,15 +1421,15 @@ render();
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   const hadController = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.register('./sw.js').then(reg => {
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(reg => {
     reg.addEventListener('updatefound', () => {
       const nw = reg.installing;
       nw?.addEventListener('statechange', () => {
-        if (nw.state === 'activated' && hadController) toast('OCHE is bijgewerkt. Herstart de app voor de nieuwste versie.');
+        if (nw.state === 'activated' && hadController) toast('OKKIE is bijgewerkt. Herstart de app voor de nieuwste versie.');
       });
     });
   }).catch(() => {});
 }
 
 // Voor tests
-window.__oche = { get data() { return data; }, L };
+window.__okkie = { get data() { return data; }, L };

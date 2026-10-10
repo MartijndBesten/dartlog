@@ -1,10 +1,10 @@
-// OCHE — badges. Worden altijd berekend uit de echte gegevens, nooit los opgeslagen.
+// OKKIE — badges. Worden altijd berekend uit de echte gegevens, nooit los opgeslagen.
 import { trainingTotals, clockState, matchState, longestStreak } from './logic.js';
 
 export const BADGES = [
   { id: 'first', icon: '🎯', name: 'Eerste pijlen', desc: 'Rond je eerste training af' },
-  { id: 'ton', icon: '💯', name: 'Ton!', desc: 'Gooi 100 of meer in één beurt' },
-  { id: 'ton40', icon: '🔥', name: 'Ton-forty', desc: 'Gooi 140 of meer in één beurt' },
+  { id: 'ton', icon: '💯', name: 'Eerste 100+', desc: 'Gooi 100 of meer in één beurt' },
+  { id: 'ton40', icon: '🔥', name: 'Eerste 140+', desc: 'Gooi 140 of meer in één beurt' },
   { id: 'max', icon: '👑', name: 'ONE HUNDRED AND EIGHTY', desc: 'Gooi de perfecte 180' },
   { id: 'avg30', icon: '🥉', name: 'Op dreef', desc: 'Gemiddelde van 30+ in een training van minstens 30 pijlen' },
   { id: 'avg45', icon: '🥈', name: 'Clubspeler', desc: 'Gemiddelde van 45+ in een training van minstens 30 pijlen' },
@@ -51,7 +51,7 @@ export function earnedBadges(data, playerId) {
   }
   if (trainings.length >= 10) earned.add('t10');
   if (trainings.length >= 50) earned.add('t50');
-  const streak = longestStreak(trainings.map(t => t.startedAt));
+  const streak = longestStreak(trainings.filter(t => !t.dateUnknown).map(t => t.startedAt));
   if (streak >= 3) earned.add('streak3');
   if (streak >= 7) earned.add('streak7');
   for (const m of data.matches) {

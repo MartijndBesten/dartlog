@@ -1,4 +1,4 @@
-// OCHE — SVG-dartbord voor de trefferkaart. Toont per vak hoe vaak het is geraakt;
+// OKKIE — SVG-dartbord voor de trefferkaart. Toont per vak hoe vaak het is geraakt;
 // enkele treffers worden over beide enkele ringen getoond omdat de exacte positie onbekend is.
 import { SECTORS } from './logic.js';
 

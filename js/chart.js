@@ -1,4 +1,4 @@
-// OCHE — eenvoudige SVG-lijngrafiek met tik-/hoverinfo. Geen externe bibliotheek.
+// OKKIE — eenvoudige SVG-lijngrafiek met tik-/hoverinfo. Geen externe bibliotheek.
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 

@@ -1,6 +1,7 @@
-// OCHE — gegevensformaat, migraties en back-ups. Geen DOM; opslag wordt meegegeven zodat tests kunnen draaien.
+// OKKIE — gegevensformaat, migraties en back-ups. Geen DOM; opslag wordt meegegeven zodat tests kunnen draaien.
 import { isValidCode, parseInput } from './logic.js';
 
+// Sleutel heet nog 'oche.data' (de eerste merknaam): niet wijzigen, anders verdwijnen bestaande trainingen.
 export const STORAGE_KEY = 'oche.data';
 export const LEGACY_KEY = 'dartlog.v1';
 export const DATA_VERSION = 2;
@@ -84,6 +85,28 @@ function validTurns(turns, withPlayer) {
   return Array.isArray(turns) && turns.every(t => t && Array.isArray(t.darts) && t.darts.length >= 1 && t.darts.length <= 3 && t.darts.every(isValidCode) && (!withPlayer || Number.isInteger(t.p)));
 }
 
+// Eindstand van een training uit een andere app (geen losse pijlen bekend).
+export function validSummary(s) {
+  const n = v => Number.isInteger(v) && v >= 0;
+  return !!s && n(s.darts) && s.darts >= 1 && s.darts <= 999 && n(s.points) && s.points <= s.darts * 60
+    && (s.high === null || s.high === undefined || (n(s.high) && s.high <= 180 && s.high <= s.points))
+    && (s.t180 === undefined || (n(s.t180) && s.t180 * 180 <= s.points));
+}
+
+// Maakt een training uit een eindstand; geeft null bij ongeldige invoer.
+export function summaryTraining({ playerId, points, darts, high = null, t180, date, source = 'Andere app', id }) {
+  const summary = { points: Number(points), darts: Number(darts), high: high === '' || high === null ? null : Number(high) };
+  if (t180 !== undefined && t180 !== '') summary.t180 = Number(t180);
+  if (!validSummary(summary)) return null;
+  const known = !!date && !Number.isNaN(Date.parse(date));
+  return {
+    id: id || uid(), playerId, kind: 'score', limitTurns: darts % 3 === 0 ? darts / 3 : null,
+    startedAt: known ? new Date(date).toISOString() : new Date(Date.UTC(2026, 9, 1, 12)).toISOString(),
+    finishedAt: known ? new Date(date).toISOString() : undefined,
+    turns: [], summary, source, dateUnknown: !known || undefined,
+  };
+}
+
 export function validateData(d) {
   const errors = [];
   if (!d || typeof d !== 'object') return ['Geen geldig gegevensbestand.'];
@@ -95,7 +118,7 @@ export function validateData(d) {
   const ids = new Set(d.players.map(p => p.id));
   d.players.forEach((p, i) => { if (!p || typeof p.id !== 'string' || typeof p.name !== 'string') errors.push(`Speler ${i + 1} is ongeldig.`); });
   d.trainings.forEach((t, i) => {
-    if (!t || typeof t.id !== 'string' || !ids.has(t.playerId) || !ISO(t.startedAt) || !['score', 'clock'].includes(t.kind) || !validTurns(t.turns, false)) errors.push(`Training ${i + 1} is ongeldig.`);
+    if (!t || typeof t.id !== 'string' || !ids.has(t.playerId) || !ISO(t.startedAt) || !['score', 'clock'].includes(t.kind) || !validTurns(t.turns, false) || (t.summary !== undefined && !validSummary(t.summary))) errors.push(`Training ${i + 1} is ongeldig.`);
   });
   d.matches.forEach((m, i) => {
     const ok = m && typeof m.id === 'string' && ISO(m.startedAt) && Array.isArray(m.players) && m.players.length >= 1 && m.players.length <= 4
@@ -106,11 +129,11 @@ export function validateData(d) {
   return errors.slice(0, 5);
 }
 
-// Ruwe JSON (back-up) omzetten naar data. Accepteert OCHE-back-ups en oude Dartlog-gegevens.
+// Ruwe JSON (back-up) omzetten naar data. Accepteert OKKIE-back-ups en oude Dartlog-gegevens.
 export function parseBackup(text) {
   let raw;
   try { raw = JSON.parse(text); } catch { return { error: 'Dit is geen leesbaar back-upbestand (geen JSON).' }; }
-  if (raw && raw.app === 'oche' && raw.data) raw = raw.data;
+  if (raw && (raw.app === 'okkie' || raw.app === 'oche') && raw.data) raw = raw.data;
   if (raw && raw.version === 1 && Array.isArray(raw.trainings) && !raw.players) raw = migrateLegacy(raw);
   const errors = validateData(raw);
   if (errors.length) return { error: 'Back-up afgekeurd: ' + errors.join(' ') };
@@ -120,7 +143,7 @@ export function parseBackup(text) {
 }
 
 export function makeBackup(data) {
-  return JSON.stringify({ app: 'oche', exportedAt: new Date().toISOString(), data }, null, 2);
+  return JSON.stringify({ app: 'okkie', exportedAt: new Date().toISOString(), data }, null, 2);
 }
 
 // Samenvoegen: alles uit `incoming` toevoegen wat nog niet bestaat (op id).

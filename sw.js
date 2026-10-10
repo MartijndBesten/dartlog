@@ -1,6 +1,6 @@
-// OCHE serviceworker: app-bestanden offline beschikbaar. Gebruikersgegevens staan in localStorage
+// OKKIE serviceworker: app-bestanden offline beschikbaar. Gebruikersgegevens staan in localStorage
 // en worden hier nooit aangeraakt. Verhoog VERSION bij elke release.
-const VERSION = 'oche-v1.0.0';
+const VERSION = 'okkie-v1.2.0';
 const ASSETS = [
   './',
   './index.html',
@@ -13,6 +13,7 @@ const ASSETS = [
   './js/chart.js',
   './js/achievements.js',
   './js/brand.js',
+  './js/imports.js',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -28,24 +29,23 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k.startsWith('oche-') && k !== VERSION).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => (k.startsWith('okkie-') || k.startsWith('oche-')) && k !== VERSION).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
 
-// Cache eerst (snel en offline); paginanavigatie valt terug op index.html.
+// Netwerk eerst (altijd de nieuwste, onderling passende bestanden) en offline uit de cache.
+// Zo lopen HTML en JavaScript van verschillende versies nooit door elkaar.
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
-  if (req.mode === 'navigate') {
-    event.respondWith(
-      fetch(req).then(res => {
+  event.respondWith(
+    fetch(req).then(res => {
+      if (res.ok) {
         const copy = res.clone();
-        caches.open(VERSION).then(c => c.put('./index.html', copy));
-        return res;
-      }).catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
-  event.respondWith(caches.match(req, { ignoreSearch: true }).then(hit => hit || fetch(req)));
+        caches.open(VERSION).then(c => c.put(req.mode === 'navigate' ? './index.html' : req, copy));
+      }
+      return res;
+    }).catch(() => caches.match(req.mode === 'navigate' ? './index.html' : req, { ignoreSearch: true }))
+  );
 });
