@@ -1,0 +1,33 @@
+name: OKKIE kids guide browser tests
+on:
+  push:
+    branches: [feature/okkie-kids-uitleg]
+  pull_request:
+    paths:
+      - 'uitleg/**'
+      - 'ontdek/**'
+      - 'js/app.js'
+      - 'sw.js'
+      - 'tools/build-public-site.mjs'
+      - 'tests/e2e/kids-guide.spec.js'
+      - '.github/workflows/kids-guide-e2e.yml'
+jobs:
+  kids-guide-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      CI: "true"
+      PW_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test tutorial in mobile viewport
+        run: npx playwright test tests/e2e/kids-guide.spec.js --project=iphone

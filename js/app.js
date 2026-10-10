@@ -9,7 +9,7 @@ import { BADGES, earnedBadges } from './achievements.js';
 import { logoSVG, TAGLINE } from './brand.js';
 import { DARTCOUNTER_SET, dartCounterTrainings, hasDartCounterSet } from './imports.js';
 
-export const APP_VERSION = '1.3.0';
+export const APP_VERSION = '1.3.1';
 
 const $ = sel => document.querySelector(sel);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -243,6 +243,7 @@ VIEWS.welcome = () => `
       <input id="wname" name="name" maxlength="24" autocomplete="nickname" placeholder="Je naam" required autofocus>
       <button class="btn primary big" type="submit">Let's play darts 🎯</button>
     </form>
+    <a class="btn secondary big" href="./uitleg/" style="margin:12px auto;display:flex;max-width:350px;">Hoe werkt OKKIE.? Leer het in 2 minuten ↗</a>
     <p class="fineprint">Alles wordt op dit toestel bewaard. Geen account, geen reclame.<br>Ontwikkeld door <b>Denckh.</b></p>
   </section>`;
 
@@ -280,6 +281,10 @@ VIEWS.home = () => {
     ${at ? resumeCard('training', at) : ''}
     ${am ? resumeCard('match', am) : ''}
     ${Backup.due(data, data.activePlayerId) ? `<section class="card" role="status"><h3>Even een back-up bewaren?</h3><p>Je hebt weer tien trainingen afgerond. Bewaar jouw scores veilig op je telefoon of in iCloud Drive/Google Drive.</p><div class="row-actions"><button class="btn primary" data-act="backup-share">Back-up bewaren</button><button class="btn ghost" data-act="backup-dismiss">Later</button></div></section>` : ''}
+    <section class="card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div><h3 style="margin:0 0 4px">Nieuw? Zo werkt OKKIE.</h3><p class="muted small" style="margin:0">Leer scoren met een oefenbeurt van 3 pijlen.</p></div>
+      <a class="btn secondary" href="./uitleg/">Probeer de uitleg ↗</a>
+    </section>
     <section class="actions">
       <button class="action train" data-go="train">
         <span class="a-icon">🎯</span><span><b>Trainen</b><small>Scoretraining of rond de klok</small></span>
@@ -885,6 +890,11 @@ VIEWS.more = () => {
         <button class="icon-btn small" data-act="rename-player" data-arg="${esc(p.id)}" aria-label="Naam wijzigen">✎</button>
         ${data.players.length > 1 ? `<button class="icon-btn small" data-act="delete-player" data-arg="${esc(p.id)}" aria-label="Speler verwijderen">✕</button>` : ''}</li>`).join('')}</ul>
       <form data-form="add-player" class="guest"><input name="name" maxlength="24" placeholder="Nieuwe speler" aria-label="Naam nieuwe speler"><button class="btn secondary">+ Speler</button></form>
+    </section>
+    <section class="card">
+      <h3>Hoe werkt OKKIE.?</h3>
+      <p class="muted">Uitleg voor kinderen en beginners. Probeer drie pijlen, leer DOUBLE en TRIPLE en start je eerste training.</p>
+      <a class="btn secondary" href="./uitleg/">Open de uitleg ↗</a>
     </section>
     <section class="card">
       <h3>Geschiedenis</h3>

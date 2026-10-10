@@ -30,6 +30,15 @@ Dit document is het vaste uitgangspunt voor OKKIE. en sluit aan op de algemene D
 - Houd de techniek uitbreidbaar voor clubs, challenges, eenmalig betaalde Plus-functies, meerdere apparaten en beheerdersinzichten, zonder vooruitlopend op die features accounts of betaalgegevens te eisen.
 - Het eigenaarsoverzicht blijft privé en achter serieuze authenticatie.
 
+## Uitleg voor kinderen en beginnende darters
+- Een kind moet binnen twee minuten kunnen zien hoe het een eigen naam kiest, `Trainen → 30 pijlen` start, drie worpen invoert en het resultaat terugvindt.
+- Uitleg in korte, gewone woorden en met voorbeelden die exact overeenkomen met de knoppen in de echte app: `DOUBLE`, `TRIPLE`, `MIS`, `⌫`.
+- Geef waar mogelijk een interactieve oefenbeurt; demo's schrijven nooit naar echte trainingsopslag of de community.
+- Zet een zichtbare link naar de uitleg op het eerste welkomstscherm, vanaf de app en op de marketingwebsite.
+- Toon rustig dat trainen gratis is, alleen lokaal werkt en een kind vóór online delen een ouder moet vragen.
+- Maak geen onrealistische oefenscores of beloftes over vriendenfuncties die nog niet live zijn.
+- Houd animaties licht, toegankelijk en uitschakelbaar via de systeemvoorkeur voor minder beweging.
+
 ## Acceptatie bij nieuwe pagina's
 1. Is de pagina herkenbaar OKKIE. én subtiel Denckh.?
 2. Welke functionele interactie heeft de bezoeker?

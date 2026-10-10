@@ -42,3 +42,12 @@
   *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
   .js .reveal,.js .stagger>*{opacity:1;transform:none}
 }
+
+/* Interactieve kinderuitleg duidelijk bereikbaar vanaf de homepage. */
+.kids-invite{display:grid;grid-template-columns:175px 1fr;gap:33px;align-items:center;padding:34px;border-radius:24px;background:linear-gradient(115deg,#1d442c,#10251a);border:1px solid #4a7651}
+.kids-invite h2{font-size:clamp(27px,3vw,39px);margin:10px 0 12px}
+.kids-invite p{max-width:650px;margin-bottom:23px}
+.kids-graphic{display:grid;place-items:center;font-size:95px;aspect-ratio:1;border-radius:50%;background:#0d2a1a;box-shadow:inset 0 0 0 12px #31543c;animation:quick-aim 3.3s ease-in-out infinite}
+@keyframes quick-aim{0%,100%{transform:rotate(-6deg) scale(.97)}50%{transform:rotate(5deg) scale(1.05)}}
+@media(max-width:640px){.kids-invite{grid-template-columns:1fr;gap:15px;padding:24px}.kids-graphic{width:102px;font-size:56px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.kids-graphic{animation:none}}

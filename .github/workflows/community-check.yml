@@ -32,7 +32,7 @@ jobs:
           node cloud/tools/build-admin-page.mjs
           git diff --exit-code -- cloud/src/admin-page.js
           npm run build:site
-          node --input-type=module -e "import{existsSync}from'node:fs'; for(const f of ['dist/index.html','dist/app/index.html','dist/app/community/index.html','dist/app/sw.js'])if(!existsSync(f))throw Error(f)"
+          node --input-type=module -e "import{existsSync}from'node:fs'; for(const f of ['dist/index.html','dist/site.js','dist/uitleg/index.html','dist/uitleg/uitleg.js'])if(!existsSync(f))throw Error(f); if(existsSync('dist/app'))throw Error('geen tweede app op okkiedarts.nl')"
       - name: Existing app unit tests
         run: npm test
       - name: Community API tests (node:sqlite, no Cloudflare account needed)

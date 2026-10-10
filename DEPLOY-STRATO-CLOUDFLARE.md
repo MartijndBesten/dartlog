@@ -7,13 +7,19 @@
 
 ## Gewenste online indeling
 
-- https://okkiedarts.nl/ — publieke introductiewebsite
-- https://okkiedarts.nl/app/ — gratis installeerbare PWA voor nieuwe gebruikers
-- https://okkiedarts.nl/app/community/ — publieke ranglijst en opt-in account
-- https://api.okkiedarts.nl/v1/... — Cloudflare Workers API
-- https://beheer.okkiedarts.nl/beheer — privé-eigenaarsoverzicht, Cloudflare Access vereist
+| Adres | Functie |
+|---|---|
+| https://okkiedarts.nl/ | Publieke website met uitleg en animaties |
+| https://okkiedarts.nl/uitleg/ | Interactieve kinderuitleg |
+| https://martijndbesten.github.io/dartlog/ | De dartapp met bestaande scores (en `/community/` voor het profiel) |
+| https://api.okkiedarts.nl/v1/... | Online statistieken en ranglijst (Worker + D1) |
+| https://beheer.okkiedarts.nl/beheer | Privébeheerscherm, zodra Cloudflare Access is ingesteld |
 
-De marketingwebsite en PWA krijgen een Cloudflare Pages-project. Cloudflare Pages build:
+**Geen tweede app op okkiedarts.nl.** Trainingen staan in localStorage van de GitHub Pages-origin; een kopie op het nieuwe
+domein zou leeg beginnen. `npm run build:site` bouwt daarom alleen website + uitleg en de CI faalt als `dist/app` bestaat.
+Zet ook nooit een custom domain op de GitHub-repository (dan verhuist de app wél, met lege opslag).
+
+De website krijgt een Cloudflare Pages-project. Cloudflare Pages build:
 - GitHub repository: MartijndBesten/dartlog
 - productiebranch: main, na review en uitdrukkelijk akkoord
 - build command: npm run build:site

@@ -8,6 +8,10 @@ Ontwikkeld door **Denckh.**
 
 🎯 **Online:** https://martijndbesten.github.io/dartlog/
 
+## Uitleg voor kinderen (onderdeel van komende versie)
+
+In `uitleg/` staat een mobile-first handleiding voor nieuwe darters: vier korte stappen vanaf je naam tot de 30-pijlentraining, plus een interactieve demonstratie met T20 + 5 + D10 = 85 punten. Deze demonstratie schrijft geen gegevens naar lokale trainingen of online profielen. Vanuit het welkomstscherm, Home, Meer en de marketingwebsite kun je de uitleg openen. Zie `tests/unit/kids-guide.test.js` en `tests/e2e/kids-guide.spec.js`.
+
 ## Nieuwe openbare website en community (nog niet live)
 
 De publieke introductiepagina en community-ranglijst zijn ontwikkeld op de branch feature/okkie-public-community.
