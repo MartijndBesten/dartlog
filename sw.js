@@ -1,6 +1,6 @@
 // OKKIE serviceworker: app-bestanden offline beschikbaar. Gebruikersgegevens staan in localStorage
 // en worden hier nooit aangeraakt. Verhoog VERSION bij elke release.
-const VERSION = 'okkie-v1.3.0';
+const VERSION = 'okkie-v1.3.0-kids';
 const ASSETS = [
   './',
   './index.html',
@@ -17,6 +17,11 @@ const ASSETS = [
   './js/achievements.js',
   './js/brand.js',
   './js/imports.js',
+  './uitleg/',
+  './uitleg/index.html',
+  './uitleg/uitleg.css',
+  './uitleg/uitleg.js',
+  './uitleg/score-oefening.js',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -46,9 +51,20 @@ self.addEventListener('fetch', event => {
     fetch(req).then(res => {
       if (res.ok) {
         const copy = res.clone();
-        caches.open(VERSION).then(c => c.put(req.mode === 'navigate' ? './index.html' : req, copy));
+        // Bewaar de bezochte pagina onder zijn eigen URL. Een uitlegpagina mag nooit
+        // de offline app-shell ('./index.html') overschrijven.
+        caches.open(VERSION).then(c => c.put(req, copy)).catch(() => {});
       }
       return res;
-    }).catch(() => caches.match(req.mode === 'navigate' ? './index.html' : req, { ignoreSearch: true }))
+    }).catch(async () => {
+      const cached = await caches.match(req, { ignoreSearch: true });
+      if (cached) return cached;
+      if (req.mode === 'navigate') {
+        const pathname = new URL(req.url).pathname;
+        if (pathname.endsWith('/uitleg/')) return caches.match('./uitleg/index.html');
+        if (pathname.endsWith('/')) return caches.match('./index.html');
+      }
+      return Response.error();
+    })
   );
 });
