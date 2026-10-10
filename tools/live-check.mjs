@@ -1,4 +1,5 @@
 // Controleert de echte onlineversie: node tools/live-check.mjs [url]
+import { readFileSync } from 'node:fs';
 import { chromium, devices } from '@playwright/test';
 
 const url = process.argv[2] || 'https://martijndbesten.github.io/dartlog/';
@@ -37,6 +38,7 @@ await p.evaluate(() => navigator.serviceWorker.ready);
 await ctx.setOffline(true);
 await p.reload();
 check((await p.getByTestId('live-total').textContent()) === '0' && (await p.getByTestId('now-up').textContent()) === 'Gast', 'offline: lopende training met 2 spelers hervat');
-check((await p.evaluate(() => caches.keys())).includes('okkie-v1.2.0'), 'offline-cache okkie-v1.2.0');
+const liveCache = readFileSync(new URL('../sw.js', import.meta.url), 'utf8').match(/const VERSION = '([^']+)'/)[1];
+check((await p.evaluate(() => caches.keys())).includes(liveCache), 'offline-cache ' + liveCache);
 check(!errors.length, 'geen JavaScript-fouten' + (errors.length ? ': ' + errors.join(' | ') : ''));
 await b.close();
