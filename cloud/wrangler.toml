@@ -1,0 +1,15 @@
+name = "okkie-community-api"
+main = "src/worker.js"
+compatibility_date = "2026-10-10"
+workers_dev = true
+
+[vars]
+# Meerdere origins gescheiden met komma; ook bestaande PWA-origin opnemen.
+ALLOWED_ORIGINS = "https://martijndbesten.github.io"
+
+# Vul database_id pas in nadat de D1 database is aangemaakt.
+[[d1_databases]]
+binding = "DB"
+database_name = "okkie-community"
+database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
+migrations_dir = "migrations"
