@@ -1,6 +1,7 @@
 // OKKIE — interface. Spelregels staan in logic.js, opslag in store.js.
 import * as L from './logic.js';
 import * as S from './store.js';
+import { queueCommunitySync } from './community-sync.js';
 import { boardSVG, heatLegend } from './board.js';
 import { lineChart, bindChart } from './chart.js';
 import { BADGES, earnedBadges } from './achievements.js';
@@ -287,6 +288,9 @@ VIEWS.home = () => {
       <button class="action stats" data-go="stats">
         <span class="a-icon">📈</span><span><b>Mijn statistieken</b><small>Word ik beter?</small></span>
       </button>
+      <a class="action stats" href="./community/" aria-label="Open de community-ranglijst">
+        <span class="a-icon">🏆</span><span><b>Community</b><small>Vergelijk je scores met anderen</small></span>
+      </a>
     </section>
     <section class="tiles">
       ${tile('Trainingen', int(o.count))}
@@ -885,6 +889,11 @@ VIEWS.more = () => {
       <p class="muted">Alle trainingen en wedstrijden terugkijken, corrigeren of verwijderen.</p>
       <button class="btn secondary" data-go="history">Open geschiedenis</button>
     </section>
+    <section class="card">
+      <h3>Community en ranglijst</h3>
+      <p class="muted">Bekijk openbare scores van andere spelers. Delen van jouw cijfers is vrijwillig: alleen een nickname en statistieken.</p>
+      <a class="btn secondary" href="./community/">Open OKKIE. Community ↗</a>
+    </section>
     <section class="card" data-testid="other-app">
       <h3>Scores uit een andere app</h3>
       <p class="muted">Eerdere scoretrainingen (bijv. uit DartCounter) toevoegen aan <b>${esc(player().name)}</b>, zodat je ziet of je beter wordt.</p>
@@ -988,6 +997,8 @@ function finishActiveTraining(showResult = true) {
     saved.push(tr);
   });
   save();
+  // Synchronisatie alleen na toestemming; netwerkfouten beïnvloeden lokaal darten niet.
+  queueCommunitySync(data, saved.map(tr => tr.playerId));
   const per = saved.map(tr => {
     const b = before.get(tr.playerId);
     return { id: tr.id, playerId: tr.playerId, prevAvg: b.prev, records: diffRecords(b.rec, records(tr.playerId)), newBadges: [...earnedBadges(data, tr.playerId)].filter(x => !b.badges.has(x)) };
