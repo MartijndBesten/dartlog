@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.3 (branch nacht/installatie-en-overdracht, nog niet live)
+## 1.3.4 (branch nacht/installatie-en-overdracht, nog niet live)
 
 - Verhuizing naar app.okkiedarts.nl voorbereid, standaard **uit** (`PROD.open = false` in `js/transfer.js`). Zie VERHUIZING.md.
   Automatisch overzetten tussen twee vensters, overzetcode (kopiëren en plakken, ook vanuit de iPhone-app op het beginscherm) en het back-upbestand.
@@ -11,6 +11,10 @@
 - Installatiebegeleiding voor nieuwe gebruikers, alleen op app.okkiedarts.nl: compact advies met "OKKIE. installeren" en "Eerst proberen",
   Android-installatieprompt, echte iPhone-stappen, eerst trainingen meenemen als je al hebt gegooid. Niet in de geïnstalleerde app en niet voor bestaande gebruikers.
 - `tools/build-app-site.mjs`: aparte publicatie voor app.okkiedarts.nl (met CNAME), zonder het oude adres te raken.
+## 1.3.3
+
+- Licht thema: goud voor records en badges donkerder (contrast 4,4 → 5,7, WCAG AA).
+- Extra regressietests: 60/99 pijlen, eigen lengte, rond de klok, 301 straight out, dezelfde voornaam, kleurcontrast, verminderde beweging.
 
 ## 1.3.2
 
