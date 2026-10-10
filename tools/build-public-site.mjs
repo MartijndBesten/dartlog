@@ -18,11 +18,18 @@ let landing = readFileSync(join(root,'ontdek','index.html'),'utf8');
 landing = landing
   .replaceAll('href="../icons/favicon-32.png"','href="/app/icons/favicon-32.png"')
   .replaceAll('href="../community/"','href="/app/community/"')
+  .replaceAll('href="../uitleg/"','href="/uitleg/"')
   .replaceAll('href="../"','href="/app/"')
   .replaceAll('href="./site.css"','href="/site.css"')
   .replaceAll('href="./"','href="/"');
 writeFileSync(join(dest,'index.html'),landing);
 cpSync(join(root,'ontdek','site.css'),join(dest,'site.css'));
+// De les is een zelfstandige pagina: geen gebruikersgegevens en geen tweede PWA.
+cpSync(join(root,'uitleg'),join(dest,'uitleg'),{recursive:true});
+const tutorialFile = join(dest,'uitleg','index.html');
+writeFileSync(tutorialFile,readFileSync(tutorialFile,'utf8')
+  .replace('href="../icons/favicon-32.png"','href="https://martijndbesten.github.io/dartlog/icons/favicon-32.png"'));
+
 writeFileSync(join(dest,'_headers'),`/*
   Referrer-Policy: strict-origin-when-cross-origin
   X-Content-Type-Options: nosniff
@@ -40,6 +47,7 @@ Sitemap: https://okkiedarts.nl/sitemap.xml
 writeFileSync(join(dest,'sitemap.xml'),`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 <url><loc>https://okkiedarts.nl/</loc></url>
+<url><loc>https://okkiedarts.nl/uitleg/</loc></url>
 <url><loc>https://okkiedarts.nl/app/</loc></url>
 <url><loc>https://okkiedarts.nl/app/community/</loc></url>
 </urlset>
