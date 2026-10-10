@@ -184,3 +184,23 @@ afgerond tellen; scores blijven zelf ingevoerd, dus geen geldprijzen. Geschatte 
 4. `npx wrangler secret put GROUP_FOUNDER_CODE --env production` (zelf een of meer lange codes kiezen, niet delen).
 5. `GROUPS_ENABLED = "true"` in `[env.production.vars]`, deploy; `GROUPS_OPEN = true` in `community/config.js`, release 1.4.0.
 6. Privacyverklaring publiceren; daarna eerste groep maken met de oprichterscode.
+
+## 9. Darten op een andere telefoon (één spelersidentiteit)
+
+- Uniek intern ID: het online profiel (`members.id`/`handle`); de voornaam is alleen weergave. Op elke telefoon heeft
+  een speler een lokaal spelers-ID; alleen de telefoon met de inlogsleutel (na herstel: de nieuwe) is de eigenaar.
+- **Samenvoegen zonder dubbele tellingen**: de eigen telefoon blijft de enige bron van de gedeelde totalen
+  (`PUT /v1/me/snapshots` vervangt). Trainingen van andere telefoons komen via een **tijdelijke inbox** (`guest_inbox`,
+  samenvatting + dag) en worden op de eigen telefoon eenmalig toegevoegd met een vast ID (`gast-<trainings-ID>`); pas
+  daarna wordt de inbox bevestigd en online gewist (anders na 60 dagen). Opnieuw ophalen of versturen geeft nooit dubbel.
+- **Koppelcode** (`guest_passes`): 8 tekens, 7 dagen, gehasht, maximaal 5 open; geldt voor precies één training van
+  die ene speler. `/v1/guest/preview` toont alleen de voornaam; `/v1/guest/training` accepteert één samenvatting.
+  Herhaald versturen van dezelfde training (netwerkfout, offline) is onschuldig. De code is geen inlogsleutel.
+- **Offline**: de telefoon van de vriend bewaart gekoppelde trainingen in een wachtrij (`okkie.guest.v1`) en verstuurt
+  die zodra er internet is. Koppelen kan offline met een naam; de code wordt dan bij versturen gecontroleerd.
+- **Beveiliging tegen verlies**: minder pijlen dan online alleen met `replace: true` (de speler verwijderde zelf
+  trainingen). Een lege of achterlopende telefoon kan online cijfers dus niet ongemerkt wissen.
+- **Privacy**: alleen samenvattingen (geen losse pijlen of tijden), alleen tijdelijk; jonger dan 16 pas met toestemming
+  voor een groep (zelfde regel als `minorMayStore`).
+- Tests: `cloud/tests/guest.test.js`, `tests/unit/guest-sync.test.js`, `tests/e2e/andere-telefoon.spec.js` (drie
+  spelers, twee telefoons, zes trainingen, offline, geen dubbele, naam alleen koppelt niet).

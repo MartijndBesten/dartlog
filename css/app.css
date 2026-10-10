@@ -519,3 +519,7 @@ button.slot:active { transform: scale(.96); }
 .welcome label { font-size: 1.1rem; }
 .welcome .fineprint { font-size: .9rem; }
 .tagline { font-size: 1.15rem; }
+
+/* Spelen op een andere telefoon */
+.guest-code { font-size: 2.2rem; font-weight: 800; letter-spacing: .12em; text-align: center; margin: 14px 0; color: var(--lime); font-variant-numeric: tabular-nums; }
+.linked { font-size: .9em; }

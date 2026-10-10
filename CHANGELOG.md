@@ -9,6 +9,8 @@
 - Voor alle leeftijden: alleen voornaam en leeftijdsgroep (16+ of jonger). Jonger dan 16: een ouder of verzorger geeft per groep toestemming via een link, zonder account (ook voor een eigen groep of meer delen), en kan die per groep via dezelfde link intrekken; zonder groep met toestemming wordt het online profiel gewist. Geen chat, berichten of foto’s.
 - Spelersprofiel (tik op een naam), vergelijken met mij, challenge met resterende dagen. Besloten profielen bewaren online alleen het totaal en de laatste 8 weken.
 - Server: GROUPS_ENABLED (standaard uit), uitnodigingstokens alleen gehasht, toegang uitsluitend voor leden, eenmalige oprichterscode(s) voor het eerste account.
+- **Darten op een andere telefoon**: maak op je eigen telefoon een koppelcode (8 tekens, 7 dagen, één training); je vriend vult hem in bij Trainen. Na de training gaat alleen de samenvatting naar je eigen profiel; je eigen telefoon haalt hem op en telt hem mee. Werkt ook als de telefoon van je vriend even offline is; nooit dubbel. De code geeft geen toegang tot je profiel.
+- Bescherming: de server weigert dat een telefoon ongemerkt minder trainingen online zet dan er al staan (bijv. na herstel op een lege telefoon); alleen bewust verwijderen mag dat. Een naam alleen koppelt nooit aan iemands online profiel.
 - Spelers, trainingen en offline gebruik blijven ongewijzigd; zonder account werkt OKKIE. zoals altijd.
 
 ## 1.3.1

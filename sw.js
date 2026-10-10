@@ -18,6 +18,7 @@ const ASSETS = [
   './js/brand.js',
   './js/imports.js',
   './js/group-stats.js',
+  './js/guest-sync.js',
   './vrienden/',
   './vrienden/index.html',
   './vrienden/vrienden.css',

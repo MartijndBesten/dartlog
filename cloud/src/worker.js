@@ -1,5 +1,6 @@
 import { adminHtml } from './admin-page.js';
 import { isAdminRequest, adminEmail, adminHostMatches } from './admin-auth.js';
+import { handleGuest } from './guest.js';
 import { handleGroups, groupsOpen, inviteValid, releaseMemberships, minorMayStore, weekKey, LIMITS } from './groups.js';
 
 // Cloudflare Worker + D1 API voor OKKIE. Community.
@@ -304,6 +305,13 @@ export default {
           }
           const oldest = weekKey(new Date(), LIMITS.trendWeeks - 1);
           const keep = member.visible ? body.snapshots : body.snapshots.filter(x => x.period === 'all' || (x.period.startsWith('week:') && x.period >= oldest));
+          // Vervangen mag nooit ongemerkt cijfers wegpoetsen (bijv. een nieuwe telefoon met lege opslag na herstel).
+          // Minder pijlen dan online alleen als de speler zelf trainingen heeft verwijderd (replace: true).
+          const current = await env.DB.prepare("SELECT darts FROM stats WHERE member_id = ? AND period = 'all'").bind(member.id).first();
+          const incoming = keep.find(x => x.period === 'all')?.darts || 0;
+          if (current && incoming < current.darts && body.replace !== true) {
+            return json({ error: 'Op deze telefoon staan minder trainingen dan online. Je online cijfers zijn niet overschreven.', shrink: true }, 409, cors);
+          }
           const statements = [env.DB.prepare('DELETE FROM stats WHERE member_id = ?').bind(member.id)];
           for (const s of keep) {
             statements.push(env.DB.prepare(
@@ -315,6 +323,9 @@ export default {
           await env.DB.batch(statements);
           return json({ saved: keep.length }, 200, cors);
         }
+        // Koppelcodes en inbox voor spelen op een andere telefoon (guest.js).
+        const guest = await handleGuest(request, env, path, H, cors, member);
+        if (guest) return guest;
       }
       // ----- Beheer: basis voor het privédashboard. Nooit hashes of tokens teruggeven. -----
       if (path.startsWith('/v1/admin')) {
@@ -359,6 +370,8 @@ export default {
       }
       const groups = await handleGroups(request, env, path, H, cors);
       if (groups) return groups;
+      const guest = await handleGuest(request, env, path, H, cors, null);
+      if (guest) return guest;
       return fail('Onbekende route.', 404, cors);
     } catch (e) {
       // Interne details mogen nooit aan bezoekers worden getoond.
@@ -390,6 +403,8 @@ export default {
       ]);
     }
     await env.DB.prepare("DELETE FROM parent_consents WHERE confirmed_at IS NULL AND expires_at < datetime('now')").run();
+    await env.DB.prepare("DELETE FROM guest_passes WHERE expires_at < datetime('now', '-1 day')").run();
+    await env.DB.prepare("DELETE FROM guest_inbox WHERE received_at < datetime('now', '-60 days')").run();
     console.log(`OKKIE opschoning: ${empty.meta?.changes || 0} lege accounts, ${(stale.results || []).length} inactieve accounts verwijderd.`);
   },
 };

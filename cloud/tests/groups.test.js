@@ -435,7 +435,9 @@ test('statistiekvalidatie: best60/best99 alleen bij genoeg pijlen; oude apps zon
   assert.equal((await put(snap('all', 1800, 60, { best60: 3601 }))).status, 400);
   assert.equal((await put(snap('all', 1800, 60, { best60: 1800 }))).status, 200);
   const legacy = snap('all', 900, 30); // zonder best60/best99
-  assert.equal((await put(legacy)).status, 200);
+  // minder pijlen dan online: alleen met replace (speler verwijderde zelf trainingen)
+  assert.equal((await put(legacy)).status, 409);
+  assert.equal((await call(env, '/v1/me/snapshots', { method: 'PUT', token: o.token, body: { snapshots: [legacy], replace: true } })).status, 200);
 });
 
 test('meerdere oprichterscodes: elk precies één keer', async () => {

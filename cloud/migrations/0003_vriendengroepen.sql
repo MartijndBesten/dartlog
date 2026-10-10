@@ -77,3 +77,33 @@ CREATE TABLE IF NOT EXISTS app_flags (
   value TEXT,
   at TEXT NOT NULL
 );
+
+-- Spelen op een andere telefoon. De eigenaar maakt een koppelcode (alleen gehasht bewaard) die precies één training
+-- van precies deze speler laat registreren; verder geeft hij geen toegang. used_training_id maakt herhaald versturen
+-- van dezelfde training (bijv. na een netwerkfout) onschuldig.
+CREATE TABLE IF NOT EXISTS guest_passes (
+  id TEXT PRIMARY KEY,
+  member_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  code_hash TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  used_training_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_guest_passes_member ON guest_passes(member_id);
+
+-- Tijdelijke inbox: samenvatting van een training die op een andere telefoon is gegooid, tot de eigen telefoon hem
+-- heeft opgehaald (dan direct gewist; anders na 60 dagen). Geen losse pijlen, alleen de dag.
+CREATE TABLE IF NOT EXISTS guest_inbox (
+  member_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  training_id TEXT NOT NULL,
+  played_on TEXT NOT NULL,
+  darts INTEGER NOT NULL,
+  points INTEGER NOT NULL,
+  high INTEGER,
+  tons INTEGER NOT NULL DEFAULT 0,
+  t140 INTEGER NOT NULL DEFAULT 0,
+  t180 INTEGER NOT NULL DEFAULT 0,
+  received_at TEXT NOT NULL,
+  PRIMARY KEY(member_id, training_id)
+);
