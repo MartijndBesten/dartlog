@@ -1,4 +1,4 @@
-import adminHtml from './admin.html';
+import { adminHtml } from './admin-page.js';
 import { isAdminRequest, adminHostMatches } from './admin-auth.js';
 
 // Cloudflare Worker + D1 API voor OKKIE. Community.
