@@ -6,11 +6,5 @@ cloud/.dev.vars
 cloud/.wrangler/
 cloud/dist/
 dist/
-
-# wrangler files
-.wrangler
-.dev.vars*
-!.dev.vars.example
-.env*
-!.env.example
 .wrangler/
+.site-dryrun/
