@@ -335,7 +335,10 @@ test('merknaam OKKIE en onderschrift', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveTitle(/OKKIE/);
   await expect(page.locator('.tagline')).toHaveText('Gooi. Scoor. Word beter.');
-  await expect(page.locator('.welcome .fineprint')).toContainText('Ontwikkeld door Denckh.');
+  // Denckh-signatuur (officieel logo met krul) met kleine roltekst
+  await expect(page.locator('.welcome .maker')).toContainText('Ontwikkeld door');
+  await expect(page.locator('.welcome .maker img.on-dark')).toHaveAttribute('src', './icons/denckh-logo-signature-light.svg');
+  await expect(page.locator('.welcome .maker')).toHaveAttribute('href', 'https://denckh.nl/');
   await expect(page.locator('.welcome svg.logo')).toHaveAttribute('aria-label', 'OKKIE.');
   await page.screenshot({ path: `screenshots/e2e-welkom-okkie.png` });
 });
