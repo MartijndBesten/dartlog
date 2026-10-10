@@ -18,7 +18,7 @@ Hergebruikt (geen tweede systeem):
 
 Nieuw:
 - `cloud/migrations/0003_vriendengroepen.sql`: `groups`, `group_members` (rol + deelkeuze per groep), `group_invites`
-  (alleen SHA-256 van het token), `parent_consents` (eenmalige ouderlink, gehasht), `app_flags` (gebruikte
+  (alleen SHA-256 van het token), `parent_consents` (ouderlinks per kind én per groep, gehasht), `app_flags` (gebruikte
   oprichterscodes, alleen als hash), kolommen `best60`/`best99`, `age_group`, `consent_at`, `consent_method`.
   Additief: bestaande gegevens blijven ongewijzigd. Geen geboortedatum, e-mail, telefoon of adres in het datamodel.
 - `cloud/src/groups.js`: alle groepsroutes en **alle** toegangscontrole (server-side).
@@ -59,8 +59,9 @@ Grenzen (instelbaar in `LIMITS`): 50 leden per groep, 10 groepen per speler, 20 
 - De automatische opschoning verwijdert accounts zonder cijfers na 30 dagen, **behalve** als ze lid zijn van een groep.
 - Naam: voornaam of bijnaam (2–24 tekens, geen HTML of e-mailadres); geen achternaam nodig.
 - **Dataminimalisatie bij opslaan**: een besloten profiel bewaart alleen het totaal en de laatste 8 weken (wat de groep
-  toont); maanden en oudere weken die de app meestuurt worden weggegooid. Zonder toestemming (jonger dan 16, ouder nog
-  niet akkoord) wordt niets bewaard. Leeftijdsgroep en toestemming zijn voor groepsleden niet zichtbaar.
+  toont); maanden en oudere weken die de app meestuurt worden weggegooid. Jonger dan 16 en nog in geen groep mét gegeven
+  toestemming: er worden **geen statistieken** bewaard (eerder bewaarde worden gewist); wel voornaam, leeftijdsgroep,
+  gehashte inloggegevens en de openstaande aanvraag (groep, deelkeuze, bij een eigen groep de gekozen naam). Leeftijdsgroep en toestemming zijn voor groepsleden niet zichtbaar.
 - Geen communicatie: geen chat, berichten, foto's, profielteksten of zoekfunctie. Groepen zijn niet vindbaar.
 
 ## 4. Alle leeftijden: grondslag en ouderlijke toestemming (onderzoek, geen juridisch advies)
@@ -80,17 +81,21 @@ blokkades" moeten eerst geregeld zijn.
 | Uitvoering van de gevraagde dienst (art. 6 lid 1b) | Art. 8 geldt niet; wel handelingsbekwaamheid (art. 1:234 BW: toestemming ouder verondersteld voor wat voor de leeftijd gebruikelijk is, zoals een gratis app) | Mogelijk verdedigbaar omdat delen in de groep de kern is van wat de speler zelf vraagt. Toezichthouders lezen deze grondslag strikt (EDPB-richtsnoeren 2/2019). **Niet zelf gekozen; alleen na juridisch advies** (`MINOR_CONSENT = "dienst"`) |
 | Gerechtvaardigd belang (art. 6 lid 1f) | Belangen van kinderen wegen zwaar | Minst geschikt; niet gebruikt |
 
-**Gekozen oplossing: eenmalige ouderlink, zonder ouderprofiel.**
-1. Het kind kiest "jonger dan 16". Er wordt dan **niets** gedeeld of bewaard behalve voornaam, leeftijdsgroep en de
-   inloggegevens (gehasht).
+**Gekozen oplossing: ouderlink per groep, zonder ouderprofiel.**
+1. Het kind kiest "jonger dan 16". Er worden dan **geen statistieken** gedeeld of bewaard; wel voornaam, leeftijdsgroep,
+   de inloggegevens (gehasht) en de openstaande aanvraag.
 2. De app maakt een link (7 dagen geldig, alleen gehasht opgeslagen) die het kind via WhatsApp of het deelmenu naar een
    ouder/verzorger stuurt.
 3. De ouder opent de link (geen app, geen account), ziet de voornaam van het kind, de groepsnaam en **precies** wat
    gedeeld wordt (en wat nooit), vinkt "Ik ben de ouder of verzorger" aan en tikt "Ik geef toestemming". De server legt
    `consent_at` en `consent_method = 'ouderlink'` vast; het kind wordt lid.
-4. Voor **elke nieuwe groep** vraagt het kind opnieuw (toestemming is specifiek per groep). Na één bevestiging mag het
-   kind ook zelf een groep oprichten.
-5. **Intrekken** via dezelfde link: het online profiel van het kind en alles wat het deelde, wordt direct gewist.
+4. Toestemming is **per kind én per groep**: lid worden, zelf een groep oprichten en meer delen dan eerder goedgekeurd
+   gaan elk via een eigen link. Minder delen mag het kind zelf. Een nieuwe aanvraag vervangt alleen een openstaande
+   aanvraag voor hetzelfde doel, nooit een gegeven toestemming.
+5. **Intrekken per groep** via elke bevestigde link voor die groep (die links verlopen niet zolang de toestemming actief
+   is): het kind verlaat die groep en alle toestemmingen voor die groep vervallen; andere groepen blijven. Zit het kind
+   daarna nergens meer in, dan worden het online profiel en alle gedeelde scores gewist. Verlaat het kind zelf een groep
+   of haalt de beheerder het eruit, dan vervallen de toestemmingen voor die groep ook.
 
 Waarom dit "redelijke inspanning" kan zijn: laag risico (geen communicatie, geen foto's, geen openbaar profiel, alleen
 samengevatte scores binnen een besloten groep, eenvoudig intrekbaar), en de ouder ziet vooraf exact wat er gebeurt.
@@ -158,7 +163,9 @@ afgerond tellen; scores blijven zelf ingevoerd, dus geen geldprijzen. Geschatte 
   vreemde groep → 404), uitnodigingen (verlopen, ingetrokken, maximaal gebruik, ongeldig, link zonder account), rollen,
   deelkeuze-filtering, delen stoppen, account verwijderen met eigenaarsoverdracht, limieten, rate limiting,
   oprichterscode eenmalig (ook gelijktijdig, meerdere codes), fictieve spelers van alle leeftijden (opa, ouders, kinderen
-  met en zonder toestemming) in meerdere groepen, ouderlink (aanvragen, bekijken, bevestigen, per groep, intrekken,
+  met en zonder toestemming) in meerdere groepen, één kind in drie groepen met verschillende deelkeuzes (toestemming per
+  groep geven en apart intrekken, zelf meer delen geweigerd, minder delen toegestaan, eigen groep via ouder, oude
+  toestemming blijft geldig bij nieuwe aanvraag), ouderlink (aanvragen, bekijken, bevestigen, intrekken,
   verlopen, vervangen, opschonen), `MINOR_CONSENT = "dienst"`, dataminimalisatie bij opslaan.
 - `tests/unit/group-stats.test.js`: rekenregels.
 - `tests/e2e/vrienden.spec.js` (iPhone, Android, desktop): twee telefoons (oprichten, uitnodigen, lid worden, dashboard,

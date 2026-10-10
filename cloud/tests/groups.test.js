@@ -242,60 +242,116 @@ test('meerdere groepen per speler, met een maximum; volle groep weigert', async 
   assert.equal((await call(env, '/v1/invites/accept', { method: 'POST', token: derde.token, body: { token: inv.token, share: SHARE_ALL } })).status, 409);
 });
 
-test('alle leeftijden: kind (<16) doet mee na eenmalige ouderlink, zonder ouderaccount', async () => {
+test('één kind in drie groepen: toestemming per groep geven, beperken en afzonderlijk intrekken', async () => {
   const env = env0();
   const o = await founder(env, 'Trainer');
-  const g = await makeGroup(env, o, 'Jeugd en ouders');
-  const inv = await invite(env, o, g.id);
-  // leeftijd is verplicht, maar alleen als groep (geen geboortedatum)
-  assert.equal((await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Kind', inviteToken: inv.token } })).status, 400);
-  const kid = await ok(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Daan', inviteToken: inv.token, age: 'minor' }, newIp: true }), 201);
+  const [voetbal, familie, school] = [await makeGroup(env, o, 'Voetbal'), await makeGroup(env, o, 'Familie'), await makeGroup(env, o, 'School')];
+  const inv = { voetbal: await invite(env, o, voetbal.id), familie: await invite(env, o, familie.id), school: await invite(env, o, school.id) };
+  const kid = await ok(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Daan', inviteToken: inv.voetbal.token, age: 'minor' }, newIp: true }), 201);
   assert.equal(kid.needsParent, true);
-  const row = env.DB.raw.prepare('SELECT age_group, consent_at, visible FROM members WHERE handle = ?').get(kid.account.handle);
-  assert.deepEqual({ ...row }, { age_group: 'minor', consent_at: null, visible: 0 });
-  // zonder toestemming: niet lid worden, geen groep maken, en gedeelde cijfers worden niet bewaard
-  const direct = await call(env, '/v1/invites/accept', { method: 'POST', token: kid.token, body: { token: inv.token, share: SHARE_ALL } });
-  assert.equal(direct.status, 403);
-  assert.equal((await direct.json()).needsParent, true);
-  assert.equal((await call(env, '/v1/groups', { method: 'POST', token: kid.token, body: { name: 'Kindergroep', share: SHARE_ALL } })).status, 403);
-  const put = await ok(await call(env, '/v1/me/snapshots', { method: 'PUT', token: kid.token, body: { snapshots: [snap('all', 600, 30)] } }));
-  assert.equal(put.saved, 0);
-  assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM stats').get().n, 0);
-  // kind vraagt toestemming; volwassene hoeft dat niet
-  assert.equal((await call(env, '/v1/consent/request', { method: 'POST', token: o.token, body: { inviteToken: inv.token, share: SHARE_ALL } })).status, 400);
-  const req = await ok(await call(env, '/v1/consent/request', { method: 'POST', token: kid.token, body: { inviteToken: inv.token, share: { average: true, records: false, challenge: true } } }), 201);
-  assert.match(req.token, /^[a-f0-9]{64}$/);
+  const ask = async (body, status = 201) => ok(await call(env, '/v1/consent/request', { method: 'POST', token: kid.token, body }), status);
+  const confirm = token => call(env, '/v1/consent/confirm', { method: 'POST', body: { token, parent: true } });
+  const share = (a, r, c) => ({ average: a, records: r, challenge: c });
+  const inGroup = async g => (await ok(await call(env, `/v1/groups/${g.id}`, { token: o.token }))).members.find(m => m.nickname === 'Daan');
+  const putStats = () => call(env, '/v1/me/snapshots', { method: 'PUT', token: kid.token, body: { snapshots: [snap('all', 900, 30), snap(week, 900, 30)] } });
+
+  // Drie aanvragen, elk met een eigen link en eigen deelkeuze; geen enkele vervangt een andere.
+  const rV = await ask({ inviteToken: inv.voetbal.token, share: share(true, true, true) });
+  const rF = await ask({ inviteToken: inv.familie.token, share: share(true, false, false) });
+  const rS = await ask({ inviteToken: inv.school.token, share: share(false, false, true) });
+  assert.equal(new Set([rV.token, rF.token, rS.token]).size, 3);
   const me = await ok(await call(env, '/v1/groups', { token: kid.token }));
-  assert.deepEqual(me.me, { ageGroup: 'minor', consent: false, waitingForParent: 'Jeugd en ouders' });
-  // ouder bekijkt: alleen wat nodig is om te beslissen
-  const pv = await ok(await call(env, '/v1/consent/preview', { method: 'POST', body: { token: req.token } }));
-  assert.deepEqual(pv.share, { average: true, records: false, challenge: true });
-  assert.equal(pv.child, 'Daan');
-  assert.equal(pv.group, 'Jeugd en ouders');
-  assert.equal(JSON.stringify(pv).includes('Trainer'), false, 'geen andere leden');
-  assert.equal((await call(env, '/v1/consent/confirm', { method: 'POST', body: { token: req.token } })).status, 400, 'ouder moet bevestigen dat hij ouder is');
-  const conf = await ok(await call(env, '/v1/consent/confirm', { method: 'POST', body: { token: req.token, parent: true } }));
-  assert.deepEqual({ confirmed: conf.confirmed, joined: conf.joined }, { confirmed: true, joined: true });
-  assert.equal(env.DB.raw.prepare('SELECT consent_method FROM members WHERE handle = ?').get(kid.account.handle).consent_method, 'ouderlink');
-  // nu deelt het kind binnen de groep, met precies de goedgekeurde keuze
-  await ok(await call(env, '/v1/me/snapshots', { method: 'PUT', token: kid.token, body: { snapshots: [snap('all', 600, 30), snap(week, 600, 30)] } }));
-  const d = await ok(await call(env, `/v1/groups/${g.id}`, { token: o.token }));
-  const daan = d.members.find(m => m.nickname === 'Daan');
-  assert.deepEqual(daan.share, { average: true, records: false, challenge: true });
-  assert.equal(daan.records, undefined);
-  assert.equal(JSON.stringify(d).match(/age_?group|minor|consent/i), null, 'leeftijd en toestemming zijn voor anderen niet zichtbaar');
-  // tweede bevestiging is onschuldig; kind mag nu zelf een groep maken, maar voor een andere groep opnieuw de ouder
-  await ok(await call(env, '/v1/consent/confirm', { method: 'POST', body: { token: req.token, parent: true } }));
-  await ok(await call(env, '/v1/groups', { method: 'POST', token: kid.token, body: { name: 'Daan en vrienden', share: SHARE_ALL } }), 201);
-  const g2 = await makeGroup(env, o, 'Tweede groep');
-  assert.equal((await call(env, '/v1/invites/accept', { method: 'POST', token: kid.token, body: { token: (await invite(env, o, g2.id)).token, share: SHARE_ALL } })).status, 403);
-  // ouder trekt in: profiel van het kind en alles online verdwijnt
-  await ok(await call(env, '/v1/consent/withdraw', { method: 'POST', body: { token: req.token } }));
+  assert.deepEqual(me.me.waitingForParent.map(p => p.name).sort(), ['Familie', 'School', 'Voetbal']);
+  // Zonder gegeven toestemming: niets bewaard
+  assert.equal((await ok(await putStats())).saved, 0);
+  assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM stats').get().n, 0);
+
+  // Ouder geeft toestemming voor voetbal en familie; school nog niet.
+  await ok(await confirm(rV.token));
+  await ok(await confirm(rF.token));
+  for (const r of [rV, rF]) assert.equal((await ok(await call(env, '/v1/consent/preview', { method: 'POST', body: { token: r.token } }))).confirmed, true, 'eerdere toestemming blijft geldig');
+  assert.ok(await inGroup(voetbal));
+  assert.ok(await inGroup(familie));
+  assert.equal(await inGroup(school), undefined);
+  assert.equal((await ok(await putStats())).saved, 2);
+  assert.deepEqual((await inGroup(familie)).share, share(true, false, false));
+  assert.equal((await inGroup(familie)).records, undefined);
+
+  // Zelf meer delen dan goedgekeurd kan niet (server-side); minder delen wel.
+  const more = await call(env, `/v1/groups/${familie.id}/me`, { method: 'PATCH', token: kid.token, body: { share: share(true, true, false) } });
+  assert.equal(more.status, 403);
+  assert.equal((await more.json()).needsParent, true);
+  assert.deepEqual((await inGroup(familie)).share, share(true, false, false));
+  await ok(await call(env, `/v1/groups/${voetbal.id}/me`, { method: 'PATCH', token: kid.token, body: { share: share(true, false, false) } }));
+  // terug naar het eerder goedgekeurde niveau mag weer
+  await ok(await call(env, `/v1/groups/${voetbal.id}/me`, { method: 'PATCH', token: kid.token, body: { share: share(true, true, true) } }));
+  // meer delen met familie via een nieuwe aanvraag; de oude toestemming blijft tot de ouder beslist
+  assert.equal((await call(env, '/v1/consent/request', { method: 'POST', token: kid.token, body: { groupId: familie.id, share: share(true, false, false) } })).status, 400, 'binnen de goedkeuring is geen aanvraag nodig');
+  const rF2 = await ask({ groupId: familie.id, share: share(true, true, false) });
+  const pv = await ok(await call(env, '/v1/consent/preview', { method: 'POST', body: { token: rF2.token } }));
+  assert.equal(pv.kind, 'change');
+  assert.deepEqual(pv.approved, share(true, false, false));
+  assert.deepEqual((await inGroup(familie)).share, share(true, false, false));
+  await ok(await confirm(rF2.token));
+  assert.deepEqual((await inGroup(familie)).share, share(true, true, false));
+
+  // Een eigen groep oprichten gaat ook via de ouder.
+  assert.equal((await call(env, '/v1/groups', { method: 'POST', token: kid.token, body: { name: 'Daan en vrienden', share: share(true, false, false) } })).status, 403);
+  const rC = await ask({ groupName: 'Daan en vrienden', share: share(true, false, false) });
+  assert.equal((await ok(await call(env, '/v1/consent/preview', { method: 'POST', body: { token: rC.token } }))).kind, 'create');
+  await ok(await confirm(rC.token));
+  const kidGroups = await ok(await call(env, '/v1/groups', { token: kid.token }));
+  assert.deepEqual(kidGroups.groups.map(g => [g.name, g.role]).sort(), [['Daan en vrienden', 'owner'], ['Familie', 'member'], ['Voetbal', 'member']]);
+
+  // Intrekken voor familie: alleen familie verdwijnt; voetbal, eigen groep en statistieken blijven.
+  // Elke bevestigde link voor familie (de eerste en de wijziging) kan dat.
+  const w = await ok(await call(env, '/v1/consent/withdraw', { method: 'POST', body: { token: rF.token } }));
+  assert.deepEqual({ group: w.group, accountDeleted: w.accountDeleted }, { group: 'Familie', accountDeleted: false });
+  assert.equal(await inGroup(familie), undefined);
+  assert.ok(await inGroup(voetbal));
+  assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM parent_consents pc JOIN groups g ON g.id = pc.group_id WHERE g.name = ?').get('Familie').n, 0);
+  assert.equal((await call(env, '/v1/consent/preview', { method: 'POST', body: { token: rF2.token } })).status, 404, 'alle toestemmingen voor familie vervallen');
+  assert.equal((await ok(await call(env, '/v1/consent/preview', { method: 'POST', body: { token: rV.token } }))).confirmed, true, 'voetbal blijft intrekbaar');
+  assert.ok(env.DB.raw.prepare('SELECT COUNT(*) n FROM stats').get().n > 0);
+
+  // School: openstaande aanvraag intrekken = annuleren, er verandert verder niets
+  await ok(await call(env, '/v1/consent/withdraw', { method: 'POST', body: { token: rS.token } }));
+  assert.equal(await inGroup(school), undefined);
+  assert.equal((await confirm(rS.token)).status, 404);
+
+  // Kind verlaat voetbal zelf: toestemmingen voor voetbal worden mee opgeruimd.
+  await ok(await call(env, `/v1/groups/${voetbal.id}/me`, { method: 'DELETE', token: kid.token }));
+  assert.equal((await call(env, '/v1/consent/preview', { method: 'POST', body: { token: rV.token } })).status, 404);
+
+  // Laatste groep (eigen groep) intrekken: dan is er nergens meer toestemming en verdwijnt het profiel helemaal.
+  const last = await ok(await call(env, '/v1/consent/withdraw', { method: 'POST', body: { token: rC.token } }));
+  assert.equal(last.accountDeleted, true);
   assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM members WHERE handle = ?').get(kid.account.handle).n, 0);
-  assert.equal((await call(env, '/v1/groups', { token: kid.token })).status, 401);
-  assert.equal((await ok(await call(env, `/v1/groups/${g.id}`, { token: o.token }))).members.some(m => m.nickname === 'Daan'), false);
-  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) n FROM groups WHERE name = 'Daan en vrienden'").get().n, 0, 'groep van het kind zonder andere leden is weg');
-  assert.equal((await call(env, '/v1/consent/preview', { method: 'POST', body: { token: req.token } })).status, 404);
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) n FROM groups WHERE name = 'Daan en vrienden'").get().n, 0);
+  assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM stats s LEFT JOIN members m ON m.id = s.member_id WHERE m.id IS NULL').get().n, 0);
+  // Trainer en zijn groepen zijn onaangetast
+  assert.equal((await ok(await call(env, '/v1/groups', { token: o.token }))).groups.length, 3);
+});
+
+test('kind met toestemming dat een groep verlaat: zonder groep worden geen statistieken meer bewaard', async () => {
+  const env = env0();
+  const o = await founder(env);
+  const g = await makeGroup(env, o);
+  const inv = await invite(env, o, g.id);
+  const kid = await ok(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Mila', inviteToken: inv.token, age: 'minor' }, newIp: true }), 201);
+  const r = await ok(await call(env, '/v1/consent/request', { method: 'POST', token: kid.token, body: { inviteToken: inv.token, share: SHARE_ALL } }), 201);
+  await ok(await call(env, '/v1/consent/confirm', { method: 'POST', body: { token: r.token, parent: true } }));
+  const put = () => call(env, '/v1/me/snapshots', { method: 'PUT', token: kid.token, body: { snapshots: [snap('all', 900, 30)] } });
+  assert.equal((await ok(await put())).saved, 1);
+  await ok(await call(env, `/v1/groups/${g.id}/me`, { method: 'DELETE', token: kid.token }));
+  assert.equal((await ok(await put())).saved, 0);
+  assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM stats').get().n, 0, 'eerder gedeelde cijfers zijn gewist');
+  // eigenaar verwijdert een kind uit de groep: ook dan vervallen de toestemmingen voor die groep
+  const inv2 = await invite(env, o, g.id);
+  const r2 = await ok(await call(env, '/v1/consent/request', { method: 'POST', token: kid.token, body: { inviteToken: inv2.token, share: SHARE_ALL } }), 201);
+  await ok(await call(env, '/v1/consent/confirm', { method: 'POST', body: { token: r2.token, parent: true } }));
+  await ok(await call(env, `/v1/groups/${g.id}/members/${kid.account.handle}`, { method: 'DELETE', token: o.token }));
+  assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM parent_consents').get().n, 0);
 });
 
 test('ouderlink: verlopen of ongeldig werkt niet; nieuwe aanvraag vervangt de oude', async () => {

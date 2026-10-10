@@ -6,7 +6,7 @@
 - Groepsdashboard: beste deze week, meest verbeterd, 30-pijlenchallenge, records deze week; ranglijsten (algemeen, week, challenge, verbetering, records) met stijg-/daalpijlen; spelers naast elkaar vergelijken met balken en een weekgrafiek.
 - Per groep kiest een speler expliciet wat hij deelt (gemiddelde, records, challenge). Delen stoppen wist de gedeelde cijfers; profiel verwijderen haalt je uit alle groepen. Losse pijlen blijven altijd op de telefoon.
 - De app deelt nu ook de beste 60- en 99-pijlentraining (samenvatting).
-- Voor alle leeftijden: alleen voornaam en leeftijdsgroep (16+ of jonger). Jonger dan 16: een ouder of verzorger geeft eenmalig toestemming via een link, zonder account, en kan die via dezelfde link intrekken (alles online wordt dan gewist). Geen chat, berichten of foto’s.
+- Voor alle leeftijden: alleen voornaam en leeftijdsgroep (16+ of jonger). Jonger dan 16: een ouder of verzorger geeft per groep toestemming via een link, zonder account (ook voor een eigen groep of meer delen), en kan die per groep via dezelfde link intrekken; zonder groep met toestemming wordt het online profiel gewist. Geen chat, berichten of foto’s.
 - Spelersprofiel (tik op een naam), vergelijken met mij, challenge met resterende dagen. Besloten profielen bewaren online alleen het totaal en de laatste 8 weken.
 - Server: GROUPS_ENABLED (standaard uit), uitnodigingstokens alleen gehasht, toegang uitsluitend voor leden, eenmalige oprichterscode(s) voor het eerste account.
 - Spelers, trainingen en offline gebruik blijven ongewijzigd; zonder account werkt OKKIE. zoals altijd.

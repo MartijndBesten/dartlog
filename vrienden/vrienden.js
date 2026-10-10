@@ -98,7 +98,7 @@ function join() {
       ${inv ? '' : '<label class="field">Oprichterscode<input name="founder" required autocomplete="off"></label>'}
       <fieldset class="choices"><legend>Hoe oud ben je?</legend>
         <label class="check"><input type="radio" name="age" value="adult" required><span><b>16 jaar of ouder</b></span></label>
-        <label class="check"><input type="radio" name="age" value="minor"><span><b>Jonger dan 16</b><small>Dan stuur je één keer een linkje naar je vader, moeder of verzorger. Die tikt op “Ik geef toestemming” en je doet mee.</small></span></label>
+        <label class="check"><input type="radio" name="age" value="minor"><span><b>Jonger dan 16</b><small>Dan stuur je voor deze groep een linkje naar je vader, moeder of verzorger. Die tikt op “Ik geef toestemming” en je doet mee.</small></span></label>
       </fieldset>
       ${inv ? shareChoices() : shareChoices(null, 'Wat deel je met je nieuwe groep?')}
       ${inv ? '' : '<label class="field">Naam van je groep<input name="group" minlength="2" maxlength="40" required placeholder="Bijv. Dartvrienden"></label>'}
@@ -125,6 +125,7 @@ function groupsList() {
     ${state.invite ? `<form id="accept" class="card"><span class="tag shared">Uitnodiging</span><h2>Doe mee met “${esc(state.invite.group.name)}”</h2>
       <p class="muted">${state.invite.group.members} leden · je ziet hun scores zodra je lid bent.</p>${shareChoices()}
       <div class="row"><button class="btn primary" type="submit">Doe mee</button><button class="btn outline" type="button" data-act="skip-invite">Niet nu</button></div></form>` : ''}
+    ${pendingList().length ? `<section class="card"><span class="tag shared">Wacht op je ouder</span><h2>Nog geen “ja”</h2><p class="help">Stuur de link (nog eens) naar je vader, moeder of verzorger.</p>${consentLinks(pendingList())}<div class="row"><button class="btn outline" type="button" data-act="check-parent">Kijk of ik mee mag doen</button></div></section>` : ''}
     <section class="card"><div class="g-head"><div><h2>Mijn groepen</h2><p class="muted small">Ingelogd als <b>${esc(a.nickname)}</b> · alleen zichtbaar voor je groepsleden</p></div></div>
       ${groups.length ? `<div class="groups">${groups.map(g => `<button class="group-card" type="button" data-open="${esc(g.id)}"><b>${esc(g.name)}</b>
         <span>${g.members} ${g.members === 1 ? 'lid' : 'leden'} · ${g.role === 'owner' ? 'eigenaar' : g.role === 'admin' ? 'beheerder' : 'lid'}</span></button>`).join('')}</div>` :
@@ -302,47 +303,70 @@ async function loadInvites() {
   } catch (e) { out.innerHTML = `<p class="help">${esc(e.message)}</p>`; }
 }
 
-// ---------- jonger dan 16: één keer een ouder/verzorger laten bevestigen (geen ouderaccount) ----------
-async function askParent(share) {
-  const r = await api('/v1/consent/request', 'POST', { inviteToken: state.inviteToken, share });
+// ---------- jonger dan 16: per groep een ouder/verzorger laten bevestigen (geen ouderaccount) ----------
+// target: { inviteToken } (lid worden), { groupName } (eigen groep) of { groupId } (meer delen met een groep).
+const KIND_TEXT = {
+  join: g => `Mag ik meedoen met de dartgroep "${g}" in OKKIE.?`,
+  create: g => `Mag ik in OKKIE. een eigen dartgroep "${g}" maken?`,
+  change: g => `Mag ik in OKKIE. meer delen met de dartgroep "${g}"?`,
+};
+const pendingList = () => (prefs().pendingConsents || []).filter(p => p.playerId === state.playerId);
+async function askParent(target, share) {
+  const r = await api('/v1/consent/request', 'POST', { ...target, share });
   const p = prefs();
-  p.pendingConsent = { url: new URL('./', location.href).href + '#toestemming=' + r.token, group: r.group, playerId: state.playerId };
+  const url = new URL('./', location.href).href + '#toestemming=' + r.token;
+  // Eén openstaande link per doel; eerdere, andere aanvragen blijven staan.
+  p.pendingConsents = (p.pendingConsents || []).filter(x => !(x.playerId === state.playerId && x.kind === r.kind && x.group === r.group));
+  p.pendingConsents.push({ url, group: r.group, kind: r.kind, playerId: state.playerId });
   savePrefs(p);
   state.invite = null; state.inviteToken = '';
   waitingView();
 }
+function consentLinks(list) {
+  return list.map((pc, i) => {
+    const text = KIND_TEXT[pc.kind](pc.group) + ' Tik op de link: je ziet precies wat ik deel en kunt "ja" zeggen.';
+    return `<div class="pending-item"><b>${pc.kind === 'create' ? 'Eigen groep' : pc.kind === 'change' ? 'Meer delen met' : 'Meedoen met'} “${esc(pc.group)}”</b>
+      <span class="invite-link" data-testid="consent-link">${esc(pc.url)}</span>
+      <div class="row">${navigator.share ? `<button class="btn primary" type="button" data-share-consent="${i}">Delen…</button>` : ''}
+        <a class="btn primary" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(text + ' ' + pc.url)}">WhatsApp</a>
+        <button class="btn outline" type="button" data-copy-consent="${i}">Kopieer link</button></div></div>`;
+  }).join('');
+}
 function waitingView() {
-  const pc = prefs().pendingConsent;
-  const text = `Mag ik meedoen met de dartgroep "${pc.group}" in OKKIE.? Tik op de link: je ziet precies wat ik deel en kunt "ja" zeggen.`;
+  const list = pendingList();
   $('#vr').innerHTML = `<section class="card"><span class="tag shared">Bijna klaar</span><h2>Vraag even je ouder om “ja”</h2>
-    <ol class="steps"><li>Stuur deze link naar je vader, moeder of verzorger.</li><li>Die ziet wat je deelt met <b>${esc(pc.group)}</b> en tikt op <b>Ik geef toestemming</b>.</li><li>Kom terug en tik op <b>Kijk of ik mee mag doen</b>.</li></ol>
-    <span class="invite-link" data-testid="consent-link">${esc(pc.url)}</span>
-    <div class="row">${navigator.share ? '<button class="btn primary" type="button" data-act="share-consent">Delen…</button>' : ''}
-      <a class="btn primary" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(text + ' ' + pc.url)}">WhatsApp</a>
-      <button class="btn outline" type="button" data-act="copy-consent">Kopieer link</button></div>
-    <div class="row" style="margin-top:12px"><button class="btn outline" type="button" data-act="retry">Kijk of ik mee mag doen</button></div>
-    <p class="help">Trainen kan intussen gewoon. Er wordt niets gedeeld zolang je ouder geen “ja” heeft gezegd.</p></section>`;
-  $('#vr').dataset.text = text;
+    <ol class="steps"><li>Stuur de link naar je vader, moeder of verzorger.</li><li>Die ziet precies wat je deelt en tikt op <b>Ik geef toestemming</b>.</li><li>Kom terug en tik op <b>Kijk of ik mee mag doen</b>.</li></ol>
+    ${consentLinks(list)}
+    <div class="row" style="margin-top:12px"><button class="btn outline" type="button" data-act="check-parent">Kijk of ik mee mag doen</button>
+      <button class="btn outline" type="button" data-act="groups-now">Naar mijn groepen</button></div>
+    <p class="help">Trainen kan intussen gewoon. Zolang je ouder geen “ja” heeft gezegd, deel je niets met deze groep.</p></section>`;
   focusView();
 }
 async function parentView() {
   let c;
   try { c = await api('/v1/consent/preview', 'POST', { token: consentToken }, false); }
   catch (e) {
-    $('#vr').innerHTML = `<section class="card"><h2>Deze link werkt niet meer</h2><p>${esc(e.message)}</p><p class="help">Een toestemmingslink is 7 dagen geldig. Je kind kan in OKKIE. een nieuwe maken.</p></section>`;
+    $('#vr').innerHTML = `<section class="card"><h2>Deze link werkt niet meer</h2><p>${esc(e.message)}</p><p class="help">Een aanvraag is 7 dagen geldig. Is de toestemming ingetrokken of heeft je kind de groep verlaten, dan werkt de link ook niet meer. Je kind kan in OKKIE. een nieuwe link maken.</p></section>`;
     return focusView();
   }
-  const list = Object.entries(SHARE_LABELS).map(([k, [t, d]]) => `<li>${c.share[k] ? '✅' : '—'} <b>${t}</b>${c.share[k] ? '' : ' (niet gedeeld)'}<br><small class="muted">${d}</small></li>`).join('');
-  const head = `<span class="tag shared">Voor ouders en verzorgers</span><h2>${esc(c.child)} wil meedoen met “${esc(c.group || 'een vriendengroep')}”</h2>`;
+  const group = esc(c.group || 'een vriendengroep');
+  const title = { join: `${esc(c.child)} wil meedoen met “${group}”`, create: `${esc(c.child)} wil een eigen groep “${group}” maken`,
+    change: `${esc(c.child)} wil meer delen met “${group}”` }[c.kind];
+  const list = Object.entries(SHARE_LABELS).map(([k, [t, d]]) => {
+    const extra = c.approved && c.share[k] && !c.approved[k] ? ' <span class="badge">nieuw</span>' : '';
+    return `<li>${c.share[k] ? '✅' : '—'} <b>${t}</b>${c.share[k] ? extra : ' (niet gedeeld)'}<br><small class="muted">${d}</small></li>`;
+  }).join('');
+  const head = `<span class="tag shared">Voor ouders en verzorgers</span><h2>${title}</h2>`;
   const what = `<h3>Wat de groep van ${esc(c.child)} ziet</h3><ul class="plain consent-list">${list}</ul>
-    <p class="help">Nooit gedeeld: losse pijlen, tijdstippen, achternaam, foto's of berichten. OKKIE. heeft geen chat. De groep is besloten en niet te vinden. We bewaren alleen een voornaam of bijnaam, de leeftijdsgroep (jonger dan 16) en deze samengevatte scores. Meer in de <a href="../ontdek/privacy/">privacyverklaring</a>.</p>`;
+    <p class="help">Nooit gedeeld: losse pijlen, tijdstippen, achternaam, foto's of berichten. OKKIE. heeft geen chat. De groep is besloten en niet te vinden. We bewaren een voornaam of bijnaam, de leeftijdsgroep (jonger dan 16), deze aanvraag en, na jouw “ja”, de samengevatte scores. Meer in de <a href="../ontdek/privacy/">privacyverklaring</a>.</p>`;
   $('#vr').innerHTML = c.confirmed ?
-    `<section class="card">${head}<p class="vr-ok">✅ Je hebt toestemming gegeven. ${esc(c.child)} doet mee.</p>${what}
-      <h3>Toestemming intrekken</h3><p class="help">Dan verdwijnen het online profiel van ${esc(c.child)} en alles wat gedeeld is direct. Trainen op de eigen telefoon blijft gewoon werken.</p>
-      <button class="btn danger" type="button" data-act="withdraw-consent">Toestemming intrekken</button></section>` :
+    `<section class="card">${head}<p class="vr-ok">✅ Je hebt toestemming gegeven voor “${group}”.</p>${what}
+      <h3>Toestemming voor deze groep intrekken</h3><p class="help">Dan verlaat ${esc(c.child)} “${group}” en vervalt de toestemming voor deze groep. Andere groepen blijven zoals ze zijn. Zit ${esc(c.child)} daarna in geen enkele groep meer, dan wissen we het online profiel en alle gedeelde scores. Trainen op de eigen telefoon blijft gewoon werken. Bewaar deze link zolang je de toestemming wilt kunnen intrekken.</p>
+      <button class="btn danger" type="button" data-act="withdraw-consent">Toestemming voor deze groep intrekken</button></section>` :
     `<form id="consent" class="card" novalidate>${head}<p>Je kind vraagt jouw toestemming om samengevatte dartscores te delen met een besloten groep vrienden. Je hebt hiervoor geen account nodig.</p>${what}
-      <label class="check"><input type="checkbox" name="parent" required><span><b>Ik ben de ouder of verzorger van ${esc(c.child)}</b><small>en geef toestemming om deze scores met deze groep te delen. Ik kan dit later via deze link intrekken.</small></span></label>
-      <div class="row"><button class="btn primary" type="submit">Ik geef toestemming</button></div><p class="help">Link geldig tot ${esc(c.expiresAt)}. Geen toestemming? Sluit dan gewoon deze pagina; er wordt niets gedeeld.</p></form>`;
+      <label class="check"><input type="checkbox" name="parent" required><span><b>Ik ben de ouder of verzorger van ${esc(c.child)}</b><small>en geef toestemming om deze scores met “${group}” te delen. Ik kan dit later via deze link intrekken.</small></span></label>
+      <div class="row"><button class="btn primary" type="submit">Ik geef toestemming</button><button class="btn outline" type="button" data-act="decline-consent">Nee, liever niet</button></div>
+      <p class="help">Link geldig tot ${esc(c.expiresAt)}. Bij “nee” vervalt deze aanvraag en wordt er niets gedeeld.</p></form>`;
   focusView();
 }
 
@@ -402,12 +426,17 @@ async function render() {
   if (!acct()) return join();
   try {
     const last = await loadGroups();
-    const pc = prefs().pendingConsent;
-    if (pc && pc.playerId === state.playerId) {
-      if (state.me?.waitingForParent && !state.invite) return waitingView();
-      const joined = state.groups.find(g => g.name === pc.group);
-      const q = prefs(); delete q.pendingConsent; savePrefs(q);
-      if (joined) { status(`Je ouder heeft ja gezegd. Welkom bij ${joined.name}!`); try { await syncAccount(localData(), state.playerId); } catch { /* later */ } return openGroup(joined.id); }
+    const before = pendingList();
+    if (before.length) {
+      // Wat de server nog als open aanvraag kent, blijft staan; de rest is beantwoord (of verlopen).
+      const open = state.me?.waitingForParent || [];
+      const q = prefs();
+      q.pendingConsents = (q.pendingConsents || []).filter(x => x.playerId !== state.playerId || open.some(o => o.kind === x.kind && o.name === x.group));
+      savePrefs(q);
+      const answered = before.filter(x => !open.some(o => o.kind === x.kind && o.name === x.group));
+      const joined = answered.map(x => state.groups.find(g => g.name === x.group)).find(Boolean);
+      if (joined) { status(`Je ouder heeft ja gezegd voor ${joined.name}!`); try { await syncAccount(localData(), state.playerId); } catch { /* later */ } return openGroup(joined.id); }
+      if (pendingList().length && state.forceWaiting) { state.forceWaiting = false; return waitingView(); }
     }
     if (last && !state.invite) return openGroup(last, state.tab);
     groupsList();
@@ -438,7 +467,7 @@ document.addEventListener('submit', e => {
     if (state.invite) {
       const account = await api('/v1/register', 'POST', { nickname, inviteToken: state.inviteToken, age }, false);
       await afterAccount(account);
-      if (account.needsParent) return askParent(share);
+      if (account.needsParent) return askParent({ inviteToken: state.inviteToken }, share);
       const r = await api('/v1/invites/accept', 'POST', { token: state.inviteToken, share });
       state.invite = null; state.inviteToken = '';
       status(`Welkom bij ${r.group.name}!`);
@@ -469,7 +498,7 @@ document.addEventListener('submit', e => {
     let r;
     // Jonger dan 16: de server vraagt per groep eerst een ouder/verzorger; dan maken we de toestemmingslink.
     try { r = await api('/v1/invites/accept', 'POST', { token: state.inviteToken, share }); }
-    catch (err) { if (/ouder of verzorger/.test(err.message)) return askParent(share); throw err; }
+    catch (err) { if (/ouder of verzorger/.test(err.message)) return askParent({ inviteToken: state.inviteToken }, share); throw err; }
     state.invite = null; state.inviteToken = '';
     try { await syncAccount(localData(), state.playerId); } catch { /* later */ }
     status(r.already ? `Je was al lid van ${r.group.name}.` : `Welkom bij ${r.group.name}!`);
@@ -478,6 +507,7 @@ document.addEventListener('submit', e => {
   if (f.id === 'create') return busy(btn, async () => {
     const share = readShare(f);
     if (!Object.values(share).some(Boolean)) throw new Error('Kies minstens één ding om te delen met je groep.');
+    if (state.me?.needsParent) return askParent({ groupName: f.elements.name.value.trim() }, share);
     const { group } = await api('/v1/groups', 'POST', { name: f.elements.name.value.trim(), share });
     try { await syncAccount(localData(), state.playerId); } catch { /* later */ }
     status(`Groep ${group.name} is gemaakt. Nodig nu je vrienden uit.`);
@@ -496,7 +526,8 @@ document.addEventListener('submit', e => {
     loadInvites();
   });
   if (f.id === 'share') return busy(btn, async () => {
-    await api(`/v1/groups/${state.group.group.id}/me`, 'PATCH', { share: readShare(f) });
+    try { await api(`/v1/groups/${state.group.group.id}/me`, 'PATCH', { share: readShare(f) }); }
+    catch (err) { if (/ouder heeft goedgekeurd/.test(err.message)) return askParent({ groupId: state.group.group.id }, readShare(f)); throw err; }
     status('Je deelkeuze is opgeslagen.');
     openGroup(state.group.group.id, 'settings');
   });
@@ -511,6 +542,8 @@ document.addEventListener('click', e => {
   if (!t) return;
   const d = t.dataset;
   if (d.open) return busy(t, () => openGroup(d.open));
+  if (d.shareConsent) { const pc = pendingList()[+d.shareConsent]; return navigator.share({ title: 'OKKIE.', text: KIND_TEXT[pc.kind](pc.group), url: pc.url }).catch(() => {}); }
+  if (d.copyConsent) { const pc = pendingList()[+d.copyConsent]; return navigator.clipboard.writeText(pc.url).then(() => status('Link gekopieerd.'), () => status('Kopiëren lukt hier niet; selecteer de link hierboven.', true)); }
   if (d.player) { if (state.tab !== 'player') state.prevTab = state.tab; state.tab = 'player'; state.playerHandle = d.player; groupView(); return focusView(); }
   if (d.compareWith) { const me = state.group.members.find(m => m.you); state.compare = [me?.handle, d.compareWith].filter(Boolean); state.tab = 'compare'; groupView(); return focusView(); }
   if (d.tab) { state.tab = d.tab; groupView(); return $(`[data-tab="${d.tab}"]`)?.focus(); }
@@ -532,12 +565,16 @@ document.addEventListener('click', e => {
   if (act === 'groups') return busy(t, async () => { const p = prefs(); delete p.lastGroup; savePrefs(p); state.group = null; await loadGroups(); groupsList(); });
   if (act === 'retry' || act === 'skip-invite') { if (act === 'skip-invite') { state.invite = null; state.inviteToken = ''; } status(); return render(); }
   if (act === 'sync') return busy(t, async () => { await syncAccount(localData(), state.playerId); status('Je gedeelde cijfers zijn bijgewerkt.'); groupsList(); });
-  if (act === 'share-consent') return navigator.share({ title: 'OKKIE.', text: $('#vr').dataset.text, url: prefs().pendingConsent?.url }).catch(() => {});
-  if (act === 'copy-consent') return navigator.clipboard.writeText(prefs().pendingConsent?.url || '').then(() => status('Link gekopieerd.'), () => status('Kopiëren lukt hier niet; selecteer de link hierboven.', true));
-  if (act === 'withdraw-consent') return busy(t, async () => {
-    if (!confirm('Toestemming intrekken? Het online profiel en alle gedeelde scores van je kind worden direct gewist.')) return;
+  if (act === 'check-parent') { state.forceWaiting = true; status(); return render(); }
+  if (act === 'groups-now') return busy(t, async () => { await loadGroups(); groupsList(); });
+  if (act === 'decline-consent') return busy(t, async () => {
     await api('/v1/consent/withdraw', 'POST', { token: consentToken }, false);
-    $('#vr').innerHTML = '<section class="card"><h2>Toestemming ingetrokken</h2><p>Het online profiel van je kind en alles wat gedeeld was, is gewist. Trainen op de eigen telefoon werkt gewoon door.</p></section>';
+    $('#vr').innerHTML = '<section class="card"><h2>Geen toestemming gegeven</h2><p>De aanvraag is vervallen en er wordt niets gedeeld. Je kind kan gewoon blijven trainen.</p></section>';
+  });
+  if (act === 'withdraw-consent') return busy(t, async () => {
+    if (!confirm('Toestemming voor deze groep intrekken? Je kind verlaat deze groep direct.')) return;
+    const w = await api('/v1/consent/withdraw', 'POST', { token: consentToken }, false);
+    $('#vr').innerHTML = `<section class="card"><h2>Toestemming ingetrokken</h2><p>Je kind zit niet meer in “${esc(w.group || 'deze groep')}”. ${w.accountDeleted ? 'Omdat je kind nu in geen enkele groep meer zit, zijn het online profiel en alle gedeelde scores gewist.' : 'Andere groepen waarvoor je toestemming gaf, blijven zoals ze zijn.'} Trainen op de eigen telefoon werkt gewoon door.</p></section>`;
     status('Toestemming ingetrokken.');
   });
   if (act === 'share-invite') return navigator.share({ title: 'OKKIE.', text: $('#invite-out').dataset.text, url: $('#invite-out').dataset.url }).catch(() => {});
@@ -574,4 +611,6 @@ document.addEventListener('click', e => {
   if (e.target.closest('[data-act="sync"]') && acct() && !acct().enabled) upsertAccount(state.playerId, { ...acct(), enabled: true });
 }, true);
 addEventListener('online', () => status());
+// Een nieuwe uitnodigings- of toestemmingslink in hetzelfde tabblad: opnieuw laden, zodat de juiste link telt.
+addEventListener('hashchange', () => { if (/toestemming=|uitnodiging=/.test(location.hash)) location.reload(); });
 render();

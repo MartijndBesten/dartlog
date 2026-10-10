@@ -93,3 +93,4 @@ label.field input,label.field select{display:block;width:100%;margin-top:6px;pad
 .steps{padding-left:22px}.steps li{margin:6px 0}
 .vr-ok{font-weight:800;color:var(--green)}
 .consent-list li{margin:10px 0;list-style:none}.consent-list{padding-left:0}
+.pending-item{padding:12px 0;border-top:1px solid var(--line)}.pending-item:first-of-type{border-top:0}

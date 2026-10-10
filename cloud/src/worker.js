@@ -1,6 +1,6 @@
 import { adminHtml } from './admin-page.js';
 import { isAdminRequest, adminEmail, adminHostMatches } from './admin-auth.js';
-import { handleGroups, groupsOpen, inviteValid, releaseMemberships, weekKey, LIMITS } from './groups.js';
+import { handleGroups, groupsOpen, inviteValid, releaseMemberships, minorMayStore, weekKey, LIMITS } from './groups.js';
 
 // Cloudflare Worker + D1 API voor OKKIE. Community.
 // De database bewaart uitsluitend een nickname, account-credentials (gehasht) en geaggregeerde statistieken.
@@ -192,7 +192,7 @@ export default {
         let ageGroup = 'adult', consent = null;
         if (viaInvite || viaFounder) {
           // Besloten groep, voor alle leeftijden: nooit een openbaar profiel (visible = 0). Alleen leeftijdsgroep, geen geboortedatum.
-          // 16+: zelf toestemming. Jonger dan 16: eerst een ouder/verzorger via een eenmalige link (zie groups.js), tenzij
+          // 16+: zelf toestemming. Jonger dan 16: per groep eerst een ouder/verzorger via een link (zie groups.js), tenzij
           // MINOR_CONSENT = "dienst" na een juridisch besluit over een andere grondslag.
           if (body.age !== 'adult' && body.age !== 'minor') return fail('Kies je leeftijd: 16 of ouder, of jonger dan 16.', 400, cors);
           if (!nickname) return fail('Vul je voornaam of bijnaam in (2 tot 24 tekens).', 400, cors);
@@ -296,9 +296,12 @@ export default {
               body.snapshots.some(x => !snapshotOkay(x))) return fail('Statistieken hebben een ongeldig formaat.', 400, cors);
           const periods = body.snapshots.map(x => x.period);
           if (new Set(periods).size !== periods.length) return fail('Dubbele perioden.', 400, cors);
-          // Dataminimalisatie: zonder toestemming (jonger dan 16, ouder nog niet akkoord) niets bewaren; een besloten
-          // groepsprofiel bewaart alleen het totaal en de laatste weken die de groep laat zien.
-          if (member.ageGroup === 'minor' && !member.consentAt) return json({ saved: 0, waitingForParent: true }, 200, cors);
+          // Dataminimalisatie: jonger dan 16 zonder groep mét gegeven ouderlijke toestemming → geen statistieken bewaren
+          // (en eerder bewaarde wissen). Een besloten profiel bewaart alleen het totaal en de laatste weken die de groep toont.
+          if (member.ageGroup === 'minor' && member.consentMethod !== 'dienst' && !await minorMayStore(env, member.id)) {
+            await env.DB.prepare('DELETE FROM stats WHERE member_id = ?').bind(member.id).run();
+            return json({ saved: 0, waitingForParent: true }, 200, cors);
+          }
           const oldest = weekKey(new Date(), LIMITS.trendWeeks - 1);
           const keep = member.visible ? body.snapshots : body.snapshots.filter(x => x.period === 'all' || (x.period.startsWith('week:') && x.period >= oldest));
           const statements = [env.DB.prepare('DELETE FROM stats WHERE member_id = ?').bind(member.id)];

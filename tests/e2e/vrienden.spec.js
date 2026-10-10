@@ -155,12 +155,12 @@ test('jong en oud: kind (12) doet mee na één tik van een ouder, zonder ouderac
   await M.page.getByText('Ik ben de ouder of verzorger van Daan').click();
   await M.page.getByRole('button', { name: 'Ik geef toestemming' }).click();
   await expect(M.page.locator('#status')).toContainText('doet nu mee');
-  await expect(M.page.locator('#vr')).toContainText('Toestemming intrekken');
+  await expect(M.page.locator('#vr')).toContainText('Toestemming voor deze groep intrekken');
   expect(await M.page.evaluate(() => Object.keys(localStorage).filter(k => k !== 'okkie.dev'))).toEqual([]); // ouder hoeft niets op te slaan
 
   // Kind is nu lid; opa ziet Daan in de groep (zonder records)
   await K.page.getByRole('button', { name: 'Kijk of ik mee mag doen' }).click();
-  await expect(K.page.locator('#status')).toContainText('Welkom bij Familie');
+  await expect(K.page.locator('#status')).toContainText('Je ouder heeft ja gezegd voor Familie');
   await A.page.reload();
   await expect(A.page.locator('.board').first()).toContainText('Daan');
   await A.page.locator('.board button.name', { hasText: 'Daan' }).first().click();
@@ -168,9 +168,31 @@ test('jong en oud: kind (12) doet mee na één tik van een ouder, zonder ouderac
   await A.page.getByRole('button', { name: 'Vergelijk met mij' }).click();
   await expect(A.page.locator('.pick button[aria-pressed="true"]')).toHaveCount(2);
 
+  // Kind wil zelf meer delen (records): dat kan niet zonder ouder; er komt een nieuwe link, de oude toestemming blijft
+  await K.page.getByRole('tab', { name: 'Mijn deelkeuze' }).click();
+  await K.page.locator('#share').getByText('Records').click();
+  await K.page.locator('#share').getByRole('button', { name: 'Opslaan' }).click();
+  await expect(K.page.locator('#vr')).toContainText('Meer delen met “Familie');
+  const more = (await K.page.getByTestId('consent-link').textContent()).replace(/^https?:\/\/[^/]+/, '');
+  expect(more).not.toBe(consent);
+  await A.page.reload();
+  await A.page.locator('.board button.name', { hasText: 'Daan' }).first().click();
+  await expect(A.page.locator('.player-card')).not.toContainText('records');
+  await M.page.goto(more);
+  await expect(M.page.locator('#vr')).toContainText('Daan wil meer delen met');
+  await expect(M.page.locator('.consent-list .badge')).toHaveText('nieuw');
+  await M.page.getByText('Ik ben de ouder of verzorger van Daan').click();
+  await M.page.getByRole('button', { name: 'Ik geef toestemming' }).click();
+  await expect(M.page.locator('#vr')).toContainText('Je hebt toestemming gegeven');
+  await A.page.reload();
+  await A.page.locator('.board button.name', { hasText: 'Daan' }).first().click();
+  await expect(A.page.locator('.player-card')).toContainText('records');
+  await M.page.goto(consent); // de eerste link werkt nog om in te trekken
+
   // Ouder trekt in: Daan verdwijnt online, trainen op zijn eigen telefoon werkt gewoon
-  await M.page.getByRole('button', { name: 'Toestemming intrekken' }).click();
+  await M.page.getByRole('button', { name: 'Toestemming voor deze groep intrekken' }).click();
   await expect(M.page.locator('#vr')).toContainText('Toestemming ingetrokken');
+  await expect(M.page.locator('#vr')).toContainText('in geen enkele groep meer');
   await A.page.reload();
   await expect(A.page.locator('#vr')).not.toContainText('Daan');
   await K.page.goto('/');

@@ -49,20 +49,27 @@ CREATE TABLE IF NOT EXISTS group_invites (
 );
 CREATE INDEX IF NOT EXISTS idx_group_invites_group ON group_invites(group_id);
 
--- Toestemming van een ouder/verzorger voor een speler jonger dan 16, zonder ouderaccount.
--- Eén rij per kind: gehashte eenmalige link, de groep waar het kind bij wil en zijn deelkeuze.
--- Na bevestigen blijft de link bruikbaar om de toestemming in te trekken (dan wordt alles online gewist).
+-- Toestemming van een ouder/verzorger voor een speler jonger dan 16, zonder ouderaccount: per kind én per groep.
+-- Elke aanvraag heeft een eigen eenmalige link (alleen gehasht). Soorten: 'join' (lid worden via uitnodiging),
+-- 'create' (zelf een groep oprichten) en 'change' (meer delen met een groep dan eerder goedgekeurd).
+-- Een nieuwe aanvraag vervangt alleen een nog openstaande aanvraag voor hetzelfde doel, nooit een gegeven toestemming.
+-- Gegeven toestemming verloopt niet: elke bevestigde link blijft bruikbaar om die ene groep in te trekken.
 CREATE TABLE IF NOT EXISTS parent_consents (
-  member_id TEXT PRIMARY KEY REFERENCES members(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY,
+  member_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+  group_id TEXT REFERENCES groups(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK(kind IN ('join','create','change')),
   token_hash TEXT NOT NULL UNIQUE,
   invite_id TEXT REFERENCES group_invites(id) ON DELETE SET NULL,
-  share_average INTEGER NOT NULL DEFAULT 0,
-  share_records INTEGER NOT NULL DEFAULT 0,
-  share_challenge INTEGER NOT NULL DEFAULT 0,
+  group_name TEXT,
+  share_average INTEGER NOT NULL DEFAULT 0 CHECK(share_average IN (0,1)),
+  share_records INTEGER NOT NULL DEFAULT 0 CHECK(share_records IN (0,1)),
+  share_challenge INTEGER NOT NULL DEFAULT 0 CHECK(share_challenge IN (0,1)),
   created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL,
   confirmed_at TEXT
 );
+CREATE INDEX IF NOT EXISTS idx_parent_consents_member_group ON parent_consents(member_id, group_id);
 
 -- Eenmalige vlaggen, zoals "oprichterscode gebruikt".
 CREATE TABLE IF NOT EXISTS app_flags (
