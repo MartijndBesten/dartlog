@@ -71,7 +71,9 @@ test('juridisch: elke pagina toont maker, privacy en contact; geen privételefoo
   execFileSync(process.execPath, [join(root, 'tools/build-public-site.mjs')], { cwd: root, stdio: 'pipe' });
   for (const page of PAGES) {
     const html = readFileSync(join(root, 'dist', page), 'utf8');
-    assert.match(html, /Ontwikkeld door <a[^>]+href="https:\/\/denckh\.nl\/"/, `${page}: Denckh. met link`);
+    // Denckh-merkregel: officieel signatuurlogo met krul, kleine roltekst, geen kaal getypte "Denckh." en geen pijltje.
+    assert.match(html, /<a class="maker" href="https:\/\/denckh\.nl\/"[^>]*><span class="maker-role">Ontwikkeld door<\/span><img src="\/denckh-logo-signature-light\.svg" alt="Denckh"/, `${page}: Denckh-signatuur`);
+    assert.doesNotMatch(html, /<strong>Denckh\.<\/strong>|Denckh\.<\/strong> <span aria-hidden="true">↗/, `${page}: geen getypt makerlabel`);
     assert.match(html, /href="(\/|https:\/\/okkiedarts\.nl\/)privacy\/"/, `${page}: link naar privacy`);
     assert.match(html, /href="(\/|https:\/\/okkiedarts\.nl\/)contact\/"/, `${page}: link naar contact`);
     const text = html.replace(/<[^>]+>/g, ' ');
@@ -121,4 +123,25 @@ test('website-worker levert het Google-verificatiebestand zelf, zonder doorverwi
   const r = await site.fetch(new Request('https://okkiedarts.nl/google873828225866c738.html'), env);
   assert.equal(r.status, 200);
   assert.equal(await r.text(), 'google-site-verification: google873828225866c738.html');
+});
+
+test('Denckh-signatuur: originele merkassets (ongewijzigd) en overal in app en site gebruikt', async () => {
+  const { createHash } = await import('node:crypto');
+  const sha = f => createHash('sha256').update(readFileSync(join(root, f))).digest('hex');
+  // Ongewijzigde bestanden uit MartijndBesten/denckh public/brand/ (commit 01c66eb).
+  assert.equal(sha('icons/denckh-logo-signature-light.svg'), '20bbb812a15920f38e15fcec68aad74de930197b33ae33a22fd7557ac4c09b97');
+  assert.equal(sha('icons/denckh-logo-signature.svg'), 'b8322458ef7f5b654da730d3c8cd02428eaa5e469e6aedd73479136a7eb1712f');
+  const app = read('js/app.js');
+  assert.equal((app.match(/class="maker"/g) || []).length, 2, 'welkomstscherm en Meer');
+  assert.doesNotMatch(app, /<b>Denckh\.<\/b>/);
+  assert.match(read('community/index.html'), /<img src="\.\.\/icons\/denckh-logo-signature-light\.svg" alt="Denckh"/);
+});
+
+test('O van OKKIE.: eigen beeldmerk op alle websitepagina\'s, geen los teken meer', () => {
+  for (const page of PAGES) {
+    const html = readFileSync(join(root, 'dist', page), 'utf8');
+    assert.match(html, /<img class="(bull|o-mark)" src="\/okkie-o\.svg" alt="O"/, page);
+    assert.doesNotMatch(html, /◎KKIE|class="bull">◎/, page);
+  }
+  assert.match(read('icons/okkie-o.svg'), /<title>O van OKKIE\./);
 });

@@ -10,13 +10,18 @@ const dest = join(root, 'dist');
 const APP = 'https://martijndbesten.github.io/dartlog/';
 rmSync(dest, {recursive: true, force:true});
 mkdirSync(dest,{recursive:true});
-for(const file of ['ontdek/pages-worker.js','ontdek/index.html','ontdek/privacy/index.html','ontdek/contact/index.html','ontdek/site.css','ontdek/site.js','uitleg/index.html','icons/favicon-32.png']) {
+for(const file of ['ontdek/pages-worker.js','ontdek/index.html','ontdek/privacy/index.html','ontdek/contact/index.html','ontdek/site.css','ontdek/site.js','uitleg/index.html','icons/favicon-32.png','icons/denckh-logo-signature-light.svg','icons/okkie-o.svg']) {
   if(!existsSync(join(root,file))) throw new Error('Ontbrekend bestand: '+file);
 }
 cpSync(join(root,'icons','favicon-32.png'),join(dest,'favicon-32.png'));
+// Officieel Denckh-signatuurlogo (met krul), ongewijzigd uit de Denckh-merkassets.
+cpSync(join(root,'icons','denckh-logo-signature-light.svg'),join(dest,'denckh-logo-signature-light.svg'));
+cpSync(join(root,'icons','okkie-o.svg'),join(dest,'okkie-o.svg'));
 let landing = readFileSync(join(root,'ontdek','index.html'),'utf8');
 landing = landing
   .replaceAll('href="../icons/favicon-32.png"','href="/favicon-32.png"')
+  .replaceAll('src="../icons/denckh-logo-signature-light.svg"','src="/denckh-logo-signature-light.svg"')
+  .replaceAll('src="../icons/okkie-o.svg"','src="/okkie-o.svg"')
   .replaceAll('href="../community/"','href="'+APP+'community/"')
   .replaceAll('href="../uitleg/"','href="/uitleg/"')
   .replaceAll('href="../"','href="'+APP+'"')
@@ -33,6 +38,8 @@ for(const page of ['privacy','contact']) {
   mkdirSync(join(dest,page),{recursive:true});
   writeFileSync(join(dest,page,'index.html'),readFileSync(join(root,'ontdek',page,'index.html'),'utf8')
     .replaceAll('href="../../icons/favicon-32.png"','href="/favicon-32.png"')
+    .replaceAll('src="../../icons/denckh-logo-signature-light.svg"','src="/denckh-logo-signature-light.svg"')
+    .replaceAll('src="../../icons/okkie-o.svg"','src="/okkie-o.svg"')
     .replaceAll('href="../site.css"','href="/site.css"')
     .replaceAll('src="../site.js"','src="/site.js"')
     .replaceAll('href="../privacy/"','href="/privacy/"')
@@ -43,7 +50,9 @@ for(const page of ['privacy','contact']) {
 cpSync(join(root,'uitleg'),join(dest,'uitleg'),{recursive:true});
 const tutorialFile = join(dest,'uitleg','index.html');
 writeFileSync(tutorialFile,readFileSync(tutorialFile,'utf8')
-  .replace('href="../icons/favicon-32.png"','href="/favicon-32.png"'));
+  .replace('href="../icons/favicon-32.png"','href="/favicon-32.png"')
+  .replaceAll('src="../icons/denckh-logo-signature-light.svg"','src="/denckh-logo-signature-light.svg"')
+  .replaceAll('src="../icons/okkie-o.svg"','src="/okkie-o.svg"'));
 
 // Google Search Console: verificatiebestand van het account m.denbesten@live.nl (ook gebruikt voor denckh.nl).
 writeFileSync(join(dest,'google873828225866c738.html'),'google-site-verification: google873828225866c738.html');

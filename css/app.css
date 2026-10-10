@@ -519,3 +519,15 @@ button.slot:active { transform: scale(.96); }
 .welcome label { font-size: 1.1rem; }
 .welcome .fineprint { font-size: .9rem; }
 .tagline { font-size: 1.15rem; }
+
+/* Denckh-signatuur (officieel logo met krul, niet nagetekend). Lichte variant op donker, donkere variant op licht thema. */
+.maker { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; line-height: 1; color: inherit; text-decoration: none; }
+.maker .maker-role { font-size: .72rem; letter-spacing: .02em; font-weight: 600; color: var(--muted); }
+.maker img { display: block; height: 28px; width: auto; }
+.maker .on-light { display: none; }
+[data-theme="light"] .maker .on-dark { display: none; }
+[data-theme="light"] .maker .on-light { display: block; }
+.maker:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+.maker-line { display: flex; justify-content: center; margin: 14px 0 0; }
+/* Knoppen die een link zijn: altijd de knopkleur, nooit browser-linkpaars */
+a.btn, a.btn:visited { color: var(--text); text-decoration: none; }

@@ -9,7 +9,7 @@ import { BADGES, earnedBadges } from './achievements.js';
 import { logoSVG, TAGLINE } from './brand.js';
 import { DARTCOUNTER_SET, dartCounterTrainings, hasDartCounterSet } from './imports.js';
 
-export const APP_VERSION = '1.3.1';
+export const APP_VERSION = '1.3.2';
 
 const $ = sel => document.querySelector(sel);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -244,7 +244,8 @@ VIEWS.welcome = () => `
       <button class="btn primary big" type="submit">Let's play darts 🎯</button>
     </form>
     <a class="btn secondary big" href="./uitleg/" style="margin:12px auto;display:flex;max-width:350px;">Hoe werkt OKKIE.? Leer het in 2 minuten ↗</a>
-    <p class="fineprint">Alles wordt op dit toestel bewaard. Geen account, geen reclame.<br>Ontwikkeld door <b>Denckh.</b></p>
+    <p class="fineprint">Alles wordt op dit toestel bewaard. Geen account, geen reclame.</p>
+      <p class="maker-line"><a class="maker" href="https://denckh.nl/" target="_blank" rel="noopener" aria-label="Ontwikkeld door Denckh (naar denckh.nl)"><span class="maker-role">Ontwikkeld door</span><img class="on-dark" src="./icons/denckh-logo-signature-light.svg" alt="Denckh" width="92" height="28"><img class="on-light" src="./icons/denckh-logo-signature.svg" alt="Denckh" width="92" height="28"></a></p>
   </section>`;
 
 function header(title, back) {
@@ -944,7 +945,7 @@ VIEWS.more = () => {
     <section class="card about">
       ${logoSVG({ height: 34 })}
       <p class="muted small">Versie ${APP_VERSION}. OKKIE komt van "oche" (spreek uit: okkie), de werplijn waar je achter staat bij darts. Geen account, geen tracking, geen reclame.</p>
-      <p class="credit">Ontwikkeld door <b>Denckh.</b></p>
+      <p class="maker-line"><a class="maker" href="https://denckh.nl/" target="_blank" rel="noopener" aria-label="Ontwikkeld door Denckh (naar denckh.nl)"><span class="maker-role">Ontwikkeld door</span><img class="on-dark" src="./icons/denckh-logo-signature-light.svg" alt="Denckh" width="92" height="28"><img class="on-light" src="./icons/denckh-logo-signature.svg" alt="Denckh" width="92" height="28"></a></p>
     </section>
   </main>`;
 };

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.2 (branch feature/merkdetails, nog niet live)
+
+- Makersvermelding volgens de Denckh-merkregel: overal het officiële Denckh-signatuurlogo met krul (ongewijzigde merkassets), met de kleine tekst "Ontwikkeld door". Website (homepage, uitleg, privacy, contact), communitypagina en app (welkomstscherm, Meer; lichte en donkere variant per thema).
+- Het eerder toegevoegde pijltje ↗ achter Denckh. is weer weg.
+
 ## 1.3.1
 
 - Interactieve uitleg voor jonge darters (`uitleg/`): vier stappen en een oefenscorebord, zonder dat echte scores veranderen. Bereikbaar vóór de eerste training, op het beginscherm en onder Meer; ook offline.

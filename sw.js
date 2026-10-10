@@ -1,6 +1,6 @@
 // OKKIE serviceworker: app-bestanden offline beschikbaar. Gebruikersgegevens staan in localStorage
 // en worden hier nooit aangeraakt. Verhoog VERSION bij elke release.
-const VERSION = 'okkie-v1.3.1';
+const VERSION = 'okkie-v1.3.2';
 const ASSETS = [
   './',
   './index.html',
@@ -28,6 +28,9 @@ const ASSETS = [
   './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png',
   './icons/favicon-32.png',
+  './icons/denckh-logo-signature-light.svg',
+  './icons/denckh-logo-signature.svg',
+  './icons/okkie-o.svg',
 ];
 
 self.addEventListener('install', event => {
