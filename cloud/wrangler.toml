@@ -44,12 +44,12 @@ namespace_id = "1002"
 simple = { limit = 60, period = 60 }
 
 # ---------------------------------------------------------------------------
-# API en beheerscherm zijn twee hostnamen naar DEZELFDE Worker. Vereist een actieve Cloudflare-zone okkiedarts.nl.
+# Productie: alleen api.okkiedarts.nl. beheer.okkiedarts.nl komt er pas bij nadat Cloudflare Access is ingesteld
+# (voeg dan { pattern = "beheer.okkiedarts.nl", custom_domain = true } toe). Vereist een actieve zone okkiedarts.nl.
 [env.production]
 workers_dev = false
 routes = [
   { pattern = "api.okkiedarts.nl", custom_domain = true },
-  { pattern = "beheer.okkiedarts.nl", custom_domain = true },
 ]
 
 [env.production.vars]

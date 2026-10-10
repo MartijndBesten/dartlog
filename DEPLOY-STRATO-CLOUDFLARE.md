@@ -36,8 +36,8 @@ Open velden zijn gemarkeerd met `<span class="pending" data-pending="…">wordt 
 |---|---|---|
 | ~~`kvk`~~ | contact, privacy | Ingevuld: 83176896 (zelfde eenmanszaak als deegh.nl en denckh.nl) |
 | ~~`btw`~~ | contact | Ingevuld: NL003791952B15 (btw-id, níet het omzetbelastingnummer) |
-| `adres` | contact, privacy | Art. 3:15d BW vraagt een geografisch adres. Geen privéadres zonder uitdrukkelijke toestemming: kies bewust (bijv. een zakelijk of correspondentieadres) |
-| `ingangsdatum` | privacy | Datum van publicatie |
+| `adres` | — | Bewuste keuze: geen openbaar adres (geen woonadres op site, repo of metadata). Geen blokkade. |
+| ~~`ingangsdatum`~~ | privacy | Ingevuld: 10 oktober 2026 |
 
 Geen telefoonnummer: niet verplicht naast een e-mailadres. Een unittest bewaakt dat er geen telefoonnummer, postcode of
 ander e-mailadres dan info@denckh.nl op de site komt; pas die alleen aan na uitdrukkelijke toestemming.
@@ -54,7 +54,7 @@ Turnstile-sleutels. Pas daarna `REGISTRATION_ENABLED = "true"` én `REGISTRATION
 3. DNS: SPF `v=spf1 -all` en DMARC `v=DMARC1; p=reject;` (geen mail op dit domein).
 4. Release 1.3.1 naar main (GitHub Pages-app), daarna `node tools/live-check.mjs`.
 5. Cloudflare Pages-project (repo dartlog, branch main, `npm run build:site`, uitvoer `dist`), domeinen okkiedarts.nl en www.
-6. Worker: `cd cloud && npx wrangler deploy --env production` (routes api. en beheer.okkiedarts.nl).
+6. Worker: `cd cloud && npx wrangler deploy --env production` (alleen api.okkiedarts.nl; beheer.okkiedarts.nl pas na Access, stap 8).
 7. `community/config.js`: `API_BASE = 'https://api.okkiedarts.nl'`; `TURNSTILE_SITE_KEY` leeg en `REGISTRATION_OPEN = false` laten.
 8. Cloudflare Access voor beheer.okkiedarts.nl en de drie Worker-secrets (zie Stap 2).
 9. Controle: https://okkiedarts.nl/, /uitleg/, /privacy/, /contact/, `https://api.okkiedarts.nl/v1/health` (`registration: false`), beheer vraagt login.

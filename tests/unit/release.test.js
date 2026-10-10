@@ -82,7 +82,9 @@ test('juridisch: elke pagina toont maker, privacy en contact; geen privételefoo
   }
   const contact = readFileSync(join(root, 'dist/contact/index.html'), 'utf8');
   assert.match(contact, /mailto:info@denckh\.nl/);
-  for (const label of ['KvK-nummer', 'Btw-identificatienummer', 'Adres']) assert.ok(contact.includes(`<dt>${label}</dt>`), `contact: ${label}`);
+  for (const label of ['KvK-nummer', 'Btw-identificatienummer']) assert.ok(contact.includes(`<dt>${label}</dt>`), `contact: ${label}`);
+  // Bewuste keuze van de eigenaar: geen openbaar (woon)adres op de site.
+  for (const page of PAGES) assert.ok(!readFileSync(join(root, 'dist', page), 'utf8').includes('<dt>Adres</dt>'), `${page}: geen adres`);
   const privacy = readFileSync(join(root, 'dist/privacy/index.html'), 'utf8');
   for (const topic of ['Wie is verantwoordelijk', 'Hosting', 'Cloudflare', 'GitHub', 'Kinderen', 'Jouw rechten', 'Autoriteit Persoonsgegevens', 'registratie staat uit']) {
     assert.ok(privacy.includes(topic), `privacyverklaring noemt: ${topic}`);
