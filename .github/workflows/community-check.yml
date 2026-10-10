@@ -1,0 +1,30 @@
+name: OKKIE community checks
+on:
+  push:
+    branches: [feature/okkie-public-community]
+  pull_request:
+    paths:
+      - 'cloud/**'
+      - 'community/**'
+      - 'js/**'
+      - 'tests/unit/community.test.js'
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Source syntax check
+        run: |
+          node --check cloud/src/worker.js
+          node --check community/app.js
+          node --check js/community-sync.js
+          node --check js/app.js
+      - name: Existing app unit tests
+        run: npm test
+      - name: Community backend unit tests
+        run: node --test cloud/tests/*.test.js
