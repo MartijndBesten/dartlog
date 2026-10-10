@@ -114,3 +114,11 @@ test('website-worker: www en http naar https://okkiedarts.nl, pad blijft, beveil
   const files = readdirSync(join(root, 'dist'));
   assert.ok(files.includes('google873828225866c738.html') && !files.includes('_worker.js'));
 });
+
+test('website-worker levert het Google-verificatiebestand zelf, zonder doorverwijzing', async () => {
+  const { default: site } = await import('../../ontdek/pages-worker.js');
+  const env = { ASSETS: { fetch: async () => new Response('', { status: 307, headers: { Location: '/google873828225866c738' } }) } };
+  const r = await site.fetch(new Request('https://okkiedarts.nl/google873828225866c738.html'), env);
+  assert.equal(r.status, 200);
+  assert.equal(await r.text(), 'google-site-verification: google873828225866c738.html');
+});
