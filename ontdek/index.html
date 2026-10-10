@@ -30,46 +30,47 @@
         </div>
         <p class="subtle">Geen App Store nodig · Werkt op iPhone en Android · Ook offline trainen</p>
       </div>
-      <div class="preview" aria-label="Voorbeeld van het scorebord">
-        <div class="phone">
+      <div class="preview reveal" aria-label="Voorbeeld van het scorebord">
+        <div class="phone" data-demo role="button" tabindex="0" aria-label="Demo: tik om de beurt opnieuw af te spelen">
           <div class="screen-head"><span class="mini-logo">◎KKIE.</span><span class="small">SCORETRAINING</span></div>
-          <div class="score"><div class="small">DEZE BEURT</div><strong>85</strong><div class="small">PUNTEN</div></div>
-          <div class="darts"><span><small>PIJL 1</small><b>T20</b></span><span><small>PIJL 2</small><b>5</b></span><span><small>PIJL 3</small><b>D10</b></span></div>
-          <div class="stat"><span>GEMIDDELDE / 3 PIJLEN</span><b>57,30</b></div>
-          <div class="bar"><span style="width:67%"></span></div>
-          <div class="device-note">Demonstratie met voorbeeldscores</div>
+          <div class="score"><div class="small">DEZE BEURT</div><strong data-demo-total>85</strong><div class="small">PUNTEN</div></div>
+          <div class="darts"><span data-dart="60"><small>PIJL 1</small><b>T20</b></span><span data-dart="5"><small>PIJL 2</small><b>5</b></span><span data-dart="20"><small>PIJL 3</small><b>D10</b></span></div>
+          <div class="stat"><span>GEMIDDELDE / 3 PIJLEN</span><b data-demo-avg>57,30</b></div>
+          <div class="bar"><span data-demo-bar style="width:67%"></span></div>
+          <div class="device-note">Demonstratie met voorbeeldscores · tik om opnieuw te gooien</div>
         </div>
       </div>
     </section>
     <section class="container" id="hoe">
-      <div class="section-head"><span class="overline">EENVOUDIG BEGINNEN</span><h2>Drie pijlen. Eén overzicht.</h2><p>Geen losse screenshots meer om te zien of je beter wordt.</p></div>
-      <div class="features">
+      <div class="section-head reveal"><span class="overline">EENVOUDIG BEGINNEN</span><h2>Drie pijlen. Eén overzicht.</h2><p>Geen losse screenshots meer om te zien of je beter wordt.</p></div>
+      <div class="features stagger">
         <article><span class="num">01</span><h3>Gooi en voer in</h3><p>Drie afzonderlijke worpen, bijvoorbeeld T20, 5 en D10. OKKIE telt je beurt direct op.</p></article>
         <article><span class="num">02</span><h3>Volg je vooruitgang</h3><p>30, 60 of 99 pijlen, je gemiddelde per drie pijlen, persoonlijke records en duidelijke grafieken.</p></article>
         <article><span class="num">03</span><h3>Speel samen</h3><p>301 of 501 met vrienden of familie. Speel om de beurt en laat de app de stand bijhouden.</p></article>
       </div>
     </section>
     <section class="band" id="community">
-      <div class="container community-block">
+      <div class="container community-block reveal">
         <div><span class="overline">OKKIE. COMMUNITY</span><h2>Wie gooit er deze week het best?</h2><p>Vergelijk gemiddelden, persoonlijke records en de eerste 30-pijlenchallenge van de week. Bekijk alleen wat andere spelers zelf openbaar maken.</p>
           <a class="btn primary" href="../community/">Bekijk de community <span aria-hidden="true">↗</span></a>
         </div>
         <div class="rank-card">
           <div class="rank-title">Weekchallenge <span>30 pijlen</span></div>
-          <div class="rank-placeholder">Hier verschijnt de ranglijst zodra spelers hun statistieken delen.</div>
+          <div class="rank-skeleton" aria-hidden="true"><i></i><i></i><i></i></div><div class="rank-placeholder">Hier verschijnt de ranglijst zodra spelers hun statistieken delen.</div>
           <div class="privacy-line">Nickname en geselecteerde cijfers. Geen volledige trainingsgeschiedenis.</div>
         </div>
       </div>
     </section>
     <section class="container install" id="installeren">
       <span class="overline">INSTALLEREN OP JE TELEFOON</span><h2>Jouw darttrainer, altijd bij de hand.</h2>
-      <div class="features two">
-        <article><h3>iPhone</h3><p>Open de app in Safari. Tik op Delen en kies <strong>Zet op beginscherm</strong>.</p></article>
-        <article><h3>Android</h3><p>Open de app in Chrome. Kies in het menu <strong>App installeren</strong> of <strong>Toevoegen aan startscherm</strong>.</p></article>
+      <div class="features two stagger">
+        <article data-device="ios"><h3>iPhone</h3><p>Open de app in Safari. Tik op Delen en kies <strong>Zet op beginscherm</strong>.</p></article>
+        <article data-device="android"><h3>Android</h3><p>Open de app in Chrome. Kies in het menu <strong>App installeren</strong> of <strong>Toevoegen aan startscherm</strong>.</p></article>
       </div>
       <a class="btn primary" href="../">Open de gratis app <span aria-hidden="true">↗</span></a>
     </section>
   </main>
   <footer><div class="footer-inside"><strong>OKKIE.</strong><span>Gooi. Scoor. Word beter.</span><span>Ontwikkeld door <strong>Denckh.</strong></span><a href="../community/">Privacy & community</a></div></footer>
+  <script src="./site.js" defer></script>
 </body>
 </html>

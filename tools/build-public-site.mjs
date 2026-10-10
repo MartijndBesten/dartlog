@@ -20,9 +20,11 @@ landing = landing
   .replaceAll('href="../community/"','href="/app/community/"')
   .replaceAll('href="../"','href="/app/"')
   .replaceAll('href="./site.css"','href="/site.css"')
+  .replaceAll('src="./site.js"','src="/site.js"')
   .replaceAll('href="./"','href="/"');
 writeFileSync(join(dest,'index.html'),landing);
 cpSync(join(root,'ontdek','site.css'),join(dest,'site.css'));
+cpSync(join(root,'ontdek','site.js'),join(dest,'site.js'));
 writeFileSync(join(dest,'_headers'),`/*
   Referrer-Policy: strict-origin-when-cross-origin
   X-Content-Type-Options: nosniff
