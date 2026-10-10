@@ -2,6 +2,9 @@
 
 ## 1.3.0 — voorbereid, nog niet live
 
+- Herinnering na tien nieuwe afgeronde scoretrainingen per lokale speler.
+- Extra knop om via het iPhone-/Android-deelmenu de JSON-back-up te bewaren, bijvoorbeeld in iCloud Drive of Google Drive.
+
 - Publieke introductiepagina en installatielink toegevoegd.
 - Community met vrijwillige nicknames, openbare scoreaggregaten, ranglijsten en een 30-pijlenweekchallenge.
 - Cloudflare D1/Worker API voorbereid voor gedeelde statistieken; eerst cloudaccount, beveiliging en privacycontrole configureren.
