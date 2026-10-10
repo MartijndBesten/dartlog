@@ -149,7 +149,9 @@ export function verifyTransfer(incoming, merged) {
     const same = (!it || canon(it) === canon(merged.active?.training)) && (!im || canon(im) === canon(merged.active?.match));
     res.active = same ? 'overgenomen' : 'niet overgenomen';
   }
-  res.ok = !res.missing.length && !res.different.length && res.players.every(p => p.same);
+  // Fout = iets ontbreekt of telt anders. Een record dat in de ontvangende app al was aangepast
+  // (bijv. hernoemd), blijft zoals het daar is en staat apart in res.different.
+  res.ok = !res.missing.length && res.players.every(p => p.same);
   return res;
 }
 

@@ -1367,12 +1367,13 @@ async function applyIncoming(opened) {
 }
 function resultModal(report) {
   const ok = report.ok && report.sameContent;
+  const adjusted = report.ok && !report.sameContent && report.different.length;
   const rows = report.players.map(p => `<tr><th>${esc(p.name)}</th><td>${p.trainings}</td><td>${int(p.darts)}</td><td>${fmt(p.avg, 2)}</td><td>${p.same ? icon('check', { size: 16, label: 'klopt' }) : '✗'}</td></tr>`).join('');
   const pairs = T.sameNamePairs(data);
   const active = report.active === 'overgenomen' ? 'De lopende training is overgenomen.' : report.active === 'niet overgenomen'
     ? (report.skippedActive === 'afgerond' ? 'De lopende training was hier al afgerond; die telt niet dubbel.' : 'Hier liep al een training. De lopende training van de andere app staat daar nog: rond hem daar af en zet opnieuw over.') : '';
-  modal(`<h3 data-testid="transfer-result">${ok ? 'Overgezet en gecontroleerd' : 'Overgezet, maar controleer dit'}</h3>
-    <p class="muted">${ok ? 'Elke speler, training, pijl en wedstrijd staat er precies zo in als in de andere app.' : 'Niet alles is gelijk. Er is niets gewist: de andere app heeft alles nog. Maak daar een back-upbestand als reserve.'}</p>
+  modal(`<h3 data-testid="transfer-result">${ok ? 'Overgezet en gecontroleerd' : adjusted ? 'Overgezet en gecontroleerd' : 'Overgezet, maar controleer dit'}</h3>
+    <p class="muted">${ok ? 'Elke speler, training, pijl en wedstrijd staat er precies zo in als in de andere app.' : adjusted ? `Alles is er. ${report.different.length === 1 ? 'Eén ding was' : report.different.length + ' dingen waren'} hier al aangepast (bijvoorbeeld een naam) en ${report.different.length === 1 ? 'blijft' : 'blijven'} zoals het hier staat.` : 'Niet alles is gelijk. Er is niets gewist: de andere app heeft alles nog. Maak daar een back-upbestand als reserve.'}</p>
     <table class="mtable" data-testid="transfer-table"><thead><tr><th></th><th>Trainingen</th><th>Pijlen</th><th>Gem.</th><th></th></tr></thead><tbody>${rows}</tbody></table>
     <p class="small">${report.received.matches ? `${report.received.matches} wedstrijd${report.received.matches === 1 ? '' : 'en'} meegekomen. ` : ''}${active}</p>
     <p class="muted small">Hier staan nu: ${esc(T.summaryText(report.here))}.</p>
@@ -1384,7 +1385,7 @@ async function transferAuto() {
   const mine = await T.fingerprint(data);
   try {
     const result = await T.sendViaWindow(ui.transferPkg);
-    if (!result?.ok || !result.sameContent) throw new Error('controle');
+    if (!result?.ok) throw new Error('controle');
     try { localStorage.setItem(MOVED_KEY, JSON.stringify({ at: new Date().toISOString(), summary: T.summary(data), count: data.trainings.length + data.matches.length, fingerprint: mine })); } catch { /* niet nodig */ }
     render();
     modal(`<h3 data-testid="transfer-sent">Overgezet en gecontroleerd</h3>
