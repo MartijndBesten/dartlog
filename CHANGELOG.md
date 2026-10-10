@@ -12,9 +12,9 @@
 - **Darten op een andere telefoon**: maak op je eigen telefoon een koppelcode (8 tekens, 7 dagen, één training); je vriend vult hem in bij Trainen. Na de training gaat alleen de samenvatting naar je eigen profiel; je eigen telefoon haalt hem op en telt hem mee. Werkt ook als de telefoon van je vriend even offline is; nooit dubbel. De code geeft geen toegang tot je profiel.
 - Bescherming: de server weigert dat een telefoon ongemerkt minder trainingen online zet dan er al staan (bijv. na herstel op een lege telefoon); alleen bewust verwijderen mag dat. Een naam alleen koppelt nooit aan iemands online profiel.
 - Spelers, trainingen en offline gebruik blijven ongewijzigd; zonder account werkt OKKIE. zoals altijd.
-- Bevat ook alles van 1.3.3 (verhuizing en installatiebegeleiding, standaard uit) en 1.3.2 (merk en vormgeving).
+- Bevat ook alles van 1.3.4 (verhuizing en installatiebegeleiding, standaard uit), 1.3.3 en 1.3.2 (merk en vormgeving).
 
-## 1.3.3 (branch nacht/installatie-en-overdracht, nog niet live)
+## 1.3.4 (branch nacht/installatie-en-overdracht, nog niet live)
 
 - Verhuizing naar app.okkiedarts.nl voorbereid, standaard **uit** (`PROD.open = false` in `js/transfer.js`). Zie VERHUIZING.md.
   Automatisch overzetten tussen twee vensters, overzetcode (kopiëren en plakken, ook vanuit de iPhone-app op het beginscherm) en het back-upbestand.
@@ -25,6 +25,11 @@
 - Installatiebegeleiding voor nieuwe gebruikers, alleen op app.okkiedarts.nl: compact advies met "OKKIE. installeren" en "Eerst proberen",
   Android-installatieprompt, echte iPhone-stappen, eerst trainingen meenemen als je al hebt gegooid. Niet in de geïnstalleerde app en niet voor bestaande gebruikers.
 - `tools/build-app-site.mjs`: aparte publicatie voor app.okkiedarts.nl (met CNAME), zonder het oude adres te raken.
+
+## 1.3.3
+
+- Licht thema: goud voor records en badges donkerder (contrast 4,4 → 5,7, WCAG AA).
+- Extra regressietests: 60/99 pijlen, eigen lengte, rond de klok, 301 straight out, dezelfde voornaam, kleurcontrast, verminderde beweging.
 
 ## 1.3.2
 
