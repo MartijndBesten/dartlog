@@ -24,6 +24,12 @@ jobs:
           node --check community/app.js
           node --check js/community-sync.js
           node --check js/app.js
+      - name: Prepare static website and verify admin template
+        run: |
+          node cloud/tools/build-admin-page.mjs
+          git diff --exit-code -- cloud/src/admin-page.js
+          npm run build:site
+          node --input-type=module -e "import{existsSync}from'node:fs'; for(const f of ['dist/index.html','dist/app/index.html','dist/app/community/index.html','dist/app/sw.js'])if(!existsSync(f))throw Error(f)"
       - name: Existing app unit tests
         run: npm test
       - name: Community backend unit tests
