@@ -2,6 +2,7 @@
 import * as L from './logic.js';
 import * as S from './store.js';
 import { queueCommunitySync } from './community-sync.js';
+import * as Backup from './backup-alert.js';
 import { boardSVG, heatLegend } from './board.js';
 import { lineChart, bindChart } from './chart.js';
 import { BADGES, earnedBadges } from './achievements.js';
@@ -278,6 +279,7 @@ VIEWS.home = () => {
     </section>
     ${at ? resumeCard('training', at) : ''}
     ${am ? resumeCard('match', am) : ''}
+    ${Backup.due(data, data.activePlayerId) ? `<section class="card" role="status"><h3>Even een back-up bewaren?</h3><p>Je hebt weer tien trainingen afgerond. Bewaar jouw scores veilig op je telefoon of in iCloud Drive/Google Drive.</p><div class="row-actions"><button class="btn primary" data-act="backup-share">Back-up bewaren</button><button class="btn ghost" data-act="backup-dismiss">Later</button></div></section>` : ''}
     <section class="actions">
       <button class="action train" data-go="train">
         <span class="a-icon">🎯</span><span><b>Trainen</b><small>Scoretraining of rond de klok</small></span>
@@ -911,7 +913,7 @@ VIEWS.more = () => {
     <section class="card">
       <h3>Back-up</h3>
       <p class="muted">Je gegevens staan alleen op dit toestel (in de browser). Ze gaan niet automatisch naar een andere telefoon. Maak af en toe een back-up, zeker voordat je de browser opschoont.</p>
-      <div class="row-actions"><button class="btn primary" data-act="export">⬇ Back-up downloaden</button>
+      <div class="row-actions"><button class="btn primary" data-act="export">⬇ Back-up downloaden</button><button class="btn secondary" data-act="backup-share">↗ Bewaar via Delen / iCloud</button>
       <label class="btn secondary file">⬆ Back-up terugzetten<input type="file" accept="application/json,.json" data-input="import" hidden></label></div>
     </section>
     <section class="card" data-testid="install-help">
@@ -1159,7 +1161,27 @@ function exportBackup() {
   document.body.appendChild(a);
   a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-  toast('Back-up gedownload. Bewaar het bestand goed (bijv. in iCloud of Google Drive).');
+  Backup.backedUp(data);
+  toast('Back-up gedownload. Controleer of hij in Bestanden / Downloads staat.');
+  if (ui.view === 'home' || ui.view === 'more') render();
+}
+
+async function shareBackup() {
+  const filename = 'okkie-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+  const file = new File([S.makeBackup(data)], filename, { type: 'application/json' });
+  if (navigator.canShare?.({ files: [file] }) && navigator.share) {
+    try {
+      await navigator.share({ title: 'OKKIE. back-up', files: [file] });
+      Backup.backedUp(data);
+      toast('Back-up gedeeld. Kies op iPhone “Bewaar in Bestanden” en daarna iCloud Drive.');
+      if (ui.view === 'home' || ui.view === 'more') render();
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      // Sommige telefoons ondersteunen delen van bestanden niet goed: download werkt altijd als fallback.
+    }
+  }
+  exportBackup();
 }
 
 async function importBackup(file) {
@@ -1291,6 +1313,8 @@ const ACTIONS = {
     });
   },
   'export': exportBackup,
+  'backup-share': shareBackup,
+  'backup-dismiss': () => { Backup.dismissed(data, data.activePlayerId); render(); },
   'import-dc': () => {
     const list = dartCounterTrainings(data.activePlayerId);
     let p = 0, d = 0; list.forEach(t => { p += t.summary.points; d += t.summary.darts; });
