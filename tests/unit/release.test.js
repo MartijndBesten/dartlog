@@ -12,6 +12,8 @@ const read = file => readFileSync(join(root, file), 'utf8');
 const APP = 'https://martijndbesten.github.io/dartlog/';
 // Enige toegestane externe bestemmingen vanaf okkiedarts.nl.
 const EXTERNAL = [APP, APP + 'community/', 'https://denckh.nl/', 'https://okkiedarts.nl/privacy/', 'https://okkiedarts.nl/contact/',
+  // canonieke adressen van de pagina's zelf
+  'https://okkiedarts.nl/', 'https://okkiedarts.nl/uitleg/',
   'https://autoriteitpersoonsgegevens.nl/', 'mailto:info@denckh.nl', 'mailto:info@denckh.nl?subject=OKKIE.'];
 const PAGES = ['index.html', 'uitleg/index.html', 'privacy/index.html', 'contact/index.html'];
 
@@ -137,11 +139,58 @@ test('Denckh-signatuur: originele merkassets (ongewijzigd) en overal in app en s
   assert.match(read('community/index.html'), /<img src="\.\.\/icons\/denckh-logo-signature-light\.svg" alt="Denckh"/);
 });
 
-test('O van OKKIE.: eigen beeldmerk op alle websitepagina\'s, geen los teken meer', () => {
+test('OKKIE.-logo: één woordmerk (O met dubbele ring en pijl, KKIE, ronde stip) op alle websitepagina\'s', () => {
   for (const page of PAGES) {
     const html = readFileSync(join(root, 'dist', page), 'utf8');
-    assert.match(html, /<img class="(bull|o-mark)" src="\/okkie-o\.svg" alt="O"/, page);
-    assert.doesNotMatch(html, /◎KKIE|class="bull">◎/, page);
+    assert.match(html, /<img class="logo-img" src="\/logo\.svg" alt="OKKIE\."/, page);
+    assert.doesNotMatch(html, /◎KKIE|class="bull">◎|>KKIE<span/, page);
   }
   assert.match(read('icons/okkie-o.svg'), /<title>O van OKKIE\./);
+  const logo = read('icons/logo.svg');
+  assert.match(logo, /<circle cx="358" cy="77" r="9\.5"/, 'ronde stip');
+  assert.doesNotMatch(logo, /<text|font-family/, 'woordmerk als vectorpad, onafhankelijk van lettertypen');
+});
+
+// PNG-afmetingen uit de IHDR-kop, JPEG uit de SOF-marker.
+function pngSize(file) { const b = readFileSync(join(root, file)); return [b.readUInt32BE(16), b.readUInt32BE(20)]; }
+function jpegSize(file) {
+  const b = readFileSync(join(root, file));
+  for (let i = 2; i < b.length;) {
+    const marker = b[i + 1], len = b.readUInt16BE(i + 2);
+    if (marker >= 0xc0 && marker <= 0xc2) return [b.readUInt16BE(i + 7), b.readUInt16BE(i + 5)];
+    i += 2 + len;
+  }
+  return null;
+}
+
+test('app-iconen en favicons in de juiste formaten, ook voor iPhone en Android', () => {
+  for (const [f, n] of [['icons/favicon-16.png', 16], ['icons/favicon-32.png', 32], ['icons/favicon-48.png', 48], ['icons/apple-touch-icon.png', 180], ['icons/icon-192.png', 192], ['icons/icon-512.png', 512], ['icons/icon-maskable-512.png', 512]]) {
+    assert.deepEqual(pngSize(f), [n, n], f);
+  }
+  const manifest = JSON.parse(read('manifest.webmanifest'));
+  const sizes = manifest.icons.map(i => i.sizes + ':' + i.purpose);
+  for (const need of ['192x192:any', '512x512:any', '512x512:maskable']) assert.ok(sizes.includes(need), need);
+  for (const i of manifest.icons) assert.ok(existsSync(join(root, i.src)), i.src);
+  const html = read('index.html');
+  assert.match(html, /<link rel="apple-touch-icon" href="icons\/apple-touch-icon\.png">/);
+  assert.match(html, /<link rel="icon" href="icons\/favicon\.svg" type="image\/svg\+xml">/);
+  assert.equal(manifest.name, 'OKKIE.');
+});
+
+test('WhatsApp-voorvertoning: Open Graph en Twitter Card met absolute HTTPS-afbeelding van 1200 x 630', () => {
+  execFileSync(process.execPath, [join(root, 'tools/build-public-site.mjs')], { cwd: root, stdio: 'pipe' });
+  assert.deepEqual(jpegSize('dist/og-image.jpg'), [1200, 630]);
+  assert.ok(readFileSync(join(root, 'dist/og-image.jpg')).length < 300 * 1024, 'klein genoeg voor WhatsApp (< 300 kB)');
+  for (const page of PAGES) {
+    const html = readFileSync(join(root, 'dist', page), 'utf8');
+    const meta = name => (html.match(new RegExp(`<meta (?:property|name)="${name}" content="([^"]*)"`)) || [])[1];
+    assert.equal(meta('og:image'), 'https://okkiedarts.nl/og-image.jpg', page);
+    assert.equal(meta('og:image:width'), '1200', page);
+    assert.equal(meta('og:image:height'), '630', page);
+    assert.ok(meta('og:title')?.includes('OKKIE.'), page);
+    assert.ok(meta('og:description')?.length > 40, page);
+    assert.match(meta('og:url') || '', /^https:\/\/okkiedarts\.nl\//, page);
+    assert.equal(meta('twitter:card'), 'summary_large_image', page);
+  }
+  assert.match(read('index.html'), /<meta property="og:image" content="https:\/\/okkiedarts\.nl\/og-image\.jpg">/, 'ook de app heeft een voorvertoning');
 });
