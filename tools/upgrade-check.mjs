@@ -4,10 +4,13 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 
 const oldDir = resolve(process.argv[2]);
 const port = 4190;
+const cacheOf = dir => readFileSync(join(dir, 'sw.js'), 'utf8').match(/const VERSION = '([^']+)'/)[1];
+const oldCache = cacheOf(oldDir), newCache = cacheOf(resolve('.'));
 const url = `http://localhost:${port}/`;
 const serve = dir => spawn(process.execPath, [join(dir, 'tools/serve.mjs'), String(port)], { stdio: 'ignore' });
 const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -31,7 +34,7 @@ await page.click('.tabbar [data-go=train]');
 await page.click('[data-testid=start-score]');
 for (const n of ['5', '5', '5', '1']) await page.click(`.nums [data-arg="${n}"]`);
 await page.evaluate(() => navigator.serviceWorker.ready);
-check(await page.title() === 'OCHE · darttrainer', 'oude versie draait (OCHE)');
+check((await page.evaluate(() => caches.keys())).includes(oldCache), 'oude versie draait (' + oldCache + ')');
 
 // 2. Nieuwe versie op hetzelfde adres
 server.kill();
@@ -40,7 +43,7 @@ server = serve(resolve('.'));
 await wait(800);
 await page.reload();
 // wachten tot de nieuwe serviceworker is geïnstalleerd en actief
-for (let i = 0; i < 40 && !(await page.evaluate(() => caches.keys())).includes('okkie-v1.2.0'); i++) await wait(250);
+for (let i = 0; i < 40 && !(await page.evaluate(() => caches.keys())).includes(newCache); i++) await wait(250);
 await page.evaluate(() => navigator.serviceWorker.ready);
 await wait(500);
 await page.reload();
@@ -50,7 +53,7 @@ check(await page.getByTestId('turn-total').textContent() === '1', 'open pijl van
 const d = await page.evaluate(() => JSON.parse(localStorage.getItem('oche.data')));
 check(d.trainings.length === 1 && d.trainings[0].turns.length === 10, 'afgeronde training van de oude versie is bewaard');
 const caches = await page.evaluate(() => caches.keys());
-check(caches.includes('okkie-v1.2.0') && !caches.some(k => k.startsWith('oche-')), `cache bijgewerkt (${caches.join(', ')})`);
+check(caches.includes(newCache) && !caches.includes(oldCache), `cache bijgewerkt (${caches.join(', ')})`);
 await page.click('[data-act=pause]');
 await page.click('.tabbar [data-go=stats]');
 check((await page.locator('.tile.hl strong').textContent()) === '60,00', 'statistieken van oude training kloppen (60,00)');
