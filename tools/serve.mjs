@@ -10,7 +10,8 @@ const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
 
 createServer(async (req, res) => {
   const path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-  const rel = normalize(path === '/' ? '/index.html' : path).replace(/^[/\\]+/, '');
+  // Net als GitHub Pages: een map (…/community/) levert zijn index.html.
+  const rel = normalize(path.endsWith('/') ? path + 'index.html' : path).replace(/^[/\\]+/, '');
   if (rel.startsWith('..') || rel.startsWith('node_modules')) { res.writeHead(403); return res.end(); }
   try {
     const body = await readFile(join(root, rel));

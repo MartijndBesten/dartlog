@@ -12,7 +12,7 @@ Ontwikkeld door **Denckh.**
 
 De publieke introductiepagina en community-ranglijst zijn ontwikkeld op de branch feature/okkie-public-community.
 Na review komen er twee extra pagina's bij: /dartlog/ontdek/ en /dartlog/community/.
-De publieke Cloudflare API moet nog worden verbonden en beoordeeld voordat spelers echt statistieken kunnen delen. Lees COMMUNITY-SETUP.md.
+De publieke Cloudflare API moet nog worden verbonden en beoordeeld voordat spelers echt statistieken kunnen delen. Lees COMMUNITY-SETUP.md en cloud/INFRASTRUCTUUR.md (domein, beveiliging, stappenplan).
 
 De bestaande PWA en zijn lokale gegevens blijven op hetzelfde adres bewaard.
 

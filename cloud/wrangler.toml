@@ -1,15 +1,71 @@
+# OKKIE. Community API — Cloudflare Worker + D1.
+# Twee omgevingen:
+#   (standaard)       staging/preview op *.workers.dev, eigen D1 "okkie-community-staging"
+#   --env production  api.okkiedarts.nl, D1 "okkie-community"
+# Secrets (nooit in Git): TURNSTILE_SECRET, optioneel ADMIN_TOKEN. Zet ze met `npx wrangler secret put <NAAM> [--env production]`.
+# Vul de database_id's in nadat `npx wrangler d1 create ...` is uitgevoerd (zie INFRASTRUCTUUR.md).
 name = "okkie-community-api"
 main = "src/worker.js"
 compatibility_date = "2026-10-10"
 workers_dev = true
 
-[vars]
-# Meerdere origins gescheiden met komma; ook bestaande PWA-origin opnemen.
-ALLOWED_ORIGINS = "https://martijndbesten.github.io"
+[observability]
+enabled = true
 
-# Vul database_id pas in nadat de D1 database is aangemaakt.
+# Dagelijkse opschoning volgens de bewaartermijnen (03:30 UTC).
+[triggers]
+crons = ["30 3 * * *"]
+
+[vars]
+# Meerdere origins gescheiden met komma; de bestaande PWA-origin blijft altijd nodig.
+ALLOWED_ORIGINS = "https://martijndbesten.github.io,https://okkiedarts.nl,https://www.okkiedarts.nl,http://localhost:4173"
+EMPTY_ACCOUNT_DAYS = "30"
+INACTIVE_DAYS = "730"
+# Beheer via Cloudflare Access: vul in na het aanmaken van de Access-applicatie (zie INFRASTRUCTUUR.md).
+ACCESS_TEAM_DOMAIN = ""
+ACCESS_AUD = ""
+
 [[d1_databases]]
 binding = "DB"
-database_name = "okkie-community"
-database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
+database_name = "okkie-community-staging"
+database_id = "REPLACE_WITH_STAGING_D1_DATABASE_ID"
 migrations_dir = "migrations"
+
+# Rate limiting (per IP bij registratie/herstel, per account bij wijzigingen).
+[[ratelimits]]
+name = "RL_REGISTER"
+namespace_id = "1001"
+simple = { limit = 5, period = 60 }
+
+[[ratelimits]]
+name = "RL_WRITE"
+namespace_id = "1002"
+simple = { limit = 60, period = 60 }
+
+# ---------------------------------------------------------------------------
+[env.production]
+workers_dev = false
+routes = [{ pattern = "api.okkiedarts.nl", custom_domain = true }]
+
+[env.production.vars]
+ALLOWED_ORIGINS = "https://martijndbesten.github.io,https://okkiedarts.nl,https://www.okkiedarts.nl"
+EMPTY_ACCOUNT_DAYS = "30"
+INACTIVE_DAYS = "730"
+ACCESS_TEAM_DOMAIN = ""
+ACCESS_AUD = ""
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "okkie-community"
+database_id = "REPLACE_WITH_PRODUCTION_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[[env.production.ratelimits]]
+name = "RL_REGISTER"
+namespace_id = "2001"
+simple = { limit = 5, period = 60 }
+
+[[env.production.ratelimits]]
+name = "RL_WRITE"
+namespace_id = "2002"
+simple = { limit = 60, period = 60 }

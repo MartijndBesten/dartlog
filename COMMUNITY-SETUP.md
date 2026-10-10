@@ -44,3 +44,9 @@ Verplaats de bestaande PWA niet automatisch naar een nieuw domein. Browseropslag
 
 ## Testgrenzen
 Er zijn unit-tests voor berekeningen en Worker-input toegevoegd en branch-CI ingesteld. Er is nog geen echte Cloudflare D1-instantie gekoppeld, geen productiedeployment uitgevoerd en er is niet getest op een echte iPhone of Android. Browser-end-to-end, anti-spam, herstel op tweede toestel en twintig echte spelers blijven nog te valideren.
+
+## Infrastructuur (branch infra/cloudflare-community)
+De technische voorbereiding van okkiedarts.nl, de Worker-omgevingen (staging/productie), rate limiting, het beheer via Cloudflare
+Access, de bewaartermijnen en de API-integratietests staat beschreven in **cloud/INFRASTRUCTUUR.md**, inclusief het stappenplan
+met wat de eigenaar zelf moet doen (account, nameservers bij STRATO, Turnstile, Access) en wat verder zelfstandig kan.
+Belangrijkste waarschuwing daaruit: stel op de GitHub-repository géén custom domain in; de app moet op martijndbesten.github.io blijven.

@@ -37,3 +37,13 @@ CREATE TABLE IF NOT EXISTS entitlements (
   origin TEXT NOT NULL,
   PRIMARY KEY(member_id, feature)
 );
+-- Logboek van beheeracties (zie migrations/0002_admin_audit.sql).
+CREATE TABLE IF NOT EXISTS admin_audit (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  at TEXT NOT NULL,
+  actor TEXT NOT NULL,
+  action TEXT NOT NULL,
+  target TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_members_updated ON members(updated_at);
+CREATE INDEX IF NOT EXISTS idx_members_created ON members(created_at);
