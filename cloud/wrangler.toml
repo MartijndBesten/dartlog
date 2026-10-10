@@ -18,11 +18,11 @@ custom_domain = true
 ALLOWED_ORIGINS = "https://okkiedarts.nl,https://www.okkiedarts.nl,https://martijndbesten.github.io"
 ADMIN_HOST = "beheer.okkiedarts.nl"
 
-# Deze verplichte instellingen blijven leeg totdat Cloudflare Access daadwerkelijk is ingericht.
-# ADMIN_ALLOWED_EMAILS is een beheerinstelling, NIET bedoeld voor publiek frontend.
-CF_ACCESS_TEAM_DOMAIN = ""
-CF_ACCESS_AUD = ""
-ADMIN_ALLOWED_EMAILS = ""
+# Cloudflare Access-instellingen en beheerderadressen gaan als Worker secrets,
+# zodat een latere wrangler deploy ze niet door lege [vars] overschrijft.
+# npx wrangler secret put CF_ACCESS_TEAM_DOMAIN
+# npx wrangler secret put CF_ACCESS_AUD
+# npx wrangler secret put ADMIN_ALLOWED_EMAILS
 
 # Cloudflare secret (nooit naar GitHub committen):
 # TURNSTILE_SECRET (instellen met npx wrangler secret put TURNSTILE_SECRET)
