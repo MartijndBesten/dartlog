@@ -8,6 +8,7 @@ const ASSETS = [
   './css/app.css',
   './js/app.js',
   './js/community-sync.js',
+  './js/backup-alert.js',
   './community/config.js',
   './js/logic.js',
   './js/store.js',
