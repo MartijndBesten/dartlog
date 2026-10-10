@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.0 — voorbereid, nog niet live
+
+- Publieke introductiepagina en installatielink toegevoegd.
+- Community met vrijwillige nicknames, openbare scoreaggregaten, ranglijsten en een 30-pijlenweekchallenge.
+- Cloudflare D1/Worker API voorbereid voor gedeelde statistieken; eerst cloudaccount, beveiliging en privacycontrole configureren.
+- Automatische publicatie van geaggregeerde cijfers na trainingen, uitsluitend als speler zelf delen heeft geactiveerd.
+- Nieuwe code staat op een aparte branch. Bestaande trainingsdata en live webadres blijven ongewijzigd.
+
+
 ## 1.2.0 — 2026-10-10
 
 - Merknaam definitief **OKKIE.** (met punt) in titel, logo, manifest en installatienaam.
