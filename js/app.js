@@ -7,9 +7,13 @@ import { boardSVG, heatLegend } from './board.js';
 import { lineChart, bindChart } from './chart.js';
 import { BADGES, earnedBadges } from './achievements.js';
 import { logoSVG, TAGLINE } from './brand.js';
+import { icon } from './icons.js';
 import { DARTCOUNTER_SET, dartCounterTrainings, hasDartCounterSet } from './imports.js';
 
 export const APP_VERSION = '1.3.2';
+// "Nodig een vriend uit": altijd de website als link. Die blijft geldig, ook na de verhuizing van de app.
+export const INVITE_URL = 'https://okkiedarts.nl/';
+export const INVITE_TEXT = 'Ik train mijn darts met OKKIE. 🎯 Gratis, werkt gewoon op je telefoon en je ziet meteen of je beter wordt. Doe je mee?';
 
 const $ = sel => document.querySelector(sel);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -217,6 +221,7 @@ function render() {
   const play = PLAY_VIEWS.has(ui.view);
   document.body.classList.toggle('playing', play);
   $('#app').innerHTML = view();
+  ui.justAdded = false;
   $('#tabbar').hidden = play || ui.view === 'welcome';
   document.querySelectorAll('#tabbar [data-go]').forEach(b => b.classList.toggle('active', b.dataset.go === tabOf(ui.view)));
   bindChart($('#app'));
@@ -235,15 +240,15 @@ const VIEWS = {};
 
 VIEWS.welcome = () => `
   <section class="welcome">
-    <div class="welcome-logo">${logoSVG({ height: 76 })}</div>
+    <div class="welcome-logo">${logoSVG({ height: 72 })}</div>
     <p class="tagline">${TAGLINE}</p>
     <p class="lead">Jouw eigen darttrainer. Gooi, tik je pijlen in en zie of je beter wordt.</p>
     <form class="card" data-form="welcome">
       <label for="wname">Hoe heet je?</label>
       <input id="wname" name="name" maxlength="24" autocomplete="nickname" placeholder="Je naam" required autofocus>
-      <button class="btn primary big" type="submit">Let's play darts 🎯</button>
+      <button class="btn primary big" type="submit">Let's play darts</button>
     </form>
-    <a class="btn secondary big" href="./uitleg/" style="margin:12px auto;display:flex;max-width:350px;">Hoe werkt OKKIE.? Leer het in 2 minuten ↗</a>
+    <a class="btn ghost welcome-guide" href="./uitleg/">${icon('book', { size: 19 })}Hoe werkt het? Uitleg in 2 minuten</a>
     <p class="fineprint">Alles wordt op dit toestel bewaard. Geen account, geen reclame.</p>
       <p class="maker-line"><a class="maker" href="https://denckh.nl/" target="_blank" rel="noopener" aria-label="Ontwikkeld door Denckh (naar denckh.nl)"><span class="maker-role">Ontwikkeld door</span><img class="on-dark" src="./icons/denckh-logo-signature-light.svg" alt="Denckh" width="92" height="28"><img class="on-light" src="./icons/denckh-logo-signature.svg" alt="Denckh" width="92" height="28"></a></p>
   </section>`;
@@ -251,7 +256,7 @@ VIEWS.welcome = () => `
 function header(title, back) {
   const p = player();
   return `<header class="top">
-    ${back ? `<button class="icon-btn" data-go="${back}" aria-label="Terug">←</button>` : `<div class="top-logo">${logoSVG({ height: 30 })}</div>`}
+    ${back ? `<button class="icon-btn" data-go="${back}" aria-label="Terug">${icon('back', { size: 20 })}</button>` : `<div class="top-logo">${logoSVG({ height: 30 })}</div>`}
     ${title ? `<h1>${esc(title)}</h1>` : '<span></span>'}
     <button class="player-chip" data-act="switch-player" aria-label="Speler wisselen"><span class="dot" style="background:${esc(p?.color)}"></span>${esc(p?.name)}</button>
   </header>`;
@@ -282,24 +287,21 @@ VIEWS.home = () => {
     ${at ? resumeCard('training', at) : ''}
     ${am ? resumeCard('match', am) : ''}
     ${Backup.due(data, data.activePlayerId) ? `<section class="card" role="status"><h3>Even een back-up bewaren?</h3><p>Je hebt weer tien trainingen afgerond. Bewaar jouw scores veilig op je telefoon of in iCloud Drive/Google Drive.</p><div class="row-actions"><button class="btn primary" data-act="backup-share">Back-up bewaren</button><button class="btn ghost" data-act="backup-dismiss">Later</button></div></section>` : ''}
-    <section class="card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-      <div><h3 style="margin:0 0 4px">Nieuw? Zo werkt OKKIE.</h3><p class="muted small" style="margin:0">Leer scoren met een oefenbeurt van 3 pijlen.</p></div>
-      <a class="btn secondary" href="./uitleg/">Probeer de uitleg ↗</a>
-    </section>
     <section class="actions">
       <button class="action train" data-go="train">
-        <span class="a-icon">🎯</span><span><b>Trainen</b><small>Scoretraining of rond de klok</small></span>
+        <span class="a-icon">${icon('train', { size: 24 })}</span><span><b>Trainen</b><small>Scoretraining of rond de klok</small></span>
       </button>
       <button class="action match" data-go="match">
-        <span class="a-icon">⚔️</span><span><b>Wedstrijd</b><small>301 / 501, alleen of samen</small></span>
+        <span class="a-icon">${icon('match')}</span><span><b>Wedstrijd</b><small>301 / 501, alleen of samen</small></span>
       </button>
       <button class="action stats" data-go="stats">
-        <span class="a-icon">📈</span><span><b>Mijn statistieken</b><small>Word ik beter?</small></span>
+        <span class="a-icon">${icon('stats')}</span><span><b>Mijn statistieken</b><small>Word ik beter?</small></span>
       </button>
       <a class="action stats" href="./community/" aria-label="Open de community-ranglijst">
-        <span class="a-icon">🏆</span><span><b>Community</b><small>Vergelijk je scores met anderen</small></span>
+        <span class="a-icon">${icon('trophy')}</span><span><b>Community</b><small>Vergelijk je scores met anderen</small></span>
       </a>
     </section>
+    ${o.count < 3 ? `<section class="card next-badge"><span class="a-icon">${icon('book')}</span><div><b>Nieuw? Zo werkt OKKIE.</b><p>Leer scoren met een oefenbeurt van 3 pijlen.</p></div><a class="btn secondary small" href="./uitleg/">Uitleg</a></section>` : ''}
     <section class="tiles">
       ${tile('Trainingen', int(o.count))}
       ${tile('Beste training', o.best ? fmt(o.best.avg, 1) : '–')}
@@ -309,6 +311,7 @@ VIEWS.home = () => {
     ${recent.length >= 2 ? `<section class="card"><div class="card-head"><h3>Laatste trainingen</h3><button class="link" data-go="stats">Alles bekijken</button></div>
       ${lineChart(recent.map(t => { const tot = L.trainingTotals(t); return { label: dateLabel(t.startedAt), value: tot.avg, sub: trainingTitle(t) }; }), { height: 160 })}</section>` : ''}
     ${next ? `<section class="card next-badge"><span class="badge-icon locked">${next.icon}</span><div><small>Volgende badge</small><b>${esc(next.name)}</b><p>${esc(next.desc)}</p></div><span class="badge-count">${earned.size}/${BADGES.length}</span></section>` : ''}
+    <button class="invite-row" data-act="invite" data-testid="invite-home"><span class="a-icon">${icon('invite', { size: 20 })}</span><span><b>Nodig een vriend uit</b><small>Deel OKKIE. via WhatsApp of een ander appje</small></span></button>
   </main>`;
 };
 
@@ -349,7 +352,8 @@ VIEWS.train = () => {
   const s = ui.setup;
   const ps = setupPlayers();
   const others = data.players.filter(p => !ps.includes(p.id));
-  const opt = (turns, label, sub) => `<button class="choice ${s.kind === 'score' && s.turns === turns ? 'on' : ''}" data-act="setup-turns" data-arg="${turns}"><b>${label}</b><small>${sub}</small></button>`;
+  const opt = (turns, label, sub) => `<button class="choice ${s.kind === 'score' && s.turns === turns ? 'on' : ''}" data-act="setup-turns" data-arg="${turns}" aria-pressed="${s.kind === 'score' && s.turns === turns}"><b>${label}</b><small>${sub}</small></button>`;
+  const info = s.turns === 0 ? 'Vrij trainen: stop wanneer je wilt.' : s.turns === -1 ? `${s.custom} beurten van 3 pijlen (${s.custom * 3} pijlen).` : `${s.turns} beurten van 3 pijlen.`;
   return `${header('Trainen', 'home')}
   <main class="page">
     ${data.active.training ? `<div class="note">Je hebt nog een training open. Als je een nieuwe start, wordt die eerst opgeslagen.</div>` : ''}
@@ -357,14 +361,15 @@ VIEWS.train = () => {
       <h3>Scoretraining</h3>
       <p class="muted">Gooi telkens 3 pijlen en tik ze in. Zo veel mogelijk punten scoren.</p>
       <div class="choices">
-        ${opt(10, '30', 'pijlen · 10 beurten')}
-        ${opt(20, '60', 'pijlen · 20 beurten')}
-        ${opt(33, '99', 'pijlen · 33 beurten')}
-        ${opt(0, '∞', 'vrij trainen')}
-        ${opt(-1, 'Eigen', `${s.custom} beurten`)}
+        ${opt(10, '30', 'pijlen')}
+        ${opt(20, '60', 'pijlen')}
+        ${opt(33, '99', 'pijlen')}
+        ${opt(0, '∞', 'vrij')}
+        ${opt(-1, s.turns === -1 ? String(s.custom * 3) : '…', 'eigen')}
       </div>
+      <p class="choice-info">${info}</p>
       ${s.turns === -1 ? `<label class="inline">Aantal beurten <input type="number" min="1" max="200" inputmode="numeric" value="${s.custom}" data-input="custom-turns"></label>` : ''}
-      <h4>Wie gooien er? <span class="muted">(max. 4, om de beurt 3 pijlen)</span></h4>
+      <h3 class="who">Wie gooien er? <small>max. 4, om de beurt</small></h3>
       <ol class="match-players" data-testid="train-players">${ps.map((id, i) => `<li><span><i class="dot" style="background:${esc(player(id).color)}"></i> ${esc(player(id).name)}</span>
         ${i > 0 ? `<button class="icon-btn small" data-act="tp-up" data-arg="${i}" aria-label="Eerder gooien">↑</button>` : ''}
         ${ps.length > 1 ? `<button class="icon-btn small" data-act="tp-remove" data-arg="${i}" aria-label="Niet meedoen">✕</button>` : ''}</li>`).join('')}</ol>
@@ -375,7 +380,7 @@ VIEWS.train = () => {
       <button class="btn primary big" data-act="start-score" data-testid="start-score">${ps.length > 1 ? `Start met ${ps.length} spelers` : 'Start scoretraining'}</button>
     </section>
     <section class="card">
-      <h3>Rond de klok 🕐</h3>
+      <h3>Rond de klok</h3>
       <p class="muted">Raak 1 t/m 20 en daarna de bull, in volgorde. Hoe minder pijlen, hoe beter. Enkel, dubbel of triple: alles telt. (Alleen voor ${esc(player().name)}.)</p>
       <button class="btn secondary big" data-act="start-clock">Start rond de klok</button>
     </section>
@@ -406,7 +411,7 @@ function dartSlots(pending, extra = '') {
   return `<div class="slots ${extra}">${[0, 1, 2].map(i => {
     const c = pending[i];
     const tag = c ? 'button' : 'div';
-    return `<${tag} class="slot ${c ? 'filled' : ''} ${i === pending.length ? 'current' : ''}" data-testid="slot-${i}"${c ? ` data-act="slot" data-arg="${i}" aria-label="Pijl ${i + 1} (${esc(L.label(c))}) wissen"` : ''}>
+    return `<${tag} class="slot ${c ? 'filled' : ''} ${i === pending.length ? 'current' : ''} ${c && ui.justAdded && i === pending.length - 1 ? 'new' : ''}" data-testid="slot-${i}"${c ? ` data-act="slot" data-arg="${i}" aria-label="Pijl ${i + 1} (${esc(L.label(c))}) wissen"` : ''}>
       <small>Pijl ${i + 1}</small><b>${c ? esc(L.label(c)) : ''}</b>${c ? `<span>${L.points(c)}</span>` : ''}</${tag}>`;
   }).join('')}</div>`;
 }
@@ -434,9 +439,9 @@ VIEWS['play-score'] = () => {
   }).join('')}</section>` : '';
   return `<div class="play">
     <header class="play-top">
-      <button class="icon-btn" data-act="pause" aria-label="Pauzeren">⏸</button>
+      <button class="icon-btn" data-act="pause" aria-label="Pauzeren">${icon('pause', { size: 20 })}</button>
       <div class="play-title"><b>${esc(trainingTitle(t))}</b><small>${n > 1 ? `<span data-testid="now-up">${esc(player(t.players[cur])?.name)}</span> · ` : ''}Beurt ${turnNo}${t.limitTurns ? ' van ' + t.limitTurns : ''}</small></div>
-      <button class="icon-btn" data-act="toggle-type" aria-label="Typen">⌨</button>
+      <button class="icon-btn" data-act="toggle-type" aria-label="Typen">${icon('keyboard', { size: 21 })}</button>
     </header>
     ${limit ? `<div class="progress"><i style="width:${pct}%"></i></div>` : ''}
     ${strip}
@@ -472,9 +477,9 @@ VIEWS['play-clock'] = () => {
   const targetLabel = st.target === 25 ? 'BULL' : st.target;
   return `<div class="play">
     <header class="play-top">
-      <button class="icon-btn" data-act="pause" aria-label="Pauzeren">⏸</button>
+      <button class="icon-btn" data-act="pause" aria-label="Pauzeren">${icon('pause', { size: 20 })}</button>
       <div class="play-title"><b>Rond de klok</b><small>${st.darts} pijlen gegooid</small></div>
-      <button class="icon-btn" data-act="toggle-type" aria-label="Typen">⌨</button>
+      <button class="icon-btn" data-act="toggle-type" aria-label="Typen">${icon('keyboard', { size: 21 })}</button>
     </header>
     <div class="progress"><i style="width:${(st.targetIndex / L.CLOCK_TARGETS.length) * 100}%"></i></div>
     <section class="scoreboard clock">
@@ -504,7 +509,7 @@ VIEWS['result-training'] = () => {
     return `${header('Uitslag', 'home')}<main class="page">
       <section class="result-hero"><small>Rond de klok</small><strong>${st.done ? st.darts : st.hits + '/21'}</strong><span>${st.done ? 'pijlen nodig' : 'doelen geraakt'}</span></section>
       ${r.newBadges.length ? badgeBanner(r.newBadges) : ''}
-      <section class="tiles">${tile('Trefkans', Math.round(st.hitRate * 100) + '%')}${tile('Pijlen', st.darts)}${tile('Beste ooit', r.bestClock ? r.bestClock + ' pijlen' : '–')}</section>
+      <section class="tiles three">${tile('Trefkans', Math.round(st.hitRate * 100) + '%')}${tile('Pijlen', st.darts)}${tile('Beste ooit', r.bestClock ? r.bestClock + ' pijlen' : '–')}</section>
       <div class="row-actions"><button class="btn primary big" data-act="again">Nog een keer</button><button class="btn ghost big" data-go="home">Home</button></div>
     </main>`;
   }
@@ -609,9 +614,9 @@ VIEWS['play-match'] = () => {
   const route = rest <= 170 ? L.checkout(rest, dartsLeft, m.settings.doubleOut) : null;
   return `<div class="play">
     <header class="play-top">
-      <button class="icon-btn" data-act="pause" aria-label="Pauzeren">⏸</button>
+      <button class="icon-btn" data-act="pause" aria-label="Pauzeren">${icon('pause', { size: 20 })}</button>
       <div class="play-title"><b>${m.settings.start} · ${m.settings.bestOf === 1 ? '1 leg' : 'Best of ' + m.settings.bestOf}</b><small>Leg ${m.legs.length} · ${m.settings.doubleOut ? 'double out' : 'straight out'}</small></div>
-      <button class="icon-btn" data-act="toggle-type" aria-label="Typen">⌨</button>
+      <button class="icon-btn" data-act="toggle-type" aria-label="Typen">${icon('keyboard', { size: 21 })}</button>
     </header>
     <section class="x01 n${m.players.length}">
       ${m.players.map((p, i) => {
@@ -713,7 +718,8 @@ VIEWS.stats = () => {
       <div class="card-head"><h3>Ontwikkeling</h3></div>
       <div class="chips small">${chip('statsPeriod', 'training', 'Per training')}${chip('statsPeriod', 'dag', 'Dag')}${chip('statsPeriod', 'week', 'Week')}${chip('statsPeriod', 'maand', 'Maand')}</div>
       ${lineChart(chartPts)}
-      <p class="muted small">Tik op een punt voor details. De stippellijn is je trend.${unknown ? ` ${unknown} training${unknown === 1 ? '' : 'en'} zonder datum (DC = DartCounter) staan alleen in "Per training".` : ''}</p>
+      <div class="chart-legend"><span><i></i>Gemiddelde</span><span><i class="t"></i>Trend</span></div>
+      <p class="muted small">Tik op een punt voor details.${unknown ? ` ${unknown} training${unknown === 1 ? '' : 'en'} zonder datum (DC = DartCounter) staan alleen in "Per training".` : ''}</p>
     </section>`}
     <section class="card">
       <div class="card-head"><h3>Trefferkaart</h3></div>
@@ -840,12 +846,12 @@ VIEWS.history = () => {
         const with_ = t.groupPlayers ? ' · met ' + names(t.groupPlayers.filter(id => id !== t.playerId)).map(esc).join(', ') : '';
         const sub = t.kind === 'clock' ? 'rond de klok' : `${L.trainingTotals(t).points} pnt · ${L.trainingTotals(t).darts} pijlen${with_}`;
         const when = t.dateUnknown ? esc(t.source || 'Andere app') : new Date(t.startedAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
-        return `${head}<li><button class="h-item" data-act="open-training" data-arg="${esc(t.id)}"><span class="h-icon">${t.kind === 'clock' ? '🕐' : t.source ? '📥' : t.groupPlayers ? '👥' : '🎯'}</span><span class="h-main"><b>${esc(trainingTitle(t))}</b><small>${when} · ${sub}</small></span><strong>${main}</strong></button></li>`;
+        return `${head}<li><button class="h-item" data-act="open-training" data-arg="${esc(t.id)}"><span class="h-icon">${icon(t.kind === 'clock' ? 'clock' : t.source ? 'import' : t.groupPlayers ? 'group' : 'train')}</span><span class="h-main"><b>${esc(trainingTitle(t))}</b><small>${when} · ${sub}</small></span><strong>${main}</strong></button></li>`;
       }
       const m = it.m, st = L.matchState(m);
       const i = m.players.findIndex(p => p.id === data.activePlayerId);
       const res = m.players.length > 1 ? (st.winner === i ? 'Gewonnen' : st.winner === null ? 'Gestopt' : 'Verloren') : (st.winner !== null ? 'Uit!' : 'Gestopt');
-      return `${head}<li><button class="h-item" data-act="open-match" data-arg="${esc(m.id)}"><span class="h-icon">⚔️</span><span class="h-main"><b>${m.settings.start} · ${m.players.map(p => esc(p.name)).join(' – ')}</b><small>${res} · ${st.won.join('–')}</small></span><strong>${fmt(st.totals[i].avg, 1)}</strong></button></li>`;
+      return `${head}<li><button class="h-item" data-act="open-match" data-arg="${esc(m.id)}"><span class="h-icon">${icon('match')}</span><span class="h-main"><b>${m.settings.start} · ${m.players.map(p => esc(p.name)).join(' – ')}</b><small>${res} · ${st.won.join('–')}</small></span><strong>${fmt(st.totals[i].avg, 1)}</strong></button></li>`;
     }).join('')}</ul>
   </main>`;
 };
@@ -855,7 +861,7 @@ function trainingDetail(t) {
   const tot = L.trainingTotals(t);
   const others = t.groupPlayers ? names(t.groupPlayers.filter(id => id !== t.playerId)) : [];
   modal(`<h3>${esc(trainingTitle(t))}</h3><p class="muted">${t.dateUnknown ? 'Datum onbekend' : dateTime(t.startedAt)}${t.source ? ' · uit ' + esc(t.source) : ''}${t.note ? ' · ' + esc(t.note) : ''}</p>
-    ${others.length ? `<p>👥 Samen met ${others.map(esc).join(', ')}</p>` : ''}
+    ${others.length ? `<p>Samen met ${others.map(esc).join(', ')}</p>` : ''}
     ${t.source ? `<p class="muted small">Uit een andere app: alleen de eindstand is bekend. Deze training telt mee in je gemiddelde en records, maar niet in de trefferkaart.</p>
       <form data-form="set-date" data-arg="${esc(t.id)}" class="guest"><input type="date" name="date" value="${t.dateUnknown ? '' : t.startedAt.slice(0, 10)}" max="${new Date().toISOString().slice(0, 10)}" aria-label="Datum"><button class="btn secondary">Datum opslaan</button></form>` : ''}
     ${isClock ? `<p>${L.clockState(t).done ? 'Klaar in <b>' + L.clockState(t).darts + '</b> pijlen' : 'Gestopt bij ' + L.clockState(t).hits + '/21'}</p>`
@@ -892,26 +898,31 @@ VIEWS.more = () => {
         ${data.players.length > 1 ? `<button class="icon-btn small" data-act="delete-player" data-arg="${esc(p.id)}" aria-label="Speler verwijderen">✕</button>` : ''}</li>`).join('')}</ul>
       <form data-form="add-player" class="guest"><input name="name" maxlength="24" placeholder="Nieuwe speler" aria-label="Naam nieuwe speler"><button class="btn secondary">+ Speler</button></form>
     </section>
+    <section class="card" data-testid="invite-card">
+      <h3>Nodig een vriend uit</h3>
+      <p class="muted">Stuur OKKIE. naar een vriend, je oma of je dartclub. Dit is een gewone link naar okkiedarts.nl; er worden geen scores gedeeld.</p>
+      <button class="btn secondary" data-act="invite">${icon('invite', { size: 19 })}Nodig een vriend uit</button>
+    </section>
     <section class="card">
       <h3>Hoe werkt OKKIE.?</h3>
       <p class="muted">Uitleg voor kinderen en beginners. Probeer drie pijlen, leer DOUBLE en TRIPLE en start je eerste training.</p>
-      <a class="btn secondary" href="./uitleg/">Open de uitleg ↗</a>
+      <a class="btn secondary" href="./uitleg/">${icon('book', { size: 19 })}Open de uitleg</a>
     </section>
     <section class="card">
       <h3>Geschiedenis</h3>
       <p class="muted">Alle trainingen en wedstrijden terugkijken, corrigeren of verwijderen.</p>
-      <button class="btn secondary" data-go="history">Open geschiedenis</button>
+      <button class="btn secondary" data-go="history">${icon('history', { size: 19 })}Open geschiedenis</button>
     </section>
     <section class="card">
       <h3>Community en ranglijst</h3>
       <p class="muted">Bekijk openbare scores van andere spelers. Delen van jouw cijfers is vrijwillig: alleen een nickname en statistieken.</p>
-      <a class="btn secondary" href="./community/">Open OKKIE. Community ↗</a>
+      <a class="btn secondary" href="./community/">${icon('trophy', { size: 19 })}Open OKKIE. Community</a>
     </section>
     <section class="card" data-testid="other-app">
       <h3>Scores uit een andere app</h3>
       <p class="muted">Eerdere scoretrainingen (bijv. uit DartCounter) toevoegen aan <b>${esc(player().name)}</b>, zodat je ziet of je beter wordt.</p>
-      ${hasDartCounterSet(data, data.activePlayerId) ? `<p>✅ ${DARTCOUNTER_SET.label} zijn toegevoegd.</p>`
-        : `<button class="btn primary" data-act="import-dc">📥 ${DARTCOUNTER_SET.label} toevoegen</button>`}
+      ${hasDartCounterSet(data, data.activePlayerId) ? `<p class="ok-line">${icon('check', { size: 18 })}${DARTCOUNTER_SET.label} zijn toegevoegd.</p>`
+        : `<button class="btn secondary" data-act="import-dc">${icon('import', { size: 19 })}${DARTCOUNTER_SET.label} toevoegen</button>`}
       <h4>Zelf een score invullen</h4>
       <form data-form="summary" class="summary-form">
         <label>Pijlen<input type="number" name="darts" min="3" max="999" value="99" inputmode="numeric" required></label>
@@ -924,13 +935,13 @@ VIEWS.more = () => {
     <section class="card">
       <h3>Back-up</h3>
       <p class="muted">Je gegevens staan alleen op dit toestel (in de browser). Ze gaan niet automatisch naar een andere telefoon. Maak af en toe een back-up, zeker voordat je de browser opschoont.</p>
-      <div class="row-actions"><button class="btn primary" data-act="export">⬇ Back-up downloaden</button><button class="btn secondary" data-act="backup-share">↗ Bewaar via Delen / iCloud</button>
-      <label class="btn secondary file">⬆ Back-up terugzetten<input type="file" accept="application/json,.json" data-input="import" hidden></label></div>
+      <div class="row-actions"><button class="btn primary" data-act="export">${icon('download', { size: 19 })}Back-up downloaden</button><button class="btn secondary" data-act="backup-share">${icon('share', { size: 19 })}Bewaar via Delen / iCloud</button>
+      <label class="btn secondary file">${icon('upload', { size: 19 })}Back-up terugzetten<input type="file" accept="application/json,.json" data-input="import" hidden></label></div>
     </section>
     <section class="card" data-testid="install-help">
       <h3>Installeren op je telefoon</h3>
-      ${standalone ? '<p>✅ OKKIE draait als app op dit toestel.</p>' : ''}
-      ${ui.installEvent ? '<button class="btn primary" data-act="install">📲 Installeer OKKIE.</button>' : ''}
+      ${standalone ? `<p class="ok-line">${icon('check', { size: 18 })}OKKIE. draait als app op dit toestel.</p>` : ''}
+      ${ui.installEvent ? `<button class="btn primary" data-act="install">${icon('install', { size: 19 })}Installeer OKKIE.</button>` : ''}
       <h4>Installeren op iPhone</h4>
       <p>Open OKKIE in <b>Safari</b>, gebruik <b>Delen</b> en kies <b>'Zet op beginscherm'</b>.</p>
       <h4>Installeren op Android</h4>
@@ -1031,6 +1042,7 @@ function addDart(code) {
   ui.lastTap = t;
   ui.lastCode = code;
   haptic(8);
+  ui.justAdded = true;
   if (ui.view === 'play-match') return addMatchDart(code);
   const tr = data.active.training;
   if (!tr) return;
@@ -1211,6 +1223,33 @@ async function importBackup(file) {
   importBackup.pending = inc;
 }
 
+// Algemene uitnodiging. Iets anders dan een groepsuitnodiging in Mijn vrienden: hier gaat alleen een link
+// naar de website mee, zonder naam, scores of code.
+function inviteMessage() { return `${INVITE_TEXT} ${INVITE_URL}`; }
+function inviteModal() {
+  const msg = inviteMessage();
+  const canShare = typeof navigator.share === 'function';
+  modal(`<h3>Nodig een vriend uit</h3>
+    <p class="muted">Dit bericht gaat mee. Je kunt het in WhatsApp nog aanpassen.</p>
+    <p class="invite-preview" data-testid="invite-text">${esc(INVITE_TEXT)} <a href="${INVITE_URL}" target="_blank" rel="noopener">${INVITE_URL.replace('https://', '').replace(/\/$/, '')}</a></p>
+    <div class="modal-actions col">
+      <a class="btn primary" data-testid="invite-whatsapp" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">${icon('whatsapp', { size: 20 })}Via WhatsApp</a>
+      ${canShare ? `<button class="btn secondary" data-act="invite-share">${icon('share', { size: 19 })}Ander appje kiezen</button>` : ''}
+      <button class="btn secondary" data-act="invite-copy">${icon('copy', { size: 19 })}Link kopiëren</button>
+      <button class="btn ghost" data-act="modal-close">Sluiten</button>
+    </div>`);
+}
+async function inviteShare() {
+  try { await navigator.share({ title: 'OKKIE.', text: INVITE_TEXT, url: INVITE_URL }); closeModal(); }
+  catch (e) { if (e.name !== 'AbortError') toast('Delen lukt hier niet. Kopieer de link.'); }
+}
+async function inviteCopy() {
+  try {
+    await Promise.race([navigator.clipboard.writeText(inviteMessage()), new Promise((_, no) => setTimeout(() => no(new Error('klembord')), 2000))]);
+    closeModal(); toast('Gekopieerd. Plak het in een appje.');
+  } catch { toast('Kopiëren lukt niet. Houd de tekst ingedrukt om hem te kopiëren.'); }
+}
+
 function switchPlayerModal() {
   modal(`<h3>Wie gooit er?</h3><ul class="pick">${data.players.map(p => `<li><button class="pick-btn ${p.id === data.activePlayerId ? 'on' : ''}" data-act="use-player" data-arg="${esc(p.id)}"><span class="dot" style="background:${esc(p.color)}"></span>${esc(p.name)}</button></li>`).join('')}</ul>
     <form data-form="add-player" class="guest"><input name="name" maxlength="24" placeholder="Nieuwe speler" aria-label="Naam nieuwe speler"><button class="btn secondary">+ Toevoegen</button></form>
@@ -1219,6 +1258,9 @@ function switchPlayerModal() {
 
 const ACTIONS = {
   'modal-close': closeModal,
+  'invite': inviteModal,
+  'invite-share': inviteShare,
+  'invite-copy': inviteCopy,
   'modal-ok': () => confirmBox.ok?.(),
   'switch-player': switchPlayerModal,
   'use-player': id => {
@@ -1461,6 +1503,8 @@ document.addEventListener('keydown', e => {
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); ui.installEvent = e; if (ui.view === 'more') render(); });
 
 // ---------- Start ----------
+const TAB_ICONS = { home: 'home', train: 'train', match: 'match', stats: 'stats', more: 'more' };
+document.querySelectorAll('#tabbar [data-go]').forEach(b => { const sp = b.querySelector('span'); if (sp) sp.innerHTML = icon(TAB_ICONS[b.dataset.go] || 'more'); });
 applyTheme();
 if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
 if (loaded.source === 'legacy') { save(); setTimeout(() => toast('Je trainingen uit Dartlog zijn overgezet naar OKKIE.'), 600); }
