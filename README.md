@@ -8,6 +8,14 @@ Ontwikkeld door **Denckh.**
 
 🎯 **Online:** https://martijndbesten.github.io/dartlog/
 
+## Nieuwe openbare website en community (nog niet live)
+
+De publieke introductiepagina en community-ranglijst zijn ontwikkeld op de branch feature/okkie-public-community.
+Na review komen er twee extra pagina's bij: /dartlog/ontdek/ en /dartlog/community/.
+De publieke Cloudflare API moet nog worden verbonden en beoordeeld voordat spelers echt statistieken kunnen delen. Lees COMMUNITY-SETUP.md.
+
+De bestaande PWA en zijn lokale gegevens blijven op hetzelfde adres bewaard.
+
 ## Functies
 
 - **Scoretraining**: 30, 60 of 99 pijlen, vrij trainen of een eigen aantal beurten. Per pijl invoeren met grote knoppen (DOUBLE/TRIPLE + 1–20, 25, BULL, MIS) of typen (`T20 5 D10`).
