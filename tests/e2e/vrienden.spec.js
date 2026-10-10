@@ -84,7 +84,7 @@ test('groep oprichten, vriend uitnodigen, samen vergelijken, link intrekken en v
   await expect(B.page.locator('ol.board')).not.toContainText('Senn');
   await B.page.getByRole('tab', { name: 'Vergelijken' }).click();
   await expect(B.page.locator('.cmp')).toContainText('Beste 30 pijlen');
-  await expect(B.page.locator('.bar .fill').first()).toBeVisible();
+  await expect(B.page.locator('.cbar .fill').first()).toBeVisible();
   await B.page.getByRole('tab', { name: 'Leden' }).click();
   await expect(B.page.locator('.members')).toContainText('Martijn');
   await expect(B.page.getByRole('button', { name: 'Maak uitnodigingslink' })).toHaveCount(0); // gewoon lid
