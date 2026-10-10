@@ -2,8 +2,48 @@
 
 **Domein:** okkiedarts.nl, bij STRATO. Registratie ≠ hosting.
 **Broncode:** GitHub MartijndBesten/dartlog.
-**Ontwikkeling:** feature/okkie-public-community, PR #1. Opzettelijk nog niet live.
+**Release:** branch `release/okkie-1.3-live` (versie 1.3.1). Nog niet op main, nog niet gepubliceerd.
 **Bestaande PWA:** https://martijndbesten.github.io/dartlog/ blijft bestaan.
+
+## Stand release 1.3.1
+
+Klaar en getest in GitHub Actions (workflows *OKKIE release checks* en *OKKIE community checks*):
+- Browsertests op iPhone-, Android- en desktopformaat: app, offline, kinderuitleg, community zonder API,
+  en de gebouwde website (`dist/`): animaties, tikken/Enter, verminderde beweging, zonder JavaScript,
+  links, kleine telefoon (320 px), geen app-kopie.
+- Echte update vanaf de live versie (`origin/main`, 1.3.0) naar 1.3.1: spelers, afgeronde training,
+  lopende training met open pijl, statistieken, cachewissel en daarna offline (app én uitleg).
+- API-integratietests (node:sqlite) en Worker-bundel (staging + productie, dry run).
+
+**Registratie is dicht, op twee plaatsen:**
+- Worker: `REGISTRATION_ENABLED = "false"` in `wrangler.toml` (staging én productie). Alleen exact `"true"` opent;
+  dat gebeurt pas na privacyverklaring en ouderlijke toestemming (<16). Ook met Turnstile blijft hij dicht.
+- App: `REGISTRATION_OPEN = false` in `community/config.js` verbergt het formulier. De ranglijst werkt wel.
+
+**Beheer is dicht zonder volledige Access-configuratie:** zonder `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD` of
+`ADMIN_ALLOWED_EMAILS` bestaan `/beheer` en `/v1/admin/*` niet (404), ook niet met een geldig JWT.
+
+### Blokkades vóór publicatie van okkiedarts.nl
+
+| Blokkade | Waarom | Wie |
+|---|---|---|
+| Contactgegevens op de website (naam/handelsnaam, e-mail; bij bedrijfsmatig aanbod ook KvK-nummer en adres) | Wettelijk verplicht voor een dienst van de informatiemaatschappij (art. 3:15d BW); nu staat er alleen "Ontwikkeld door Denckh." | Eigenaar levert gegevens aan |
+| Korte privacyverklaring (concept: `PRIVACY-CONCEPT.md`) | AVG art. 13: Cloudflare verwerkt IP-adressen bij elk bezoek; de app bewaart alles lokaal. Nu linkt "Privacy & community" naar de communitypagina, die geen volledige verklaring is | Eigenaar vult in en keurt goed |
+
+### Blokkades vóór openbare registratie (blijft dicht)
+Definitieve privacyverklaring incl. community, verifieerbare ouderlijke toestemming (<16), wis-/intrekprotocol,
+Turnstile-sleutels. Pas daarna `REGISTRATION_ENABLED = "true"` én `REGISTRATION_OPEN = true`, na expliciet akkoord.
+
+### Zodra STRATO de domeinregistratie heeft afgerond (alleen na akkoord)
+1. STRATO: nameservers van okkiedarts.nl → `kayden.ns.cloudflare.com` en `sloan.ns.cloudflare.com`.
+2. Wachten tot de Cloudflare-zone *Active* is.
+3. DNS: SPF `v=spf1 -all` en DMARC `v=DMARC1; p=reject;` (geen mail op dit domein).
+4. Release 1.3.1 naar main (GitHub Pages-app), daarna `node tools/live-check.mjs`.
+5. Cloudflare Pages-project (repo dartlog, branch main, `npm run build:site`, uitvoer `dist`), domeinen okkiedarts.nl en www.
+6. Worker: `cd cloud && npx wrangler deploy --env production` (routes api. en beheer.okkiedarts.nl).
+7. `community/config.js`: `API_BASE = 'https://api.okkiedarts.nl'`; `TURNSTILE_SITE_KEY` leeg en `REGISTRATION_OPEN = false` laten.
+8. Cloudflare Access voor beheer.okkiedarts.nl en de drie Worker-secrets (zie Stap 2).
+9. Controle: https://okkiedarts.nl/, /uitleg/, `https://api.okkiedarts.nl/v1/health` (`registration: false`), beheer vraagt login.
 
 ## Gewenste online indeling
 
@@ -69,7 +109,7 @@ De admin API valideert daarnaast zelf de cryptografische handtekening van de Acc
 
 Na accountconfiguratie en pas na akkoord:
 
-    npx wrangler deploy
+    npx wrangler deploy --env production
 
 Controleer de routes api.okkiedarts.nl en beheer.okkiedarts.nl. Het dashboard vereist login.
 
