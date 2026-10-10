@@ -33,7 +33,7 @@ test('beheer weigert standaard ieder verzoek zonder juiste configuratie en domei
   assert.equal(adminHostMatches(new Request('https://api.okkiedarts.nl/beheer'),env),false);
   assert.equal(adminHostMatches(request,env),true);
   const blocked=await worker.fetch(request,{DB:{}});
-  assert.equal(blocked.status,403); // fail closed even when database is present
+  assert.equal(blocked.status,404); // admin hostname remains undiscoverable without config
 });
 test('Access JWT moet correct ondertekend zijn, publiekshost en e-mailadres kloppen',async()=>{
   for(const input of [{},{email:'bezoeker@example.com'},{audience:'b'.repeat(64)},{expired:true},{wrongSignature:true}]){
