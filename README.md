@@ -48,12 +48,12 @@ Er is geen build-stap: het zijn gewone HTML-, CSS- en JavaScript-bestanden.
 
 ## Testen
 
- controleert een echte update (oude versie → nieuwe) op hetzelfde adres: lopende en afgeronde trainingen, cache en offline gebruik.
-
 ```bash
 npm test             # unit-tests (spelregels, statistiek, opslag, migratie, back-ups)
 npm run test:e2e     # browsertests met Playwright (iPhone-, Android- en desktopformaat)
 ```
+
+`node tools/upgrade-check.mjs <map-met-oude-versie>` controleert een echte update (oude versie → nieuwe) op hetzelfde adres: lopende en afgeronde trainingen, cache en offline gebruik.
 
 De browsertests gebruiken de geïnstalleerde Chrome (`PW_CHANNEL=chrome`, standaard).
 

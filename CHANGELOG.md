@@ -9,7 +9,7 @@
 - Uitslagscherm rustiger: belangrijkste cijfers eerst, badges en extra statistieken uitklapbaar, vergelijking met de vorige training met hetzelfde aantal pijlen, markering "onvolledig".
 - Samen trainen is pas klaar als iedere speler het ingestelde aantal beurten heeft gegooid.
 - Meer → installatie-uitleg voor iPhone en Android, met uitleg over lokale opslag.
-- Serviceworker: netwerk eerst, offline uit de cache; update-controle ().
+- Serviceworker: netwerk eerst, offline uit de cache; update-controle (`tools/upgrade-check.mjs`).
 
 ## 1.1.0 — 2026-10-10
 
