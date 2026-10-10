@@ -81,10 +81,12 @@ export function publicSnapshots(data, playerId) {
     }
   }
   // Geen exacte trainingsmomenten of losse dartworpen worden verstuurd.
-  return [...groups.values()].filter(x => x.sessions > 0).slice(-190);
+  const all = groups.get('all');
+  const dated = [...groups.values()].filter(x => x.period !== 'all' && x.sessions > 0).slice(-189);
+  return all?.sessions ? [all, ...dated] : dated;
 }
 export function apiAvailable() {
-  return /^https:\/\/[^/]+/.test(API_BASE);
+  return /^https:\/\/[^/]+/.test(API_BASE) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(API_BASE);
 }
 export async function request(path, method = 'GET', payload = null, token = null) {
   if (!apiAvailable()) throw new Error('De gedeelde statistieken zijn nog niet geactiveerd.');
