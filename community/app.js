@@ -1,6 +1,6 @@
 // OKKIE. Community. Nickname + vrijwillig openbaar gemaakte aggregaten.
 // Geen externe trackers. Tokens en herstelcodes blijven lokaal op dit apparaat.
-import { API_BASE, TURNSTILE_SITE_KEY } from './config.js';
+import { API_BASE, TURNSTILE_SITE_KEY, REGISTRATION_OPEN } from './config.js';
 import { apiAvailable, getAccount, upsertAccount, dropAccount, publicSnapshots, syncAccount, request } from '../js/community-sync.js';
 
 const $ = selector => document.querySelector(selector);
@@ -76,6 +76,11 @@ function renderAccount() {
   if (!apiAvailable()) {
     root.innerHTML = prefix + note + '<p class="status pending">De online community is voorbereid maar nog niet verbonden met de database. Je bestaande trainingen blijven veilig lokaal.</p>' +
       '<p class="note">Zodra de beheerder de cloudservice activeert, kun je je nickname en te delen statistieken instellen.</p>';
+    return;
+  }
+  if (!acct && !REGISTRATION_OPEN) {
+    root.innerHTML = prefix + note +
+      '<p class="status pending">Een openbaar profiel aanmaken kan nog niet. Eerst regelen we de privacyverklaring en toestemming van ouders voor spelers onder 16. De ranglijst kun je al bekijken; je trainingen blijven gewoon op deze telefoon.</p>';
     return;
   }
   if (!acct) {

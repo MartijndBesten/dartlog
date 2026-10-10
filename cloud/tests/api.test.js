@@ -7,7 +7,7 @@ import { createD1 } from './d1-shim.js';
 
 const ORIGIN = 'https://martijndbesten.github.io';
 const API = 'https://api.okkiedarts.nl';
-const baseEnv = () => ({ DB: createD1(), ALLOWED_ORIGINS: ORIGIN + ',https://okkiedarts.nl', TURNSTILE_SECRET: 'test-secret' });
+const baseEnv = () => ({ DB: createD1(), ALLOWED_ORIGINS: ORIGIN + ',https://okkiedarts.nl', TURNSTILE_SECRET: 'test-secret', REGISTRATION_ENABLED: 'true' });
 
 // Nagebootste externe diensten: Turnstile-siteverify en de Access-JWKS.
 const realFetch = globalThis.fetch;
@@ -61,6 +61,40 @@ test('registratie: Turnstile verplicht, toestemming verplicht, geheimen alleen g
   const closed = await call({ ...env, TURNSTILE_SECRET: '' }, '/v1/register', { method: 'POST', body: { nickname: 'X Y', share: true, ageConsent: true, turnstileToken: 'ok-token' } });
   assert.equal(closed.status, 403);
   assert.equal((await closed.json()).error, 'Registratie is nog niet geactiveerd.');
+});
+
+test('registratie blijft gesloten zolang REGISTRATION_ENABLED niet exact "true" is, ook met Turnstile', async () => {
+  const body = { nickname: 'Senn', share: true, ageConsent: true, turnstileToken: 'ok-token' };
+  for (const value of [undefined, '', 'false', 'FALSE', 'TRUE', '1', 'yes', ' true', true]) {
+    const env = { ...baseEnv(), REGISTRATION_ENABLED: value };
+    assert.ok(env.TURNSTILE_SECRET, 'Turnstile is wel geconfigureerd');
+    const r = await call(env, '/v1/register', { method: 'POST', body });
+    assert.equal(r.status, 403, `REGISTRATION_ENABLED=${JSON.stringify(value)} moet dicht zijn`);
+    assert.equal((await r.json()).error, 'Registratie is nog gesloten.');
+    assert.equal(env.DB.raw.prepare('SELECT COUNT(*) AS n FROM members').get().n, 0, 'er is geen account aangemaakt');
+    const health = await (await call(env, '/v1/health')).json();
+    assert.equal(health.registration, false);
+  }
+  // De openbare ranglijst en profielen werken wél terwijl registratie dicht is.
+  const env = baseEnv();
+  const a = await register(env, 'Senn');
+  await call(env, '/v1/me/snapshots', { method: 'PUT', token: a.token, body: { snapshots: [snap(thisWeek, 900), snap('all', 900)] } });
+  const closed = { ...env, REGISTRATION_ENABLED: 'false' };
+  const board = await call(closed, '/v1/leaderboard?period=week');
+  assert.equal(board.status, 200);
+  assert.deepEqual((await board.json()).ranking.map(r => r.nickname), ['Senn']);
+  assert.equal((await call(closed, '/v1/players/' + a.account.handle)).status, 200);
+  assert.equal((await call(closed, '/v1/register', { method: 'POST', body })).status, 403);
+});
+
+test('wrangler.toml: registratie staat in staging én productie expliciet op "false"', async () => {
+  const { readFileSync } = await import('node:fs');
+  const toml = readFileSync(new URL('../wrangler.toml', import.meta.url), 'utf8');
+  const sections = toml.split(/^\[/m);
+  const vars = sections.filter(s => /^(env\.production\.)?vars\]/.test(s));
+  assert.equal(vars.length, 2);
+  for (const s of vars) assert.match(s, /^REGISTRATION_ENABLED = "false"\r?$/m);
+  assert.doesNotMatch(toml, /REGISTRATION_ENABLED = "true"/);
 });
 
 test('schrijfacties alleen vanaf toegestane origins, met JSON en beperkte grootte', async () => {

@@ -7,7 +7,7 @@ import { isAdminRequest, adminEmail, adminHostMatches } from './admin-auth.js';
 //
 // Beveiligingslagen (zie ../INFRASTRUCTUUR.md):
 // - CORS alleen voor ALLOWED_ORIGINS; schrijfacties alleen vanaf die origins.
-// - Turnstile bij registratie (fail-closed zonder TURNSTILE_SECRET).
+// - Registratie alleen als REGISTRATION_ENABLED exact "true" is (standaard dicht), daarna nog Turnstile (fail-closed).
 // - Rate limiting via Cloudflare-bindings (RL_REGISTER, RL_WRITE); zonder binding draait de API gewoon door.
 // - Beheer (/beheer, /v1/admin/*) alleen op het beheerdomein met een geverifieerd Cloudflare Access-JWT (admin-auth.js).
 // - Vaste beveiligingsheaders op elk antwoord; interne fouten lekken nooit naar buiten.
@@ -85,6 +85,9 @@ async function limited(binding, key) {
   if (!binding || typeof binding.limit !== 'function') return false;
   try { return !(await binding.limit({ key })).success; } catch { return false; }
 }
+// Openbare registratie blijft dicht tot privacyverklaring en ouderlijke toestemming (<16) geregeld zijn.
+// Alleen de exacte tekst "true" opent haar; ontbreken, "false", "1" of "TRUE" houden haar dicht.
+const registrationOpen = env => env.REGISTRATION_ENABLED === 'true';
 async function checkTurnstile(requestBody, request, env) {
   // Zonder configuratie worden geen nieuwe publieke accounts aangemaakt.
   if (!env.TURNSTILE_SECRET) return { error: 'Registratie is nog niet geactiveerd.' };
@@ -132,7 +135,7 @@ export default {
     if (request.method === 'OPTIONS') {
       return originAllowed(request, env) ? new Response(null, { status: 204, headers: { ...SECURITY_HEADERS, ...cors } }) : fail('Niet toegestaan.', 403);
     }
-    if (path === '/v1/health' && request.method === 'GET') return json({ ok: true, version: 1 }, 200, cors);
+    if (path === '/v1/health' && request.method === 'GET') return json({ ok: true, version: 1, registration: registrationOpen(env) }, 200, cors);
     if (!env.DB) return fail('Database niet geconfigureerd.', 503, cors);
     if (request.method !== 'GET' && !originAllowed(request, env)) return fail('Onbekende herkomst.', 403, cors);
     try {
@@ -169,6 +172,7 @@ export default {
           { 'Cache-Control':'no-store, private', 'X-Content-Type-Options':'nosniff' });
       }
       if (path === '/v1/register' && request.method === 'POST') {
+        if (!registrationOpen(env)) return fail('Registratie is nog gesloten.', 403, cors);
         if (await limited(env.RL_REGISTER, clientIp(request))) return fail('Te veel registraties vanaf dit adres. Probeer het over een minuut opnieuw.', 429, cors);
         const body = await bodyJson(request);
         const nickname = cleanNickname(body.nickname);

@@ -51,3 +51,5 @@
 @keyframes quick-aim{0%,100%{transform:rotate(-6deg) scale(.97)}50%{transform:rotate(5deg) scale(1.05)}}
 @media(max-width:640px){.kids-invite{grid-template-columns:1fr;gap:15px;padding:24px}.kids-graphic{width:102px;font-size:56px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.kids-graphic{animation:none}}
+/* Zonder JavaScript geen belofte van interactie */
+html:not(.js) .js-only{display:none}

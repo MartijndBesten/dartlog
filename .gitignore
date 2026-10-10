@@ -5,3 +5,4 @@ screenshots/
 cloud/.dev.vars
 cloud/.wrangler/
 cloud/dist/
+dist/
