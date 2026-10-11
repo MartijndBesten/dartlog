@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.2 — Oude adres stuurt door
+
+- **martijndbesten.github.io/dartlog stuurt door naar app.okkiedarts.nl** (besluit eigenaar: het oude adres had één
+  gebruiker). Alle pagina's: de app, Darters (ook ouderlinks), uitleg en de oude Mijn vrienden-pagina naar
+  app.okkiedarts.nl; de oude websitepagina's (ontdek/) naar okkiedarts.nl. Alleen op dat adres; elders verandert niets.
+- In de app en op de website staan geen verwijzingen meer naar trainingen ophalen van het oude adres. Overzetten tussen
+  Safari en de app op het beginscherm (overzetcode, back-up) werkt zoals altijd.
+- Online Darters-profielen zijn ongewijzigd gelaten.
+
 ## 1.6.1 — Na de test op een echte iPhone
 
 - **Darters-ranglijst:** het label “jij” is weg (het stond bij elk profiel dat op dit toestel gekoppeld is, ook bij

@@ -217,8 +217,9 @@ test('app-build voor app.okkiedarts.nl: alleen de app, met CNAME, en de verhuizi
   assert.ok(!files.includes('ontdek/index.html'), 'geen kopie van de website op app.okkiedarts.nl');
   assert.doesNotMatch(readFileSync(join(dist, 'community/index.html'), 'utf8'), /href="\.\.\/ontdek\/"/);
   const { PROD } = await import(new URL('../../js/transfer.js', import.meta.url));
-  // Stap 7 (VERHUIZING.md): aankondigen op het oude adres, nooit doorverwijzen.
+  // Stap 7 (VERHUIZING.md) aangekondigd; sinds 1.6.2 stuurt het oude adres door (besluit eigenaar, één gebruiker).
   assert.equal(PROD.open, true);
+  assert.equal(PROD.forwarded, true);
   // Het oude adres krijgt nooit een eigen domein (dat zou automatisch doorverwijzen).
   assert.ok(!existsSync(join(root, 'CNAME')), 'geen CNAME in de dartlog-repo');
   const { INSTALL_ORIGINS } = await import(new URL('../../js/install.js', import.meta.url));
@@ -235,4 +236,23 @@ test('app-build in testfase: niet vindbaar voor zoekmachines, verder dezelfde ap
   for (const f of ['sw.js', 'js/app.js', 'js/transfer.js']) assert.equal(readFileSync(join(dist, f), 'utf8'), read(f), f);
   // weer terug naar de gewone build, zodat andere tests niet van de testfase afhangen
   execFileSync(process.execPath, [join(root, 'tools/build-app-site.mjs')], { cwd: root, stdio: 'pipe' });
+});
+
+// Sinds 1.6.2: het oude adres stuurt door. Alleen daar; op app.okkiedarts.nl, okkiedarts.nl en localhost gebeurt niets.
+test('oude adres stuurt door naar app.okkiedarts.nl (website-pagina\'s naar okkiedarts.nl), nergens anders', async () => {
+  const { runInNewContext } = await import('node:vm');
+  const pages = ['index.html', 'community/index.html', 'uitleg/index.html', 'vrienden/index.html', 'ontdek/index.html', 'ontdek/privacy/index.html', 'ontdek/contact/index.html'];
+  const scripts = pages.map(p => read(p).match(/<script>(\/\* Oude adres martijndbesten[\s\S]*?)<\/script>/)?.[1]);
+  scripts.forEach((js, i) => assert.ok(js, 'doorstuurscript ontbreekt in ' + pages[i]));
+  assert.equal(new Set(scripts).size, 1, 'overal hetzelfde script');
+  const go = href => { const u = new URL(href); let to = null; runInNewContext(scripts[0], { location: { hostname: u.hostname, pathname: u.pathname, search: u.search, hash: u.hash, replace: x => { to = x; } } }); return to; };
+  assert.equal(go('https://martijndbesten.github.io/dartlog/'), 'https://app.okkiedarts.nl/');
+  assert.equal(go('https://martijndbesten.github.io/dartlog'), 'https://app.okkiedarts.nl/');
+  assert.equal(go('https://martijndbesten.github.io/dartlog/community/#ouder=ab12'), 'https://app.okkiedarts.nl/community/#ouder=ab12', 'ouderlink blijft werken');
+  assert.equal(go('https://martijndbesten.github.io/dartlog/#overzetten'), 'https://app.okkiedarts.nl/');
+  assert.equal(go('https://martijndbesten.github.io/dartlog/uitleg/'), 'https://app.okkiedarts.nl/uitleg/');
+  assert.equal(go('https://martijndbesten.github.io/dartlog/ontdek/privacy/'), 'https://okkiedarts.nl/privacy/');
+  assert.equal(go('https://martijndbesten.github.io/dartlog/ontdek/'), 'https://okkiedarts.nl/');
+  for (const other of ['https://app.okkiedarts.nl/', 'https://app.okkiedarts.nl/community/', 'https://okkiedarts.nl/', 'http://localhost:4173/', 'https://martijndbesten.github.io/iets-anders/'])
+    assert.equal(go(other), null, 'geen doorsturen op ' + other);
 });

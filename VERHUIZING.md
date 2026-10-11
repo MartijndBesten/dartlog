@@ -1,8 +1,10 @@
 # Verhuizing naar app.okkiedarts.nl
 
 Doel: één officiële dartapp op **https://app.okkiedarts.nl**, zonder dat iemand spelers of trainingen kwijtraakt.
-Stand: **gebouwd en getest, niet geactiveerd.** Het oude adres ziet er voor gebruikers precies hetzelfde uit
-zolang `PROD.open` in `js/transfer.js` op `false` staat.
+Stand (1.6.2): **afgerond.** Het oude adres martijndbesten.github.io/dartlog stuurt door naar app.okkiedarts.nl
+(website-pagina's onder `ontdek/` naar okkiedarts.nl), via het script bovenaan elke HTML-pagina. Besluit van de
+eigenaar: het oude adres had één gebruiker. Terugdraaien: dat script uit de pagina's halen en opnieuw publiceren.
+Online Darters-profielen zijn daarbij niet aangeraakt. De rest van dit document beschrijft hoe de verhuizing verliep.
 
 ## Waarom overzetten nodig is
 

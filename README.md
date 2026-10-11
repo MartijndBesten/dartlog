@@ -6,7 +6,7 @@
 
 Ontwikkeld door **Denckh.**
 
-🎯 **App:** https://app.okkiedarts.nl/ · **Website:** https://okkiedarts.nl/ · oud adres (overzetten): https://martijndbesten.github.io/dartlog/
+🎯 **App:** https://app.okkiedarts.nl/ · **Website:** https://okkiedarts.nl/ · het oude adres https://martijndbesten.github.io/dartlog/ stuurt sinds 1.6.2 door naar de app
 
 - `uitleg/`: uitleg voor kinderen en beginners met een oefenbeurt die niets opslaat.
 - `community/`: Darters, het openbare overzicht van vrijwillig gedeelde cijfers (Cloudflare Worker in `cloud/`).
