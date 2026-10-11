@@ -64,6 +64,10 @@ onbereikbaar). De nieuwe app komt daarom in een **aparte** repository.
 
 ## Stappen
 
+Stand 11 oktober 2026, middag: **alle stappen zijn uitgevoerd (1.4.x).** app.okkiedarts.nl is de officiële app
+(vindbaar, geen testfase meer); het oude adres draait dezelfde versie met `PROD.open = true` (verhuismelding, geen
+doorverwijzing); okkiedarts.nl linkt naar app.okkiedarts.nl. De rest van deze paragraaf is de stand van de ochtend.
+
 Stand 11 oktober 2026, 07:20 UTC: **stap 1–4 en 6 zijn klaar.** Beide adressen draaien 1.3.4 uit dezelfde commit
 (`main` 9a601c0): het oude adres met `PROD.open = false` (overzetcode onder Meer, geen verhuismelding, geen
 doorverwijzing), https://app.okkiedarts.nl/ in testfase (repo `okkie-app`, certificaat Let's Encrypt t/m 9 januari

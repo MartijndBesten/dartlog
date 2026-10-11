@@ -3,6 +3,12 @@
 Status: **voorbereid op branch `infra/cloudflare-community`. Niets staat live, DNS is niet gewijzigd.**
 Dit document beschrijft de doelarchitectuur, wat al klaar is, en de exacte stappen (met wie ze kan uitvoeren).
 
+> **Stand 11 oktober 2026 (actueler dan de rest van dit document):** de app staat op app.okkiedarts.nl (GitHub Pages,
+> repo `okkie-app`), de website op okkiedarts.nl (GitHub Pages, repo `okkiedarts-site`). De API draait als Worker
+> `okkie-api` op workers.dev (staging: `okkie-community-api`), met D1 `okkie-community` (migraties 0001–0003).
+> De Cloudflare-zone okkiedarts.nl is **niet** actief (nameservers staan bij STRATO, DNSSEC aan); daarom geen
+> api.okkiedarts.nl en geen beheer.okkiedarts.nl. Beheer is dicht (geen Access-secrets). Zie VRIENDEN.md.
+
 ## 1. Architectuur
 
 ```

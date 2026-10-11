@@ -1,7 +1,10 @@
 # OKKIE. Mijn vrienden — ontwerp, rekenregels en livegang
 
-Status: **gebouwd en getest op branch `feature/okkie-vrienden` (app 1.4.0), voor alle leeftijden. Niet live.** In productie staat
-`GROUPS_ENABLED = "false"` (Worker) en `GROUPS_OPEN = false` (app). Niets wordt geactiveerd zonder akkoord van de eigenaar.
+Status (11 oktober 2026): **live sinds app 1.4.0, voor 16 jaar en ouder.** Productie-API: Worker `okkie-api` op
+`https://okkie-api.zaalverhuur-sion.workers.dev` met D1 `okkie-community` (West-Europa). `GROUPS_ENABLED = "true"`,
+`REGISTRATION_ENABLED = "false"`. **Jonger dan 16 staat dicht** (`MINORS_OPEN` niet gezet, app `MINORS_OPEN = false`):
+de ouderlink hieronder is gebouwd en getest, maar gaat pas open na de punten in §4 "Resterende blokkades".
+Oprichterscodes staan als secret `GROUP_FOUNDER_CODE` (nooit in Git).
 
 ## 1. Inventarisatie en keuze
 
