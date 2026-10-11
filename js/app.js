@@ -1307,9 +1307,14 @@ function moveCard() {
 const iosApp = () => I.platform() === 'ios' && I.isStandalone();
 // De code en het pakket worden vooraf gemaakt, zodat kopiëren en het nieuwe venster direct bij de tik
 // gebeuren (Safari staat die anders niet toe).
-async function prepareTransfer() {
-  ui.transferPkg = await T.makePackage(data, T.readExtras(localStorage));
-  ui.transferCode = await T.pack(data, T.readExtras(localStorage));
+// Het venster (automatisch) houdt alles op het toestel en neemt online profielsleutels altijd mee; de code
+// alleen als je dat aanvinkt.
+async function prepareTransfer({ secrets = false } = {}) {
+  const extras = T.readExtras(localStorage);
+  ui.transferSecrets = secrets;
+  ui.transferHasSecrets = T.hasSecrets(extras);
+  ui.transferPkg = await T.makePackage(data, extras, { secrets: true });
+  ui.transferCode = await T.pack(data, extras, { secrets });
 }
 async function transferSendModal() {
   await prepareTransfer();
@@ -1322,11 +1327,12 @@ async function transferSendModal() {
     </div>
     <p class="muted small">${iosApp() ? 'Je gebruikt OKKIE. vanaf je beginscherm. Kies <b>Met een overzetcode</b>.' : '<b>Automatisch</b> opent de nieuwe app in een nieuw venster.'} Op iPhone: zet de nieuwe app eerst op je beginscherm en plak de code dáár.</p>`);
 }
-async function transferCodeModal() {
-  if (!ui.transferCode) await prepareTransfer();
+async function transferCodeModal(refresh = true) {
+  if (refresh || !ui.transferCode) await prepareTransfer({ secrets: false });
   const target = T.role() === 'old' ? `<a href="${T.NEW_APP()}" target="_blank" rel="noopener">app.okkiedarts.nl</a>` : 'de andere OKKIE.';
   modal(`<h3>Jouw overzetcode</h3>
-    <p class="muted">In deze code zitten ${esc(T.summaryText(T.summary(data)))}. Deel hem met niemand anders.</p>
+    <p class="muted">In deze code zitten ${esc(T.summaryText(T.summary(data)))}. Deel hem met niemand anders en plak hem niet in een groepsapp.</p>
+    ${ui.transferHasSecrets ? `<label class="setting"><span>Ook mijn online profiel meenemen<br><small class="muted">Alleen aanzetten als je de code zelf meteen plakt. Wie de code heeft, kan dan je online profiel gebruiken.</small></span><input type="checkbox" class="switch" data-input="transfer-secrets" data-testid="transfer-secrets" ${ui.transferSecrets ? 'checked' : ''}></label>` : ''}
     <textarea class="transfer-code" readonly rows="4" data-testid="transfer-code" aria-label="Overzetcode">${esc(ui.transferCode)}</textarea>
     <div class="modal-actions col"><button class="btn primary" data-act="transfer-copy">${icon('copy', { size: 19 })}Kopieer de code</button></div>
     <ol class="steps"><li>Open ${target}${T.role() === 'old' ? ' (op iPhone: eerst op je beginscherm zetten en dáár openen)' : ''}.</li><li>Tik op <b>Trainingen ophalen</b> of kies <b>Meer → Code invoeren</b>.</li><li>Plak de code en tik op <b>Controleren</b>.</li></ol>
@@ -1365,36 +1371,62 @@ async function applyIncoming(opened) {
   try { T.writeExtras(localStorage, opened.extras); } catch { /* privémodus */ }
   return report;
 }
+// Uitkomst van een overdracht. Alleen bij 'identiek' staat er "Overgezet en gecontroleerd".
+const RESULT_TITLE = { identiek: 'Overgezet en gecontroleerd', aangepast: 'Overgezet, met bewuste verschillen', aandacht: 'Overgezet, behalve de lopende training', probleem: 'Niet alles is goed overgekomen' };
+function activeText(report) {
+  if (report.active === 'overgenomen') return 'De lopende training is overgenomen.';
+  if (report.active === 'al afgerond') return 'De lopende training was hier al afgerond; die telt niet dubbel.';
+  if (report.active === 'niet overgenomen') return 'De lopende training is <b>niet</b> overgenomen, omdat hier al een andere training loopt. Hij staat nog in de andere app: rond hem daar af en zet daarna opnieuw over. Er komt niets dubbel.';
+  return '';
+}
+function reportLists(report) {
+  const li = list => list.map(x => `<li>${esc(x.what)}${x.why ? ` <span class="muted">(${esc(x.why)})</span>` : ''}</li>`).join('');
+  return `${report.missing.length ? `<h4>Ontbreekt</h4><ul class="plain-list" data-testid="transfer-missing">${li(report.missing)}</ul>` : ''}
+    ${report.conflicts.length ? `<h4>Zelfde training, andere inhoud</h4><ul class="plain-list" data-testid="transfer-conflicts">${li(report.conflicts.map(c => ({ ...c, why: 'hier blijft de versie van deze app' })))}</ul>` : ''}
+    ${report.adjusted.length ? `<h4>Bewust anders</h4><ul class="plain-list" data-testid="transfer-adjusted">${li(report.adjusted)}</ul>` : ''}`;
+}
 function resultModal(report) {
-  const ok = report.ok && report.sameContent;
-  const adjusted = report.ok && !report.sameContent && report.different.length;
-  const rows = report.players.map(p => `<tr><th>${esc(p.name)}</th><td>${p.trainings}</td><td>${int(p.darts)}</td><td>${fmt(p.avg, 2)}</td><td>${p.same ? icon('check', { size: 16, label: 'klopt' }) : '✗'}</td></tr>`).join('');
+  const st = report.status;
+  const rows = report.players.map(p => `<tr><th>${esc(p.name)}</th><td>${p.trainings}</td><td>${int(p.darts)}</td><td>${fmt(p.avg, 2)}</td><td>${p.same ? icon('check', { size: 16, label: 'klopt' }) : '<b class="down" aria-label="klopt niet">✗</b>'}</td></tr>`).join('');
   const pairs = T.sameNamePairs(data);
-  const active = report.active === 'overgenomen' ? 'De lopende training is overgenomen.' : report.active === 'niet overgenomen'
-    ? (report.skippedActive === 'afgerond' ? 'De lopende training was hier al afgerond; die telt niet dubbel.' : 'Hier liep al een training. De lopende training van de andere app staat daar nog: rond hem daar af en zet opnieuw over.') : '';
-  modal(`<h3 data-testid="transfer-result">${ok ? 'Overgezet en gecontroleerd' : adjusted ? 'Overgezet en gecontroleerd' : 'Overgezet, maar controleer dit'}</h3>
-    <p class="muted">${ok ? 'Elke speler, training, pijl en wedstrijd staat er precies zo in als in de andere app.' : adjusted ? `Alles is er. ${report.different.length === 1 ? 'Eén ding was' : report.different.length + ' dingen waren'} hier al aangepast (bijvoorbeeld een naam) en ${report.different.length === 1 ? 'blijft' : 'blijven'} zoals het hier staat.` : 'Niet alles is gelijk. Er is niets gewist: de andere app heeft alles nog. Maak daar een back-upbestand als reserve.'}</p>
+  const intro = {
+    identiek: 'Elke speler, training, pijl en wedstrijd staat er precies zo in als in de andere app.',
+    aangepast: 'Alles is er. Een paar dingen verschillen bewust; daarvan blijft de versie van deze app.',
+    aandacht: 'Alle spelers, trainingen en wedstrijden zijn er.',
+    probleem: 'Er is niets gewist: de andere app heeft alles nog. Maak daar als reserve een back-upbestand en neem contact op voordat je opnieuw overzet.',
+  }[st];
+  modal(`<h3 data-testid="transfer-result" data-status="${st}">${RESULT_TITLE[st]}</h3>
+    <p class="${st === 'probleem' ? 'note' : 'muted'}">${intro}</p>
     <table class="mtable" data-testid="transfer-table"><thead><tr><th></th><th>Trainingen</th><th>Pijlen</th><th>Gem.</th><th></th></tr></thead><tbody>${rows}</tbody></table>
-    <p class="small">${report.received.matches ? `${report.received.matches} wedstrijd${report.received.matches === 1 ? '' : 'en'} meegekomen. ` : ''}${active}</p>
-    <p class="muted small">Hier staan nu: ${esc(T.summaryText(report.here))}.</p>
+    ${reportLists(report)}
+    <p class="small">${report.received.matches ? `${report.received.matches} wedstrijd${report.received.matches === 1 ? '' : 'en'} meegekomen. ` : ''}${activeText(report)}</p>
+    ${report.omitted?.length ? '<p class="note small" data-testid="transfer-omitted">Je online profiel is voor de veiligheid niet meegenomen. Nodig? Maak in de andere app een nieuwe code met <b>Ook mijn online profiel meenemen</b> aan.</p>' : ''}
+    <p class="muted small">Hier staan nu: ${esc(T.summaryText(report.here))}. Heb je de code ergens anders geplakt (notitie, appje)? Wis hem daar.</p>
     ${pairs.map(([a, b]) => `<div class="note" data-testid="same-name">Er zijn nu twee spelers met de naam <b>${esc(a.name)}</b>. Is dat dezelfde persoon?
       <div class="row-actions" style="margin-top:8px"><button class="btn small secondary" data-act="merge-players" data-arg="${esc(b.id)}|${esc(a.id)}">Ja, samenvoegen</button><button class="btn small ghost" data-act="modal-close">Nee, apart houden</button></div></div>`).join('')}
     <div class="modal-actions"><button class="btn primary" data-act="modal-close">Klaar</button></div>`);
 }
 async function transferAuto() {
   const mine = await T.fingerprint(data);
-  try {
-    const result = await T.sendViaWindow(ui.transferPkg);
-    if (!result?.ok) throw new Error('controle');
-    try { localStorage.setItem(MOVED_KEY, JSON.stringify({ at: new Date().toISOString(), summary: T.summary(data), count: data.trainings.length + data.matches.length, fingerprint: mine })); } catch { /* niet nodig */ }
-    render();
-    modal(`<h3 data-testid="transfer-sent">Overgezet en gecontroleerd</h3>
-      <p>${esc(T.summaryText(result.received))} staan nu op app.okkiedarts.nl, precies zoals hier. Je gegevens blijven hier ook bewaard.</p>
-      <p class="muted small">Zet de nieuwe app op je beginscherm en gebruik vanaf nu die.</p>
-      <div class="modal-actions"><button class="btn ghost" data-act="modal-close">Sluiten</button><a class="btn primary" href="${T.NEW_APP()}">Open de nieuwe app</a></div>`);
-  } catch (e) {
-    toast(e.message === 'controle' ? 'De controle klopt niet. Gebruik de overzetcode; hier is niets gewist.' : 'Automatisch overzetten lukte hier niet. Gebruik de overzetcode.', 'error');
+  let result;
+  try { result = await T.sendViaWindow(ui.transferPkg); }
+  catch { return toast('Automatisch overzetten lukte hier niet. Gebruik de overzetcode; hier is niets gewist.', 'error'); }
+  if (!result || !RESULT_TITLE[result.status] || result.status === 'probleem') {
+    return modal(`<h3 data-testid="transfer-sent" data-status="probleem">Niet alles is goed overgekomen</h3>
+      <p class="note">Hier is niets gewist en je kunt gewoon verder trainen. Gebruik nog niet de nieuwe app voor deze spelers.</p>
+      ${result ? reportLists(result) : ''}
+      <p class="muted small">Bewaar als reserve een back-upbestand en neem contact op via okkiedarts.nl/contact.</p>
+      <div class="modal-actions"><button class="btn ghost" data-act="modal-close">Sluiten</button><button class="btn primary" data-act="export">${icon('download', { size: 19 })}Back-upbestand</button></div>`);
   }
+  try { localStorage.setItem(MOVED_KEY, JSON.stringify({ at: new Date().toISOString(), summary: T.summary(data), count: data.trainings.length + data.matches.length, fingerprint: mine, status: result.status })); } catch { /* niet nodig */ }
+  render();
+  const extra = result.status === 'aangepast' ? `<p class="muted small">${result.adjusted.length} ding${result.adjusted.length === 1 ? '' : 'en'} verschilde${result.adjusted.length === 1 ? '' : 'n'} bewust (bijvoorbeeld een naam); daar blijft de versie van de nieuwe app.</p>`
+    : result.status === 'aandacht' ? `<p class="note small">${activeText(result)}</p>` : '';
+  modal(`<h3 data-testid="transfer-sent" data-status="${result.status}">${RESULT_TITLE[result.status]}</h3>
+    <p>${esc(T.summaryText(result.received))} staan nu op app.okkiedarts.nl. Je gegevens blijven hier ook bewaard.</p>
+    ${extra}
+    <p class="muted small">Zet de nieuwe app op je beginscherm en gebruik vanaf nu die.</p>
+    <div class="modal-actions"><button class="btn ghost" data-act="modal-close">Sluiten</button><a class="btn primary" href="${T.NEW_APP()}">Open de nieuwe app</a></div>`);
 }
 function mergePlayersAction(arg) {
   const [keep, drop] = String(arg).split('|');
@@ -1476,14 +1508,19 @@ const ACTIONS = {
   'modal-close': closeModal,
   'transfer-send': transferSendModal,
   'transfer-auto': transferAuto,
-  'transfer-code': transferCodeModal,
+  'transfer-code': () => transferCodeModal(true),
   'transfer-copy': transferCopy,
   'transfer-receive': transferReceiveModal,
   'transfer-paste': async () => {
-    try { const t = await navigator.clipboard.readText(); if (!t) throw new Error('leeg'); $('#modal [name=code]').value = t; await previewTransfer(t); }
+    try { const t = await navigator.clipboard.readText(); if (!t) throw new Error('leeg'); $('#modal [name=code]').value = t; ui.transferFromClipboard = true; await previewTransfer(t); }
     catch { toast('Plakken lukt hier niet vanzelf. Houd het vak ingedrukt en kies Plak.'); }
   },
-  'transfer-apply': async () => { const r = ui.transferIncoming; ui.transferIncoming = null; if (!r) return closeModal(); const report = await applyIncoming(r); goAfterTransfer(); resultModal(report); },
+  'transfer-apply': async () => {
+    // De code bevat al je trainingen: na plakken via de knop het klembord leegmaken (direct bij deze tik).
+    if (ui.transferFromClipboard) { ui.transferFromClipboard = false; try { navigator.clipboard.writeText('').catch(() => {}); } catch { /* niet ondersteund */ } }
+    const r = ui.transferIncoming; ui.transferIncoming = null; if (!r) return closeModal();
+    const report = await applyIncoming(r); goAfterTransfer(); resultModal(report);
+  },
   'merge-players': mergePlayersAction,
   'install-start': installStart,
   'install-prompt': installPrompt,
@@ -1573,12 +1610,12 @@ const ACTIONS = {
   'open-match': id => { const m = data.matches.find(x => x.id === id); if (m) matchDetail(m); },
   'delete-training': id => confirmBox('Training verwijderen?', 'Deze training verdwijnt definitief uit je geschiedenis en statistieken.', 'Verwijderen', () => {
     const affected = data.trainings.find(t => t.id === id)?.playerId;
-    data.trainings = data.trainings.filter(t => t.id !== id); save();
+    data.trainings = data.trainings.filter(t => t.id !== id); T.rememberRemoved(data, 'trainings', [id]); save();
     if (affected) queueCommunitySync(data, [affected], { replace: true });
     closeModal(); render(); toast('Training verwijderd.');
   }),
   'delete-match': id => confirmBox('Wedstrijd verwijderen?', 'Deze wedstrijd verdwijnt definitief.', 'Verwijderen', () => {
-    data.matches = data.matches.filter(m => m.id !== id); save(); closeModal(); render(); toast('Wedstrijd verwijderd.');
+    data.matches = data.matches.filter(m => m.id !== id); T.rememberRemoved(data, 'matches', [id]); save(); closeModal(); render(); toast('Wedstrijd verwijderd.');
   }),
   'rename-player': id => {
     const p = player(id);
@@ -1589,6 +1626,8 @@ const ACTIONS = {
     const p = player(id);
     const n = data.trainings.filter(t => t.playerId === id).length;
     confirmBox(`${p.name} verwijderen?`, `Ook ${n} training(en) van ${p.name} worden verwijderd. Wedstrijden blijven bewaard. Tip: maak eerst een back-up.`, 'Verwijderen', () => {
+      T.rememberRemoved(data, 'players', [id]);
+      T.rememberRemoved(data, 'trainings', data.trainings.filter(t => t.playerId === id).map(t => t.id));
       data.players = data.players.filter(x => x.id !== id);
       data.trainings = data.trainings.filter(t => t.playerId !== id);
       data.matches.forEach(m => m.players.forEach(mp => { if (mp.id === id) mp.id = null; }));
@@ -1614,7 +1653,7 @@ const ACTIONS = {
   'import-replace': () => confirmBox('Echt alles vervangen?', 'Alles wat nu op dit toestel staat wordt overschreven door de back-up.', 'Ja, vervangen', () => {
     const inc = importBackup.pending; data = structuredClone(inc); sanitizeActive(); save(); goAfterTransfer();
     const v = T.verifyTransfer(inc, data);
-    resultModal({ ...v, sameContent: v.ok, skippedActive: null, received: T.summary(inc), here: T.summary(data) });
+    resultModal({ ...v, skippedActive: null, omitted: [], received: T.summary(inc), here: T.summary(data) });
   }),
   'theme': v => { data.settings.theme = v; applyTheme(); save(); render(); },
   'install': async () => { const e = ui.installEvent; if (!e) return; e.prompt(); await e.userChoice; ui.installEvent = null; render(); },
@@ -1752,6 +1791,7 @@ document.addEventListener('change', e => {
   const el = e.target;
   if (el.dataset.input === 'import') { importBackup(el.files[0]); el.value = ''; }
   if (el.dataset.input === 'setting') { data.settings[el.dataset.arg] = el.checked; save(); }
+  if (el.dataset.input === 'transfer-secrets') prepareTransfer({ secrets: el.checked }).then(() => transferCodeModal(false));
   if (el.dataset.input === 'custom-turns') { ui.setup.custom = Math.max(1, Math.min(200, Number(el.value) || 1)); render(); }
 });
 

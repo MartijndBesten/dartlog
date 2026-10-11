@@ -75,6 +75,12 @@ export function playerStats(d, playerId, onlyIds = null) {
 // Online profielen (Community, Mijn vrienden), gastkoppelingen en back-upherinneringen. Zonder deze
 // sleutels zou je na de verhuizing de toegang tot je online profiel kwijt zijn.
 const EXTRA_KEYS = ['okkie.community.v1', 'okkie.guest.v1', 'okkie.vrienden.v1'];
+// Deze sleutels geven toegang tot een online profiel of andermans koppelcode. Via het automatische venster
+// blijven ze op het toestel (alleen tussen precies twee adressen); in een overzetcode alleen als je dat
+// zelf aanvinkt, want een code kan per ongeluk in een appje of notitie belanden.
+export const SECRET_KEYS = ['okkie.community.v1', 'okkie.guest.v1'];
+export function hasSecrets(extras) { return SECRET_KEYS.some(k => extras && extras[k]); }
+export function withoutSecrets(extras) { return Object.fromEntries(Object.entries(extras || {}).filter(([k]) => !SECRET_KEYS.includes(k))); }
 const BACKUP_PREFIX = 'okkie.backup.last-count.';
 export function readExtras(storage) {
   const out = {};
@@ -102,22 +108,81 @@ export function writeExtras(storage, extras = {}) {
   }
 }
 
+// ---------- Bewuste wijzigingen onthouden ----------
+// Een record dat je in deze app zelf hebt verwijderd of samengevoegd, mag bij opnieuw overzetten niet
+// terugkomen en is geen "conflict". Daarom onthoudt de app:
+// - removed: { players, trainings, matches } met de ID's die je bewust hebt verwijderd;
+// - playerAliases: { verdwenenId: blijvendId } na het samenvoegen van twee spelers.
+const KINDS = ['players', 'trainings', 'matches'];
+const MAX_REMEMBER = 5000;
+export function removedSets(d) {
+  const r = d && typeof d.removed === 'object' && d.removed ? d.removed : {};
+  return Object.fromEntries(KINDS.map(k => [k, new Set(Array.isArray(r[k]) ? r[k] : [])]));
+}
+export function rememberRemoved(d, kind, ids) {
+  if (!KINDS.includes(kind)) return;
+  const sets = removedSets(d);
+  for (const id of ids) if (id) sets[kind].add(id);
+  d.removed = Object.fromEntries(KINDS.map(k => [k, [...sets[k]].slice(-MAX_REMEMBER)]));
+}
+const aliasesOf = d => (d && typeof d.playerAliases === 'object' && d.playerAliases ? d.playerAliases : {});
+// Volg een keten van samenvoegingen tot de speler die er nog is (A→B, B→C geeft C).
+function aliasMap(...sources) {
+  const all = Object.assign({}, ...sources.map(aliasesOf));
+  return id => { let x = id, n = 0; while (x && all[x] && n++ < 20) x = all[x]; return x; };
+}
+function mapRecord(kind, rec, map, removedPlayers = new Set()) {
+  if (kind === 'trainings') {
+    const t = { ...rec, playerId: map(rec.playerId) };
+    if (rec.groupPlayers) t.groupPlayers = rec.groupPlayers.map(map);
+    return t;
+  }
+  if (kind === 'matches') return { ...rec, players: rec.players.map(p => ({ ...p, id: p.id && (removedPlayers.has(p.id) ? null : map(p.id)) })) };
+  return rec;
+}
+function mapActive(active, map) {
+  const out = { training: null, match: null, ...(active || {}) };
+  if (out.training) out.training = { ...out.training, playerId: map(out.training.playerId), players: (out.training.players || [out.training.playerId]).map(map) };
+  if (out.match) out.match = { ...out.match, players: out.match.players.map(p => ({ ...p, id: p.id && map(p.id) })) };
+  return out;
+}
+
 // ---------- Samenvoegen ----------
-// Nieuwe app leeg: alles overnemen (ook lopende training en instellingen). Anders veilig samenvoegen op ID.
-// Een lopende training of wedstrijd wordt alleen overgenomen als er hier geen loopt én hij hier niet al
-// is afgerond (anders zou hij twee keer meetellen).
+// Ontvangen gegevens eerst vertalen naar deze app: samengevoegde spelers krijgen hun blijvende ID en
+// bewust verwijderde records komen niet terug.
+function prepareIncoming(base, incoming) {
+  const map = aliasMap(base);
+  const rm = removedSets(base);
+  const alias = aliasesOf(base);
+  return {
+    ...incoming,
+    players: incoming.players.filter(p => !alias[p.id] && !rm.players.has(p.id)),
+    trainings: incoming.trainings.filter(t => !rm.trainings.has(t.id) && !rm.players.has(t.playerId)).map(t => mapRecord('trainings', t, map)),
+    matches: incoming.matches.filter(m => !rm.matches.has(m.id)).map(m => mapRecord('matches', m, map, rm.players)),
+    active: mapActive(incoming.active, map),
+  };
+}
+// Nieuwe app leeg: alles overnemen (ook lopende training en instellingen). Anders veilig samenvoegen op ID:
+// wat hier al staat blijft zoals het is. Een lopende training of wedstrijd wordt alleen overgenomen als er
+// hier geen loopt én hij hier niet al is afgerond (anders zou hij twee keer meetellen).
 export function mergeTransfer(base, incoming) {
+  const inc = prepareIncoming(base, incoming);
   const empty = !base.players.length && !base.trainings.length && !base.matches.length && !base.active?.training && !base.active?.match;
-  if (empty) return { data: structuredClone(incoming), skippedActive: null };
-  const out = mergeData(base, incoming);
+  if (empty) {
+    const out = structuredClone(inc);
+    if (base.removed) out.removed = structuredClone(base.removed);
+    if (base.playerAliases) out.playerAliases = { ...base.playerAliases };
+    return { data: out, skippedActive: null };
+  }
+  const out = mergeData(base, inc);
   out.active = { training: null, match: null, ...(out.active || {}) };
   let skippedActive = null;
-  const it = incoming.active?.training, im = incoming.active?.match;
+  const it = inc.active?.training, im = inc.active?.match;
   if (it) {
     const finishedHere = out.trainings.some(t => t.id === it.id || t.groupId === it.id);
     const known = (it.players || [it.playerId]).every(id => out.players.some(p => p.id === id));
     if (!out.active.training && !finishedHere && known) out.active.training = structuredClone(it);
-    else if (canon(out.active.training) !== canon(it)) skippedActive = finishedHere ? 'afgerond' : 'bezet';
+    else if (canon(out.active.training) !== canon(it)) skippedActive = finishedHere ? 'afgerond' : known ? 'bezet' : 'onbekende speler';
   }
   if (im) {
     const finishedHere = out.matches.some(m => m.id === im.id);
@@ -127,36 +192,90 @@ export function mergeTransfer(base, incoming) {
   return { data: out, skippedActive };
 }
 
-// Controle na het samenvoegen: staat elk ontvangen record er, met precies dezelfde inhoud?
+// Welke velden verschillen tussen twee versies van hetzelfde record?
+function changedKeys(a, b) {
+  return [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(k => canon(a[k]) !== canon(b[k]));
+}
+// Verschillen die een speler in deze app zelf kan hebben aangebracht.
+function explained(kind, inc, here, removedPlayers) {
+  const keys = changedKeys(inc, here);
+  if (kind === 'players') return keys.every(k => ['name', 'color'].includes(k)) ? (keys.includes('name') ? `naam verschilt: hier "${here.name}", daar "${inc.name}" (hier blijft "${here.name}")` : 'kleur verschilt') : null;
+  if (kind === 'trainings') {
+    // Alleen bij een score uit een andere app kun je de datum invullen; pijlen en scores liggen vast.
+    return inc.source && keys.every(k => ['startedAt', 'finishedAt', 'dateUnknown'].includes(k)) ? 'datum verschilt (hier blijft de datum van deze app)' : null;
+  }
+  if (kind === 'matches') {
+    if (keys.length !== 1 || keys[0] !== 'players' || inc.players.length !== here.players.length) return null;
+    // Alleen namen verschillen (hernoemd), of een speler is hier bewust verwijderd (dan staat id op null).
+    const ok = inc.players.every((p, i) => here.players[i].id === p.id || (here.players[i].id === null && removedPlayers.has(p.id)));
+    return ok ? 'spelersnaam verschilt (hier blijft de naam van deze app)' : null;
+  }
+  return null;
+}
+const LABEL = { players: 'speler', trainings: 'training', matches: 'wedstrijd' };
+function describe(kind, rec) {
+  if (kind === 'players') return rec.name;
+  const when = rec.startedAt ? new Date(rec.startedAt).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  if (kind === 'matches') return `${rec.settings?.start || ''} ${rec.players.map(p => p.name).join(' – ')} (${when})`;
+  return `${rec.kind === 'clock' ? 'rond de klok' : rec.limitTurns ? rec.limitTurns * 3 + ' pijlen' : 'vrije training'} van ${when}`;
+}
+
+// Controle na het samenvoegen, per record:
+// - identiek: precies gelijk;
+// - aangepast: hier bewust anders (hernoemd, datum ingevuld, samengevoegd of verwijderd) en zo gebleven;
+// - conflict: zelfde ID, andere inhoud zonder verklaring (bijv. andere pijlen) — hier blijft de eigen versie;
+// - ontbreekt: niet aanwezig en niet bewust verwijderd.
+// status: 'identiek' | 'aangepast' | 'aandacht' (lopende training niet overgenomen) | 'probleem'.
 export function verifyTransfer(incoming, merged) {
-  const index = list => new Map(list.map(x => [x.id, x]));
-  const res = { missing: [], different: [], players: [], active: 'geen' };
-  for (const kind of ['players', 'trainings', 'matches']) {
-    const have = index(merged[kind]);
-    for (const x of incoming[kind]) {
-      const y = have.get(x.id);
-      if (!y) res.missing.push(`${kind}:${x.id}`);
-      else if (canon(x) !== canon(y)) res.different.push(`${kind}:${x.id}`);
+  const map = aliasMap(merged, incoming);
+  const rm = removedSets(merged);
+  const res = { identical: 0, adjusted: [], conflicts: [], missing: [], players: [], active: 'geen' };
+  for (const kind of KINDS) {
+    const have = new Map(merged[kind].map(x => [x.id, x]));
+    for (const raw of incoming[kind]) {
+      const target = kind === 'players' ? map(raw.id) : raw.id;
+      const y = have.get(target);
+      if (!y) {
+        const gone = rm[kind].has(raw.id) || (kind === 'trainings' && rm.players.has(raw.playerId)) || (kind === 'players' && target !== raw.id && rm.players.has(target));
+        if (gone) res.adjusted.push({ kind, id: raw.id, what: `${LABEL[kind]} ${describe(kind, raw)}`, why: 'hier bewust verwijderd' });
+        else res.missing.push({ kind, id: raw.id, what: `${LABEL[kind]} ${describe(kind, raw)}` });
+        continue;
+      }
+      if (kind === 'players' && target !== raw.id) { res.adjusted.push({ kind, id: raw.id, what: `speler ${raw.name}`, why: `samengevoegd met ${y.name}` }); continue; }
+      const x = mapRecord(kind, raw, map, rm.players), yy = mapRecord(kind, y, map, rm.players);
+      if (canon(x) === canon(yy)) { res.identical++; continue; }
+      const why = explained(kind, x, yy, rm.players);
+      if (why) res.adjusted.push({ kind, id: raw.id, what: `${LABEL[kind]} ${describe(kind, raw)}`, why });
+      else res.conflicts.push({ kind, id: raw.id, what: `${LABEL[kind]} ${describe(kind, raw)}`, fields: changedKeys(x, yy) });
     }
   }
-  const ids = new Set(incoming.trainings.map(t => t.id));
+  // Per speler: trainingen, pijlen, punten en gemiddelde over wat er is aangekomen (bewust verwijderd telt niet mee).
+  const arrived = incoming.trainings.filter(t => !rm.trainings.has(t.id) && !rm.players.has(t.playerId));
+  const ids = new Set(arrived.map(t => t.id));
+  const incMapped = { ...incoming, trainings: arrived.map(t => mapRecord('trainings', t, map)) };
   for (const p of incoming.players) {
-    const a = playerStats(incoming, p.id), b = playerStats(merged, p.id, ids);
-    res.players.push({ id: p.id, name: p.name, ...a, same: a.trainings === b.trainings && a.darts === b.darts && a.points === b.points });
+    const target = map(p.id);
+    if (rm.players.has(p.id) || rm.players.has(target)) continue;
+    const a = playerStats(incMapped, target, ids), b = playerStats(merged, target, ids);
+    const conflicted = res.conflicts.some(c => c.kind === 'trainings' && incMapped.trainings.find(t => t.id === c.id)?.playerId === target);
+    res.players.push({ id: target, name: merged.players.find(q => q.id === target)?.name || p.name, ...a, same: !conflicted && a.trainings === b.trainings && a.darts === b.darts && a.points === b.points });
   }
   const it = incoming.active?.training, im = incoming.active?.match;
   if (it || im) {
-    const same = (!it || canon(it) === canon(merged.active?.training)) && (!im || canon(im) === canon(merged.active?.match));
-    res.active = same ? 'overgenomen' : 'niet overgenomen';
+    const act = mapActive(incoming.active, map), here = mapActive(merged.active, map);
+    const doneHere = (it && merged.trainings.some(t => t.id === it.id || t.groupId === it.id)) || (im && merged.matches.some(m => m.id === im.id));
+    const same = (!it || canon(act.training) === canon(here.training)) && (!im || canon(act.match) === canon(here.match));
+    res.active = same ? 'overgenomen' : doneHere ? 'al afgerond' : 'niet overgenomen';
   }
-  // Fout = iets ontbreekt of telt anders. Een record dat in de ontvangende app al was aangepast
-  // (bijv. hernoemd), blijft zoals het daar is en staat apart in res.different.
-  res.ok = !res.missing.length && res.players.every(p => p.same);
+  const problem = res.missing.length || res.conflicts.length || res.players.some(p => !p.same);
+  res.status = problem ? 'probleem' : res.active === 'niet overgenomen' ? 'aandacht' : (res.adjusted.length || res.active === 'al afgerond') ? 'aangepast' : 'identiek';
+  res.ok = !problem;
   return res;
 }
 
 // Twee spelers met dezelfde naam (bijv. eerst in de nieuwe app begonnen, daarna overgezet) samenvoegen
 // tot één speler. Alleen als ze nooit samen in één wedstrijd of training zaten en niet allebei online zijn.
+// De samenvoeging wordt onthouden, zodat opnieuw overzetten de oude speler niet terugbrengt.
 export function mergePlayers(d, keepId, dropId, accounts = {}) {
   if (keepId === dropId) return { error: 'Dat is dezelfde speler.' };
   const keep = d.players.find(p => p.id === keepId), drop = d.players.find(p => p.id === dropId);
@@ -176,6 +295,9 @@ export function mergePlayers(d, keepId, dropId, accounts = {}) {
   out.active?.match?.players.forEach(p => { if (p.id === dropId) { p.id = keepId; p.name = keep.name; } });
   out.players = out.players.filter(p => p.id !== dropId);
   if (out.activePlayerId === dropId) out.activePlayerId = keepId;
+  const aliases = Object.fromEntries(Object.entries(aliasesOf(d)).map(([k, v]) => [k, v === dropId ? keepId : v]));
+  aliases[dropId] = keepId;
+  out.playerAliases = aliases;
   return { data: out, moveAccount: !accounts[keepId] && !!accounts[dropId] };
 }
 export function sameNamePairs(d) {
@@ -195,8 +317,9 @@ async function gzip(bytes, mode) {
   const stream = new Blob([bytes]).stream().pipeThrough(mode === 'in' ? new CompressionStream('gzip') : new DecompressionStream('gzip'));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
-export async function makePackage(data, extras = {}) {
-  return { app: 'okkie', kind: 'overzetten', v: 1, exportedAt: new Date().toISOString(), data, extras, fingerprint: await fingerprint(data) };
+export async function makePackage(data, extras = {}, { secrets = true } = {}) {
+  const omitted = secrets ? [] : SECRET_KEYS.filter(k => extras[k]);
+  return { app: 'okkie', kind: 'overzetten', v: 1, exportedAt: new Date().toISOString(), data, extras: secrets ? extras : withoutSecrets(extras), omitted, fingerprint: await fingerprint(data) };
 }
 // Controleert vorm (zelfde regels als een back-up) én vingerafdruk: een afgebroken of veranderde code wordt geweigerd.
 export async function openPackage(pkg) {
@@ -204,10 +327,11 @@ export async function openPackage(pkg) {
   const r = parseBackup(JSON.stringify({ app: 'okkie', data: pkg.data }));
   if (r.error) return r;
   if (pkg.fingerprint && pkg.fingerprint !== await fingerprint(pkg.data)) return { error: 'De gegevens zijn onderweg veranderd of onvolledig. Maak een nieuwe code in de oude app.' };
-  return { data: r.data, extras: pkg.extras || {}, fingerprint: pkg.fingerprint || null };
+  return { data: r.data, extras: pkg.extras || {}, omitted: Array.isArray(pkg.omitted) ? pkg.omitted : [], fingerprint: pkg.fingerprint || null };
 }
-export async function pack(data, extras = {}) {
-  const json = JSON.stringify(await makePackage(data, extras));
+// Overzetcode: standaard zonder online profielsleutels (secrets: false).
+export async function pack(data, extras = {}, { secrets = false } = {}) {
+  const json = JSON.stringify(await makePackage(data, extras, { secrets }));
   const bytes = new TextEncoder().encode(json);
   if (typeof CompressionStream === 'undefined') return PREFIX + 'j:' + toB64(bytes);
   return PREFIX + 'z:' + toB64(await gzip(bytes, 'in'));
@@ -265,14 +389,10 @@ export function receiveViaWindow(onPackage) {
 
 // ---------- Volledige ontvangst (gedeeld door alle routes) ----------
 // Geeft de nieuwe gegevens en een controleverslag terug; schrijft niets weg (dat doet de app).
+// (De vingerafdruk van het pakket is al bij openPackage gecontroleerd; hier gaat het om wat er nu staat.)
 export async function receive(base, opened) {
   const { data, skippedActive } = mergeTransfer(base, opened.data);
   const check = verifyTransfer(opened.data, data);
-  // Vingerafdruk van wat hier nu staat van de ontvangen spelers/trainingen/wedstrijden: moet gelijk zijn aan de bron.
-  const ids = k => new Set(opened.data[k].map(x => x.id));
-  // (De lopende sessie telt hier niet mee; die staat apart in check.active.)
-  const subset = { players: data.players.filter(p => ids('players').has(p.id)), trainings: data.trainings.filter(t => ids('trainings').has(t.id)), matches: data.matches.filter(m => ids('matches').has(m.id)), active: opened.data.active };
-  const sameContent = (await fingerprint(subset)) === (opened.fingerprint || await fingerprint(opened.data));
-  return { data, report: { ...check, skippedActive, sameContent, received: summary(opened.data), here: summary(data) } };
+  return { data, report: { ...check, skippedActive, omitted: opened.omitted || [], received: summary(opened.data), here: summary(data) } };
 }
 
