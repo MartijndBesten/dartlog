@@ -942,7 +942,7 @@ VIEWS.more = () => {
     </section>
     <section class="card" data-testid="other-phone">
       <h3>Darten op een andere telefoon</h3>
-      <p class="muted">Gooi je mee bij een vriend? Maak een koppelcode; je vriend vult hem in bij Trainen. Jouw training komt daarna bij je eigen statistieken. Werkt met een profiel van Mijn vrienden.</p>
+      <p class="muted">Gooi je mee bij een vriend? Maak een koppelcode; je vriend vult hem in bij Trainen. Jouw training komt daarna bij je eigen statistieken. Werkt als je bij Darters delen hebt aangezet.</p>
       ${getAccount(data.activePlayerId) ? '<button class="btn secondary" data-act="guest-pass">Maak koppelcode</button>' : '<a class="btn secondary" href="./community/">Eerst delen aanzetten bij Darters ↗</a>'}
       ${G.readGuest().queue.length ? `<p class="note" data-testid="guest-queue">${G.readGuest().queue.length} training(en) van gasten wacht(en) op internet om verstuurd te worden.${G.readGuest().queue.some(q => q.error) ? ' Eén of meer codes werken niet meer; vraag een nieuwe code en koppel opnieuw.' : ''}</p><button class="btn ghost small" data-act="guest-retry">Nu versturen</button>` : ''}
     </section>
@@ -1625,7 +1625,7 @@ const ACTIONS = {
     modal(`<h3>Naam wijzigen</h3><form data-form="rename" data-arg="${esc(id)}"><input name="name" maxlength="24" value="${esc(p.name)}" aria-label="Nieuwe naam" required><div class="modal-actions"><button type="button" class="btn ghost" data-act="modal-close">Annuleren</button><button class="btn primary">Opslaan</button></div></form>`);
   },
   'delete-player': id => {
-    if (getAccount(id)) return modal('<h3>Eerst online profiel verwijderen</h3><p>Deze speler heeft een gekoppeld openbaar profiel. Verwijder of verberg dat eerst via Community, zodat je de toegang tot je gedeelde statistieken niet kwijtraakt.</p><div class="modal-actions"><a class="btn primary" href="./community/">Naar Community</a><button class="btn ghost" data-act="modal-close">Sluiten</button></div>');
+    if (getAccount(id)) return modal('<h3>Eerst online profiel verwijderen</h3><p>Deze speler heeft een gekoppeld openbaar profiel. Zet eerst bij Darters delen uit voor deze speler; dan worden de gedeelde cijfers online gewist.</p><div class="modal-actions"><a class="btn primary" href="./community/">Naar Darters</a><button class="btn ghost" data-act="modal-close">Sluiten</button></div>');
     const p = player(id);
     const n = data.trainings.filter(t => t.playerId === id).length;
     confirmBox(`${p.name} verwijderen?`, `Ook ${n} training(en) van ${p.name} worden verwijderd. Wedstrijden blijven bewaard. Tip: maak eerst een back-up.`, 'Verwijderen', () => {
