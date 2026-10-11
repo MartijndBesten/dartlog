@@ -1,10 +1,12 @@
 // Controleert de echte onlineversie: node tools/live-check.mjs [url]
-import { readFileSync } from 'node:fs';
 import { chromium, devices } from '@playwright/test';
 
 const url = process.argv[2] || 'https://martijndbesten.github.io/dartlog/';
 const check = (ok, msg) => { console.log(`${ok ? 'OK  ' : 'FOUT'} ${msg}`); if (!ok) process.exitCode = 1; };
-const b = await chromium.launch({ channel: 'chrome' });
+// Lokaal Chrome; in een omgeving zonder Chrome: OKKIE_CHROMIUM=/pad/naar/chromium (en eventueel HTTPS_PROXY).
+const b = await chromium.launch(process.env.OKKIE_CHROMIUM
+  ? { executablePath: process.env.OKKIE_CHROMIUM, proxy: process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY } : undefined }
+  : { channel: 'chrome' });
 const ctx = await b.newContext({ ...devices['iPhone 13'], browserName: 'chromium', defaultBrowserType: 'chromium' });
 const p = await ctx.newPage();
 const errors = [];
@@ -17,6 +19,12 @@ check((await p.title()) === 'OKKIE. · darttrainer', 'titel OKKIE.');
 check((await p.locator('.tagline').textContent()) === 'Gooi. Scoor. Word beter.', 'onderschrift');
 await p.fill('#wname', 'Test');
 await p.click("text=Let's play darts");
+// Op app.okkiedarts.nl krijgt een nieuwe gebruiker het installatieadvies; op het oude adres niet.
+const sheet = p.getByTestId('install-sheet');
+if (await sheet.waitFor({ state: 'visible', timeout: 2500 }).then(() => true, () => false)) {
+  check(new URL(url).hostname === 'app.okkiedarts.nl', 'installatieadvies voor een nieuwe gebruiker (hoort alleen op app.okkiedarts.nl)');
+  await p.getByRole('button', { name: 'Eerst proberen' }).click();
+} else check(new URL(url).hostname !== 'app.okkiedarts.nl', 'geen installatieadvies (hoort alleen op app.okkiedarts.nl)');
 await p.click('.action.train');
 await p.fill('[data-form=train-player] input', 'Gast');
 await p.click('[data-form=train-player] .btn');
@@ -39,7 +47,8 @@ await p.evaluate(() => navigator.serviceWorker.ready);
 await ctx.setOffline(true);
 await p.reload();
 check((await p.getByTestId('live-total').textContent()) === '0' && (await p.getByTestId('now-up').textContent()) === 'Gast', 'offline: lopende training met 2 spelers hervat');
-const liveCache = readFileSync(new URL('../sw.js', import.meta.url), 'utf8').match(/const VERSION = '([^']+)'/)[1];
+// De cache moet passen bij de serviceworker die op dít adres live staat (oud en nieuw adres kunnen even verschillen).
+const liveCache = (await p.evaluate(async () => (await fetch('sw.js', { cache: 'no-store' })).text())).match(/const VERSION = '([^']+)'/)[1];
 check((await p.evaluate(() => caches.keys())).includes(liveCache), 'offline-cache ' + liveCache);
 check(!errors.length, 'geen JavaScript-fouten' + (errors.length ? ': ' + errors.join(' | ') : ''));
 await b.close();
