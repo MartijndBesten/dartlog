@@ -5,7 +5,7 @@ import { chromium } from '@playwright/test';
 
 const SITE = 'https://okkiedarts.nl';
 const API = 'https://api.okkiedarts.nl';
-const APP = 'https://martijndbesten.github.io/dartlog/';
+const APP = 'https://app.okkiedarts.nl/';
 const check = (ok, msg) => { console.log(`${ok ? 'OK  ' : 'FOUT'} ${msg}`); if (!ok) process.exitCode = 1; };
 const get = (url, opts = {}) => fetch(url, { redirect: 'manual', ...opts }).catch(e => ({ status: 0, error: e, headers: new Headers(), text: async () => '' }));
 

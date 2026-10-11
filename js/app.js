@@ -247,6 +247,7 @@ VIEWS.welcome = () => `
     <p class="tagline">${TAGLINE}</p>
     <p class="lead">Jouw eigen darttrainer. Gooi, tik je pijlen in en zie of je beter wordt.</p>
     ${T.role() === 'new' ? fetchCard() : ''}
+    ${T.announce() ? newHereCard() : ''}
     <form class="card" data-form="welcome">
       <label for="wname">Hoe heet je?</label>
       <input id="wname" name="name" maxlength="24" autocomplete="nickname" placeholder="Je naam" required autofocus>
@@ -257,6 +258,14 @@ VIEWS.welcome = () => `
     <p class="fineprint">Alles wordt op dit toestel bewaard. Geen account, geen reclame.</p>
       <p class="maker-line"><a class="maker" href="https://denckh.nl/" target="_blank" rel="noopener" aria-label="Ontwikkeld door Denckh (naar denckh.nl)"><span class="maker-role">Ontwikkeld door</span><img class="on-dark" src="./icons/denckh-logo-signature-light.svg" alt="Denckh" width="92" height="28"><img class="on-light" src="./icons/denckh-logo-signature.svg" alt="Denckh" width="92" height="28"></a></p>
   </section>`;
+
+// Oude adres tijdens de verhuizing: een nieuwe bezoeker (bijv. via een oude link) begint liever meteen op het
+// nieuwe adres. Geen doorverwijzing: hier verder spelen blijft gewoon mogelijk.
+function newHereCard() {
+  return `<section class="card move-card" data-testid="new-here"><h3>OKKIE. staat nu op app.okkiedarts.nl</h3>
+    <p class="muted">Begin daar, dan staan je trainingen meteen op de goede plek. Hier blijft alles ook gewoon werken.</p>
+    <a class="btn primary" href="${T.NEW_APP()}">Open app.okkiedarts.nl</a></section>`;
+}
 
 // Op het nieuwe adres staat dit bovenaan (daar komen tijdens de verhuizing vooral bestaande spelers),
 // in een geïnstalleerde app onder het naamveld.

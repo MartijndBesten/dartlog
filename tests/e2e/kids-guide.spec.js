@@ -32,7 +32,7 @@ test('eerstekind-gebruiker vindt de instructie vanuit de app',async({page},info)
   await page.locator('.welcome a[href="./uitleg/"]').click();
   await expect(page).toHaveURL(/\/uitleg\/$/);
   await expect(page.getByRole('link',{name:/Open de app/}))
-    .toHaveAttribute('href','https://martijndbesten.github.io/dartlog/');
+    .toHaveAttribute('href','https://app.okkiedarts.nl/');
 });
 test('de introductiewebsite laat kinderen naar de uitleg klikken',async({page},info)=>{
   test.skip(info.project.name!=='iphone','één browser is genoeg');

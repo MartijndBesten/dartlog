@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.0 (in ontwikkeling, integratiebranch nacht/integratie-1.4.0 — nog niet live, Mijn vrienden niet geactiveerd)
+## 1.4.0 — Mijn vrienden en de verhuizing naar app.okkiedarts.nl
 
 - **Mijn vrienden**: besloten vriendengroepen. Groep maken, vrienden uitnodigen met een persoonlijke link (delen via WhatsApp of het deelmenu), lid worden, meerdere groepen, verlaten, leden en uitnodigingen beheren.
 - Groepsdashboard: beste deze week, meest verbeterd, 30-pijlenchallenge, records deze week; ranglijsten (algemeen, week, challenge, verbetering, records) met stijg-/daalpijlen; spelers naast elkaar vergelijken met balken en een weekgrafiek.
@@ -12,10 +12,15 @@
 - **Darten op een andere telefoon**: maak op je eigen telefoon een koppelcode (8 tekens, 7 dagen, één training); je vriend vult hem in bij Trainen. Na de training gaat alleen de samenvatting naar je eigen profiel; je eigen telefoon haalt hem op en telt hem mee. Werkt ook als de telefoon van je vriend even offline is; nooit dubbel. De code geeft geen toegang tot je profiel.
 - Bescherming: de server weigert dat een telefoon ongemerkt minder trainingen online zet dan er al staan (bijv. na herstel op een lege telefoon); alleen bewust verwijderen mag dat. Een naam alleen koppelt nooit aan iemands online profiel.
 - Spelers, trainingen en offline gebruik blijven ongewijzigd; zonder account werkt OKKIE. zoals altijd.
-- Bevat ook alles van 1.3.4 (verhuizing en installatiebegeleiding, standaard uit), 1.3.3 en 1.3.2 (merk en vormgeving).
+- Verhuizing aangekondigd (`PROD.open = true`): het oude adres toont "OKKIE. verhuist naar app.okkiedarts.nl" met
+  "Zet mijn trainingen over" op Home en onder Meer. Nooit doorverwijzen, nooit wissen; het oude adres blijft werken.
+- Nieuwe bezoeker op het oude adres (lege app): verwijzing "Open app.okkiedarts.nl"; hier beginnen kan nog steeds.
+- Website (homepage, privacy, contact) en de uitlegpagina openen de app op app.okkiedarts.nl.
+- Serviceworker: een nieuwe versie haalt haar bestanden rechtstreeks van de server, niet uit de browsercache van
+  10 minuten (bij de update naar 1.3.4 kon tijdelijk een oude app.js naast nieuwe bestanden in de offline-opslag staan).
+- Bevat ook alles van 1.3.4 (overzetcode en controle per record), 1.3.3 en 1.3.2 (merk en vormgeving).
 
-## 1.3.4 (branch nacht/installatie-en-overdracht, nog niet live)
-
+## 1.3.4 (live 11 oktober 2026)
 - Verhuizing naar app.okkiedarts.nl voorbereid, standaard **uit** (`PROD.open = false` in `js/transfer.js`). Zie VERHUIZING.md.
   Automatisch overzetten tussen twee vensters, overzetcode (kopiëren en plakken, ook vanuit de iPhone-app op het beginscherm) en het back-upbestand.
   Nooit wissen, nooit doorverwijzen, samenvoegen op ID, controle op inhoud (vingerafdruk) en per speler (trainingen, pijlen, punten, gemiddelde).

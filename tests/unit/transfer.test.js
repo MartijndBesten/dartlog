@@ -137,8 +137,8 @@ test('extra sleutels: online profielen gaan mee maar overschrijven nooit iets', 
   assert.equal(dst.getItem('okkie.guest.v1'), '{"links":{},"queue":[]}');
 });
 
-test('rollen: oud en nieuw adres; aankondiging staat standaard uit', () => {
-  assert.equal(T.PROD.open, false);
+test('rollen: oud en nieuw adres; aankondiging alleen in de browser op het oude adres', () => {
+  assert.equal(T.PROD.open, true);
   assert.equal(T.PROD.newApp, 'https://app.okkiedarts.nl/');
   assert.equal(T.role(), null, 'buiten de browser geen rol');
   assert.equal(T.announce(), false);
