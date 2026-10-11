@@ -6,19 +6,12 @@
 
 Ontwikkeld door **Denckh.**
 
-🎯 **Online:** https://martijndbesten.github.io/dartlog/
+🎯 **App:** https://app.okkiedarts.nl/ · **Website:** https://okkiedarts.nl/ · oud adres (overzetten): https://martijndbesten.github.io/dartlog/
 
-## Uitleg voor kinderen (onderdeel van komende versie)
-
-In `uitleg/` staat een mobile-first handleiding voor nieuwe darters: vier korte stappen vanaf je naam tot de 30-pijlentraining, plus een interactieve demonstratie met T20 + 5 + D10 = 85 punten. Deze demonstratie schrijft geen gegevens naar lokale trainingen of online profielen. Vanuit het welkomstscherm, Home, Meer en de marketingwebsite kun je de uitleg openen. Zie `tests/unit/kids-guide.test.js` en `tests/e2e/kids-guide.spec.js`.
-
-## Nieuwe openbare website en community (nog niet live)
-
-De publieke introductiepagina en community-ranglijst zijn ontwikkeld op de branch feature/okkie-public-community.
-Na review komen er twee extra pagina's bij: /dartlog/ontdek/ en /dartlog/community/.
-De publieke Cloudflare API moet nog worden verbonden en beoordeeld voordat spelers echt statistieken kunnen delen. Lees COMMUNITY-SETUP.md en cloud/INFRASTRUCTUUR.md (domein, beveiliging, stappenplan).
-
-De bestaande PWA en zijn lokale gegevens blijven op hetzelfde adres bewaard.
+- `uitleg/`: uitleg voor kinderen en beginners met een oefenbeurt die niets opslaat.
+- `community/`: Darters, het openbare overzicht van vrijwillig gedeelde cijfers (Cloudflare Worker in `cloud/`).
+- `ontdek/`: de website okkiedarts.nl (`node tools/build-public-site.mjs`). Zie VERHUIZING.md en cloud/INFRASTRUCTUUR.md.
+- Later naar Android/iPhone als echte app: zie TOEKOMST-APPS.md.
 
 ## Functies
 
@@ -29,11 +22,16 @@ De bestaande PWA en zijn lokale gegevens blijven op hetzelfde adres bewaard.
 - **Wedstrijd 301/501**: 1–4 spelers, 1 leg of best of 3/5/7/9, double-out of straight-out, bust-regels, uitgooi-advies, stoppen en later hervatten.
 - **Statistieken**: gemiddelde per 3 pijlen (altijd gewogen over alle pijlen), beste/slechtste training, 100+/140+/180, grafiek per training/dag/week/maand met trendlijn, "laatste 10" vergelijken, filter op 30/60/99/vrij.
 - **Trefferkaart**: dartbord dat laat zien welke vakken je het vaakst raakt (enkel/dubbel/triple).
-- **Records en badges**: persoonlijke records en 19 badges om te verdienen, met een korte viering bij 100+, 140+ en 180 (ONE HUNDRED AND EIGHTY!).
+- **Records en badges**: persoonlijke records en 20 badges om te verdienen, met een korte viering bij 100+, 140+ en 180 (ONE HUNDRED AND EIGHTY!).
+- **Persoonlijk doel**: bij Trainen een doel net boven je recente niveau (of je record), alleen vergeleken met jezelf.
+- **Gesproken aanmoedigingen** (standaard uit): de stem van de telefoon bij een record, je eerste 100+/140+/180, een finish van 100+ en een duidelijk betere training; Engelse call bij 180.
+- **Delen**: OKKIE. aanraden (link naar okkiedarts.nl), een scorekaart van je training (zonder naam) en "Daag een vriend uit".
+- **Dartregels & afmetingen**: maattekening (1,73 / 2,37 / 2,934 m) en de regels van 501, gecontroleerd met WDF en DRA.
+- **Hulp & feedback**: probleem of idee insturen met schermafbeelding, naar een besloten inbox (cloud/FEEDBACK.md).
 - **Uitslag**: gemiddelde, totaal, hoogste beurt, records en een vergelijking met je vorige training met hetzelfde aantal pijlen; badges en extra statistieken uitklapbaar.
-- **Meerdere spelers** op één toestel, elk met eigen statistieken.
+- **Meerdere spelers** op één toestel, elk met eigen statistieken. Per speler: naam wijzigen, statistieken wissen of helemaal verwijderen (ook online bij Darters), zonder andere spelers te raken.
 - **Geschiedenis**: elke training en wedstrijd terugkijken (alle pijlen), verwijderen met bevestiging.
-- **Back-up**: exporteren naar JSON en terugzetten (samenvoegen of vervangen), met validatie. In de komende versie: een herinnering na tien afgeronde trainingen per speler, en de iPhone-deelfunctie om het bestand handmatig in Bestanden/iCloud Drive te bewaren.
+- **Back-up**: exporteren naar JSON en terugzetten (samenvoegen of vervangen), met validatie; herinnering na tien afgeronde trainingen per speler en bewaren via de deelfunctie (Bestanden/iCloud Drive). Overzetcode voor een andere telefoon of van Safari naar de geïnstalleerde app.
 - **Installeerbaar (PWA)** en werkt offline.
 
 ## Op de telefoon zetten
@@ -45,7 +43,7 @@ Na installatie opent OKKIE als eigen app (naam: OKKIE.) en werkt hij offline.
 
 ## Waar staan de gegevens?
 
-Alles staat lokaal in de browser van het toestel (`localStorage`, sleutel `oche.data`; die naam is van de eerste merknaam en blijft bewust hetzelfde zodat bestaande trainingen bewaard blijven). Er is geen account en er gaat niets naar een server.
+Alles staat lokaal in de browser van het toestel (`localStorage`, sleutel `oche.data`; die naam is van de eerste merknaam en blijft bewust hetzelfde zodat bestaande trainingen bewaard blijven). Er is geen account. Alleen wie bij Darters delen aanzet, stuurt samengevatte cijfers naar de server; Hulp & feedback stuurt alleen wat je zelf instuurt.
 Gevolg: gegevens synchroniseren niet tussen toestellen en verdwijnen als je de websitegegevens van de browser wist. Maak daarom af en toe een back-up via **Meer → Back-up downloaden**.
 Gegevens uit de eerste Dartlog-versie (`dartlog.v1`) worden automatisch overgezet.
 
@@ -71,8 +69,8 @@ De browsertests gebruiken de geïnstalleerde Chrome (`PW_CHANNEL=chrome`, standa
 
 ## Publiceren
 
-De site draait op **GitHub Pages** vanaf de branch `main` (map `/`). Elke push naar `main` wordt binnen een minuut live.
-Verhoog bij een release `VERSION` in `sw.js`, zodat telefoons de nieuwe bestanden ophalen.
+Drie GitHub Pages-sites, samen in één ronde: `node tools/build-app-site.mjs` → repository okkie-app (app.okkiedarts.nl), branch `main` van deze repository (oude adres) en `node tools/build-public-site.mjs` → okkiedarts-site (okkiedarts.nl). Worker: `cloud/` (wrangler, `--env production`).
+Verhoog bij een release `VERSION` in `sw.js`, `APP_VERSION` in `js/app.js` en `package.json` (de test controleert dat ze gelijk zijn), zodat telefoons de nieuwe bestanden ophalen.
 
 ## Opbouw
 
@@ -85,6 +83,11 @@ Verhoog bij een release `VERSION` in `sw.js`, zodat telefoons de nieuwe bestande
 | `js/brand.js` | Logo en app-icoon (`npm run icons` maakt de PNG's) |
 | `js/imports.js` | De DartCounter-scores (van screenshots) |
 | `js/app.js` | Schermen en bediening |
+| `js/rules.js` | Dartregels & afmetingen (tekst en maattekening) |
+| `js/feedback.js` | Hulp & feedback: formulier, technische gegevens, verkleinen van schermafbeeldingen |
+| `js/speech.js` / `js/motivation.js` | Gesproken aanmoedigingen en het persoonlijke doel (getest in `tests/unit/motivation.test.js`) |
+| `js/share-card.js` | Scorekaart om een training te delen |
+| `js/community-sync.js`, `js/guest-sync.js`, `js/transfer.js` | Darters-synchronisatie, spelen op een andere telefoon, overzetten |
 | `sw.js`, `manifest.webmanifest` | PWA en offline |
 
 Uitbreiden: nieuwe spelregels en berekeningen in `logic.js` (met een test in `tests/unit`), een nieuw scherm als functie in `VIEWS` in `app.js`.

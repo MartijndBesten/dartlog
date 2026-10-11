@@ -1330,7 +1330,7 @@ function stopMatch() {
 }
 
 function exportBackup() {
-  const blob = new Blob([S.makeBackup(data)], { type: 'application/json' });
+  const blob = new Blob([S.makeBackup(data, { appVersion: APP_VERSION })], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `okkie-backup-${new Date().toISOString().slice(0, 10)}.json`;
@@ -1344,7 +1344,7 @@ function exportBackup() {
 
 async function shareBackup() {
   const filename = 'okkie-backup-' + new Date().toISOString().slice(0, 10) + '.json';
-  const file = new File([S.makeBackup(data)], filename, { type: 'application/json' });
+  const file = new File([S.makeBackup(data, { appVersion: APP_VERSION })], filename, { type: 'application/json' });
   if (navigator.canShare?.({ files: [file] }) && navigator.share) {
     try {
       await navigator.share({ title: 'OKKIE. back-up', files: [file] });
