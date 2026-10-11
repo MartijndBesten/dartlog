@@ -1341,7 +1341,9 @@ async function previewTransfer(text) {
   const r = await T.unpack(text);
   if (r.error) return toast(r.error, 'error');
   ui.transferIncoming = r;
+  const names = r.data.players.map(p => p.name);
   modal(`<h3>Klopt dit?</h3><p>In deze code: <b>${esc(T.summaryText(T.summary(r.data)))}</b>.</p>
+    <p class="small" data-testid="transfer-names">Spelers: ${names.slice(0, 8).map(esc).join(', ')}${names.length > 8 ? ` en nog ${names.length - 8}` : ''}. Ken je deze namen niet? Tik dan op Annuleren.</p>
     <p class="muted">Wordt samengevoegd met wat hier staat. Niets wordt gewist en niets komt dubbel.</p>
     <div class="modal-actions"><button class="btn ghost" data-act="modal-close">Annuleren</button><button class="btn primary" data-act="transfer-apply" data-testid="transfer-apply">Overzetten</button></div>`);
 }

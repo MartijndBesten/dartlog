@@ -286,3 +286,13 @@ test('overzetcode bevat standaard geen online profielsleutels of koppelcodes; he
   assert.deepEqual(withSecrets.omitted, []);
   assert.ok(withSecrets.extras['okkie.community.v1']);
 });
+
+test('vervalste code: kleur met CSS wordt vervangen, namen blijven tekst', async () => {
+  const d = sample();
+  d.players[0].color = 'red;position:fixed;inset:0;z-index:99';
+  d.players[1].name = '<img src=x onerror=alert(1)>';
+  const r = await T.unpack(await T.pack(d));
+  assert.equal(r.error, undefined);
+  assert.match(r.data.players[0].color, /^#[0-9a-f]{6}$/i);
+  assert.equal(r.data.players[1].name, '<img src=x onerror=alert(1)>', 'naam onveranderd; de app toont hem altijd ge-escaped');
+});
