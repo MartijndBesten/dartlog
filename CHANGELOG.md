@@ -4,6 +4,8 @@
 
 - Darters, scherm voor ouders/verzorgers: knop en vinkje in de OKKIE.-stijl (waren standaardknoppen) en de
   geldigheid van de link in gewone Nederlandse datum.
+- 180-viering: “ONE HUNDRED AND EIGHTY!” viel op telefoons van 360–390px breed buiten het kader; nu staat het getal
+  boven de tekst.
 
 ## 1.5.0 — Darters
 
