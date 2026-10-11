@@ -64,7 +64,13 @@ onbereikbaar). De nieuwe app komt daarom in een **aparte** repository.
 
 ## Stappen
 
-Stand 11 oktober 2026: oude adres draait 1.3.3 (zonder overdrachtscode), deze branch is 1.3.4.
+Stand 11 oktober 2026, ochtend: **stap 1–4 zijn klaar.** https://app.okkiedarts.nl/ draait 1.3.4 in testfase
+(repo `okkie-app`, Pages main/root, certificaat Let's Encrypt t/m 9 januari 2027, Enforce HTTPS aan; alle 45
+bestanden byte-gelijk aan de build). DNS: CNAME `app` bij STRATO, DNSSEC actief en geldig (DS 32639 bij .nl).
+Let op: STRATO beantwoordt een vraag naar type CNAME leeg, maar geeft bij een A-vraag het CNAME plus de GitHub-IP's;
+dat is voor browsers en GitHub voldoende. Het oude adres draait ongewijzigd 1.3.3 (zonder overdrachtscode).
+Livecheck op beide adressen groen; live overdracht oud → back-up → nieuw: "Overgezet en gecontroleerd", twee keer
+niets dubbel, oud onveranderd. **Volgende stap: 5 (echte iPhone).**
 
 1. **[Martijn]** Maak op github.com een **lege, openbare** repository `MartijndBesten/okkie-app` (zonder README).
    Claude kan dat niet zelf: de GitHub-koppeling geeft `403 Resource not accessible by integration` bij het aanmaken.
