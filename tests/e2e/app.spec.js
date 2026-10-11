@@ -410,3 +410,20 @@ test('pijl corrigeren door op een ingevulde pijl te tikken', async ({ page }) =>
   await dart(page, 'D10'); await dart(page, 'S1');
   await expect(page.getByTestId('live-total')).toHaveText('78');
 });
+
+test('Meer: Steun OKKIE. is alleen een link naar de website; in de app is niets te koop', async ({ page }) => {
+  await onboard(page);
+  await page.click('.tabbar [data-go=more]');
+  const link = page.getByTestId('steun-link');
+  await expect(link).toContainText('Steun OKKIE.');
+  await expect(link).toContainText('In de app kun je niets kopen');
+  await expect(link).toHaveAttribute('href', 'https://okkiedarts.nl/steun/');
+  await expect(link).toHaveAttribute('target', '_blank');
+  await expect(page.locator('.about')).toContainText('geen reclame en geen aankopen in de app');
+  // Tikken opent de website in een nieuw venster; de app blijft staan en bewaart niets nieuws.
+  const before = await page.evaluate(() => localStorage.getItem('oche.data'));
+  await page.context().route('https://okkiedarts.nl/**', r => r.fulfill({ status: 200, contentType: 'text/html', body: '<title>Steun</title>' }));
+  const [popup] = await Promise.all([page.waitForEvent('popup'), link.click()]);
+  expect(popup.url()).toBe('https://okkiedarts.nl/steun/');
+  expect(await page.evaluate(() => localStorage.getItem('oche.data'))).toBe(before);
+});

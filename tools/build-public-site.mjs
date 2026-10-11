@@ -1,5 +1,5 @@
 // Bouw de publieke website voor okkiedarts.nl (Cloudflare Pages).
-// Uitvoer: dist/index.html (website), dist/privacy/, dist/contact/ en dist/uitleg/ (kinderuitleg).
+// Uitvoer: dist/index.html (website), dist/steun/, dist/privacy/, dist/contact/ en dist/uitleg/ (kinderuitleg).
 // Bewust GEEN app op dit domein zelf: trainingen staan in de browseropslag van het app-adres, een kopie op
 // okkiedarts.nl zou leeg beginnen. Alle app- en communitylinks gaan naar APP (sinds 1.3.5 app.okkiedarts.nl).
 import { existsSync, mkdirSync, rmSync, cpSync, readFileSync, writeFileSync } from 'node:fs';
@@ -13,7 +13,7 @@ mkdirSync(dest,{recursive:true});
 // Merkbestanden uit icons/ komen op okkiedarts.nl in de root (/logo.svg, /og-image.jpg, ...).
 // Het Denckh-signatuurlogo (met krul) is ongewijzigd overgenomen uit de Denckh-merkassets.
 const BRAND_FILES = ['favicon.ico','favicon.svg','favicon-16.png','favicon-32.png','favicon-48.png','apple-touch-icon.png','icon-192.png','icon-512.png','logo.svg','okkie-o.svg','og-image.jpg','denckh-logo-signature-light.svg'];
-for(const file of ['ontdek/pages-worker.js','ontdek/index.html','ontdek/privacy/index.html','ontdek/contact/index.html','ontdek/site.css','ontdek/site.js','uitleg/index.html',...BRAND_FILES.map(f=>'icons/'+f)]) {
+for(const file of ['ontdek/pages-worker.js','ontdek/index.html','ontdek/privacy/index.html','ontdek/contact/index.html','ontdek/steun/index.html','ontdek/site.css','ontdek/site.js','uitleg/index.html',...BRAND_FILES.map(f=>'icons/'+f)]) {
   if(!existsSync(join(root,file))) throw new Error('Ontbrekend bestand: '+file);
 }
 for(const f of BRAND_FILES) cpSync(join(root,'icons',f),join(dest,f));
@@ -28,17 +28,20 @@ landing = rootIcons(landing)
   .replaceAll('src="./site.js"','src="/site.js"')
   .replaceAll('href="./privacy/"','href="/privacy/"')
   .replaceAll('href="./contact/"','href="/contact/"')
+  .replaceAll('href="./steun/"','href="/steun/"')
   .replaceAll('href="./"','href="/"');
 writeFileSync(join(dest,'index.html'),landing);
 cpSync(join(root,'ontdek','site.css'),join(dest,'site.css'));
 cpSync(join(root,'ontdek','site.js'),join(dest,'site.js'));
-// Privacy en contact: in de repo relatief onder ontdek/, op okkiedarts.nl vanaf de root.
-for(const page of ['privacy','contact']) {
+// Steun, privacy en contact: in de repo relatief onder ontdek/, op okkiedarts.nl vanaf de root.
+for(const page of ['steun','privacy','contact']) {
   mkdirSync(join(dest,page),{recursive:true});
   writeFileSync(join(dest,page,'index.html'),rootIcons(readFileSync(join(root,'ontdek',page,'index.html'),'utf8'))
     .replaceAll('href="../site.css"','href="/site.css"')
     .replaceAll('src="../site.js"','src="/site.js"')
     .replaceAll('href="../privacy/"','href="/privacy/"')
+    .replaceAll('href="../privacy/#','href="/privacy/#')
+    .replaceAll('href="../steun/"','href="/steun/"')
     .replaceAll('href="../contact/"','href="/contact/"')
     .replaceAll('href="../"','href="/"'));
 }
@@ -63,8 +66,10 @@ writeFileSync(join(dest,'sitemap.xml'),`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 <url><loc>https://okkiedarts.nl/</loc></url>
 <url><loc>https://okkiedarts.nl/uitleg/</loc></url>
+<url><loc>https://okkiedarts.nl/steun/</loc></url>
 <url><loc>https://okkiedarts.nl/privacy/</loc></url>
 <url><loc>https://okkiedarts.nl/contact/</loc></url>
 </urlset>
 `);
+if(readFileSync(join(dest,'steun','index.html'),'utf8').includes('MOLLIE_BETAALLINK')) console.warn('LET OP: de Mollie-betaallink op /steun/ is nog niet ingevuld (niet publiceren).');
 console.log('OKKIE. publieke site opgebouwd in dist/. Publicatie is NIET uitgevoerd.');

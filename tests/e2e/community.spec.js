@@ -104,3 +104,29 @@ test('Darters: kijken zonder account, delen aan en uit, twee spelers op één te
   for (const p of [A, M]) expect(p.errors).toEqual([]);
   for (const p of [A, M]) await p.context.close();
 });
+
+test('Darters: een naam die online is aangepast, neemt de app over bij openen (Opslaan zet de oude naam niet terug)', async ({ browser }, info) => {
+  test.skip(info.project.name !== 'iphone', 'één keer is genoeg');
+  const sfx = Math.random().toString(36).slice(2, 6);
+  const A = await phone(browser, info, [{ id: 'pa', name: 'Lynn' + sfx, color: '#3ddc84' }], [tr('t1', 'pa', ['S20', 'S20', 'S20'])]);
+  await A.page.goto('/community/');
+  await A.page.locator('[data-toggle=pa]').check();
+  const form = A.page.locator('[data-join=pa]');
+  await form.locator('input[name=nickname]').fill('Lynn' + sfx + ' Achternaam');
+  await form.getByText('16 jaar of ouder').click();
+  await form.getByRole('button', { name: 'Delen aanzetten' }).click();
+  await expect(A.page.locator('#account')).toContainText('Zichtbaar als Lynn' + sfx + ' Achternaam');
+  // De beheerder zet de naam online op alleen de voornaam (zoals bij het opschonen in 1.6.3).
+  const token = await A.page.evaluate(() => JSON.parse(localStorage.getItem('okkie.community.v1')).accounts.pa.token);
+  const r = await A.page.request.fetch(DEV.api + '/v1/me', { method: 'PATCH', data: { nickname: 'Lynn' + sfx },
+    headers: { Authorization: 'Bearer ' + token, Origin: 'http://localhost:4173', 'Content-Type': 'application/json' } });
+  expect(r.status()).toBe(200);
+  await A.page.reload();
+  await expect(A.page.locator('#account .status b')).toHaveText('Lynn' + sfx);
+  await expect(A.page.locator('[data-rename=pa] input[name=nickname]')).toHaveValue('Lynn' + sfx);
+  expect(await A.page.evaluate(() => JSON.parse(localStorage.getItem('okkie.community.v1')).accounts.pa.nickname)).toBe('Lynn' + sfx);
+  await expect(A.page.locator('#rankings')).toContainText('Lynn' + sfx);
+  await expect(A.page.locator('#rankings')).not.toContainText('Achternaam');
+  expect(A.errors).toEqual([]);
+  await A.context.close();
+});

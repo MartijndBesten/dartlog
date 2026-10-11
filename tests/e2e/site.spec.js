@@ -129,14 +129,14 @@ test('homepage en uitleg werken zonder JavaScript', async ({ browser }, info) =>
   await expect(page.locator('.contact-mail')).toHaveAttribute('href', 'mailto:info@denckh.nl');
   await expect(page.locator('[data-copy]')).toBeHidden();
   await page.goto(SITE + '/privacy/');
-  await expect(page.locator('main h2')).toHaveCount(11);
+  await expect(page.locator('main h2')).toHaveCount(12); // 'In het kort' + punt 1 t/m 11
   await context.close();
 });
 
 test('alle links op website en uitleg wijzen naar de juiste omgeving', async ({ page, request }, info) => {
   test.skip(info.project.name !== 'desktop', 'links zijn per toestel gelijk');
   const allowedExternal = [APP, APP + 'community/', 'https://denckh.nl/', 'https://autoriteitpersoonsgegevens.nl/'];
-  for (const path of ['/', '/uitleg/', '/privacy/', '/contact/']) {
+  for (const path of ['/', '/uitleg/', '/privacy/', '/contact/', '/steun/']) {
     await page.goto(SITE + path);
     const hrefs = await page.locator('a[href], link[href], script[src]').evaluateAll(els =>
       els.map(e => e.getAttribute('href') ?? e.getAttribute('src')));
@@ -148,7 +148,7 @@ test('alle links op website en uitleg wijzen naar de juiste omgeving', async ({ 
       }
       expect(href, `${path}: geen relatieve verwijzing buiten de site`).not.toMatch(/^\.\.\//);
       if (href.startsWith('mailto:')) {
-        expect(href, `${path}: alleen info@denckh.nl`).toMatch(/^mailto:info@denckh\.nl(\?subject=OKKIE\.)?$/);
+        expect(href, `${path}: alleen info@denckh.nl`).toMatch(/^mailto:info@denckh\.nl(\?subject=(OKKIE\.|Steun%20OKKIE\.))?$/);
         continue;
       }
       // De uitleg draait ook in de app en linkt daarom met het volledige adres naar privacy en contact.
@@ -156,6 +156,8 @@ test('alle links op website en uitleg wijzen naar de juiste omgeving', async ({ 
       if (url.origin === SITE) {
         expect(url.pathname, 'geen app-kopie op okkiedarts.nl').not.toMatch(/^\/(app|community)\b|sw\.js|manifest/);
         expect((await request.get(url.href)).status(), `${href} op ${path} bestaat`).toBe(200);
+      } else if (path === '/steun/' && url.origin === 'https://payment-links.mollie.com') {
+        expect(url.pathname, 'betaallink van Mollie').toMatch(/^\/payment\/[A-Za-z0-9]+\/?$/);
       } else {
         expect(allowedExternal, `${href} op ${path}`).toContain(url.origin + url.pathname);
       }
@@ -171,7 +173,7 @@ test('kleine telefoon (320 px): geen horizontale scroll, knoppen groot genoeg', 
   test.skip(info.project.name === 'desktop', 'alleen telefoons');
   const context = await browser.newContext({ ...device(info.project.use), viewport: { width: 320, height: 568 } });
   const page = await context.newPage();
-  for (const path of ['/', '/uitleg/', '/privacy/', '/contact/']) {
+  for (const path of ['/', '/uitleg/', '/privacy/', '/contact/', '/steun/']) {
     await page.goto(SITE + path);
     await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(300);
@@ -223,5 +225,25 @@ test('privacy en contact: bereikbaar vanaf homepage en uitleg, e-mailadres kopiÃ
     await expect(page.locator('.copy-status')).toHaveText('Gekopieerd: info@denckh.nl');
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('info@denckh.nl');
   }
+  expect(errors).toEqual([]);
+});
+
+test('Steun OKKIE.: vrijwillig, via voettekst en vragen te vinden, betaalknop naar Mollie; nergens reclame of aankopen', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto(SITE + '/');
+  await expect(page.locator('.hero .subtle')).toContainText('Geen reclame Â· Geen aankopen in de app');
+  await page.locator('details', { hasText: 'Is OKKIE. echt gratis?' }).locator('summary').click();
+  await expect(page.locator('details', { hasText: 'Is OKKIE. echt gratis?' })).toContainText('geen aankopen in de app');
+  await page.locator('details', { hasText: 'Kan ik OKKIE. steunen?' }).locator('summary').click();
+  await page.locator('details', { hasText: 'Kan ik OKKIE. steunen?' }).getByRole('link', { name: 'Steun OKKIE.' }).click();
+  await expect(page).toHaveURL(SITE + '/steun/');
+  await expect(page.locator('h1')).toHaveText('Gratis. En dat blijft zo.');
+  await expect(page.getByTestId('steun-betalen')).toHaveAttribute('href', /^https:\/\/payment-links\.mollie\.com\/payment\/[A-Za-z0-9]+\/?$/);
+  await expect(page.locator('main')).toContainText('Je krijgt er niets extra voor');
+  await page.locator('main a', { hasText: 'privacyverklaring' }).click();
+  await expect(page).toHaveURL(SITE + '/privacy/#steun');
+  await expect(page.locator('#steun')).toHaveText('6. Als je OKKIE. steunt');
+  await page.locator('footer a', { hasText: 'Steun OKKIE.' }).click();
+  await expect(page).toHaveURL(SITE + '/steun/');
   expect(errors).toEqual([]);
 });

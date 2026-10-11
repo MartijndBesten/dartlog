@@ -13,9 +13,11 @@ const APP = 'https://app.okkiedarts.nl/';
 // Enige toegestane externe bestemmingen vanaf okkiedarts.nl.
 const EXTERNAL = [APP, APP + 'community/', 'https://denckh.nl/', 'https://okkiedarts.nl/privacy/', 'https://okkiedarts.nl/contact/',
   // canonieke adressen van de pagina's zelf
-  'https://okkiedarts.nl/', 'https://okkiedarts.nl/uitleg/',
-  'https://autoriteitpersoonsgegevens.nl/', 'mailto:info@denckh.nl', 'mailto:info@denckh.nl?subject=OKKIE.'];
-const PAGES = ['index.html', 'uitleg/index.html', 'privacy/index.html', 'contact/index.html'];
+  'https://okkiedarts.nl/', 'https://okkiedarts.nl/uitleg/', 'https://okkiedarts.nl/steun/',
+  'https://autoriteitpersoonsgegevens.nl/', 'mailto:info@denckh.nl', 'mailto:info@denckh.nl?subject=OKKIE.', 'mailto:info@denckh.nl?subject=Steun%20OKKIE.'];
+// Steun OKKIE.: alleen een betaallink van Mollie (herbruikbaar, bedrag naar keuze), nooit iets anders.
+const MOLLIE = /^https:\/\/payment-links\.mollie\.com\/payment\/[A-Za-z0-9]+\/?$/;
+const PAGES = ['index.html', 'uitleg/index.html', 'privacy/index.html', 'contact/index.html', 'steun/index.html'];
 
 test('versie is overal gelijk: sw.js, app en package.json', () => {
   const pkg = JSON.parse(read('package.json')).version;
@@ -59,7 +61,7 @@ test('website-build: alleen website en uitleg, geen tweede app, links naar de ju
   const dist = join(root, 'dist');
   const files = readdirSync(dist, { recursive: true }).map(f => String(f).replaceAll('\\', '/'));
   for (const f of ['index.html', 'site.css', 'site.js', 'favicon-32.png', '_headers', 'robots.txt', 'sitemap.xml',
-    'privacy/index.html', 'contact/index.html', 'uitleg/index.html', 'uitleg/uitleg.css', 'uitleg/uitleg.js', 'uitleg/score-oefening.js']) {
+    'privacy/index.html', 'contact/index.html', 'steun/index.html', 'uitleg/index.html', 'uitleg/uitleg.css', 'uitleg/uitleg.js', 'uitleg/score-oefening.js']) {
     assert.ok(files.includes(f), `ontbreekt: ${f}`);
   }
   for (const f of files) {
@@ -70,7 +72,7 @@ test('website-build: alleen website en uitleg, geen tweede app, links naar de ju
     const refs = [...html.matchAll(/(?:href|src)="([^"]+)"/g)].map(m => m[1]);
     for (const ref of refs) {
       assert.doesNotMatch(ref, /^\.\.\//, `${page}: verwijzing buiten de site: ${ref}`);
-      if (/^(https?|mailto):/.test(ref)) assert.ok(EXTERNAL.includes(ref), `${page}: onbekende externe link ${ref}`);
+      if (/^(https?|mailto):/.test(ref)) assert.ok(EXTERNAL.includes(ref) || (page === 'steun/index.html' && MOLLIE.test(ref)), `${page}: onbekende externe link ${ref}`);
     }
     assert.ok(refs.includes(APP), `${page} linkt naar de bestaande app`);
     assert.doesNotMatch(html, /serviceWorker|manifest\.webmanifest/, `${page} installeert geen tweede PWA`);
@@ -98,7 +100,7 @@ test('juridisch: elke pagina toont maker, privacy en contact; geen privételefoo
   // Bewuste keuze van de eigenaar: geen openbaar (woon)adres op de site.
   for (const page of PAGES) assert.ok(!readFileSync(join(root, 'dist', page), 'utf8').includes('<dt>Adres</dt>'), `${page}: geen adres`);
   const privacy = readFileSync(join(root, 'dist/privacy/index.html'), 'utf8');
-  for (const topic of ['Wie is verantwoordelijk', 'Hosting', 'Cloudflare', 'GitHub', 'Kinderen', 'Jouw rechten', 'Autoriteit Persoonsgegevens', 'Darters', 'Uitzetten en wissen', 'ouder of verzorger']) {
+  for (const topic of ['Wie is verantwoordelijk', 'Hosting', 'Cloudflare', 'GitHub', 'Kinderen', 'Jouw rechten', 'Autoriteit Persoonsgegevens', 'Darters', 'Uitzetten en wissen', 'ouder of verzorger', 'Mollie', 'bewaarplicht']) {
     assert.ok(privacy.includes(topic), `privacyverklaring noemt: ${topic}`);
   }
 });
@@ -241,7 +243,7 @@ test('app-build in testfase: niet vindbaar voor zoekmachines, verder dezelfde ap
 // Sinds 1.6.2: het oude adres stuurt door. Alleen daar; op app.okkiedarts.nl, okkiedarts.nl en localhost gebeurt niets.
 test('oude adres stuurt door naar app.okkiedarts.nl (website-pagina\'s naar okkiedarts.nl), nergens anders', async () => {
   const { runInNewContext } = await import('node:vm');
-  const pages = ['index.html', 'community/index.html', 'uitleg/index.html', 'vrienden/index.html', 'ontdek/index.html', 'ontdek/privacy/index.html', 'ontdek/contact/index.html'];
+  const pages = ['index.html', 'community/index.html', 'uitleg/index.html', 'vrienden/index.html', 'ontdek/index.html', 'ontdek/privacy/index.html', 'ontdek/contact/index.html', 'ontdek/steun/index.html'];
   const scripts = pages.map(p => read(p).match(/<script>(\/\* Oude adres martijndbesten[\s\S]*?)<\/script>/)?.[1]);
   scripts.forEach((js, i) => assert.ok(js, 'doorstuurscript ontbreekt in ' + pages[i]));
   assert.equal(new Set(scripts).size, 1, 'overal hetzelfde script');
@@ -255,4 +257,28 @@ test('oude adres stuurt door naar app.okkiedarts.nl (website-pagina\'s naar okki
   assert.equal(go('https://martijndbesten.github.io/dartlog/ontdek/'), 'https://okkiedarts.nl/');
   for (const other of ['https://app.okkiedarts.nl/', 'https://app.okkiedarts.nl/community/', 'https://okkiedarts.nl/', 'http://localhost:4173/', 'https://martijndbesten.github.io/iets-anders/'])
     assert.equal(go(other), null, 'geen doorsturen op ' + other);
+});
+
+test('Steun OKKIE.: echte Mollie-betaallink op de website, in de app alleen een link en niets te koop', () => {
+  execFileSync(process.execPath, [join(root, 'tools/build-public-site.mjs')], { cwd: root, stdio: 'pipe' });
+  const steun = readFileSync(join(root, 'dist/steun/index.html'), 'utf8');
+  assert.doesNotMatch(steun, /MOLLIE_BETAALLINK/, 'de Mollie-betaallink is nog niet ingevuld: niet publiceren');
+  const pay = steun.match(/href="([^"]+)"[^>]*data-testid="steun-betalen"/)?.[1];
+  assert.match(pay || '', MOLLIE, 'betaalknop gaat naar een betaallink van Mollie');
+  assert.match(steun, /niets extra/, 'je krijgt er niets extra voor');
+  assert.match(steun, /jonger dan 18/, 'kinderen vragen het eerst aan een ouder');
+  assert.match(steun, /href="\/privacy\/#steun"/);
+  const privacy = readFileSync(join(root, 'dist/privacy/index.html'), 'utf8');
+  assert.match(privacy, /<h2 id="steun">/);
+  const landing = readFileSync(join(root, 'dist/index.html'), 'utf8');
+  for (const t of ['Geen reclame', 'Geen aankopen in de app', 'geen aankopen in de app', 'Kan ik OKKIE. steunen?']) assert.ok(landing.includes(t), 'website noemt: ' + t);
+  assert.match(read('sitemap.xml'.replace(/^/, 'dist/')), /okkiedarts\.nl\/steun\//);
+  for (const page of PAGES.filter(p => p !== 'uitleg/index.html')) assert.match(readFileSync(join(root, 'dist', page), 'utf8'), /href="\/steun\/"/, page + ': link naar Steun OKKIE.');
+  // De uitleg is voor kinderen en beginners: daar geen vraag om geld.
+  assert.doesNotMatch(readFileSync(join(root, 'dist/uitleg/index.html'), 'utf8'), /steun/i, 'uitleg: geen Steun-link');
+  // App: één link naar de website, geen betaalcode, geen betaaldienst.
+  const app = read('js/app.js');
+  assert.match(app, /export const STEUN_URL = 'https:\/\/okkiedarts\.nl\/steun\/';/);
+  assert.match(app, /geen reclame en geen aankopen in de app/);
+  for (const f of readdirSync(join(root, 'js'))) assert.doesNotMatch(read('js/' + f), /mollie|PaymentRequest|in-app-?purchase/i, 'js/' + f + ': geen betalen in de app');
 });

@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.6.3 — Steun OKKIE., reclamevrij en Darters opgeschoond
+
+- **Steun OKKIE.** (besluit eigenaar): nieuwe pagina okkiedarts.nl/steun/ met een vrijwillige bijdrage naar keuze via
+  een betaallink van Mollie. In de app alleen een link onder **Meer** naar die pagina; in de app zelf kun je niets
+  kopen. Je krijgt er niets extra voor. Privacyverklaring: nieuw punt 6 (Mollie, bewaarplicht, nooit gekoppeld aan app
+  of trainingen); de volgende punten schuiven één op.
+- **Website:** duidelijk gratis, zonder reclame, zonder aankopen in de app en zonder abonnement (bovenaan, in de vragen
+  en in de voorvertoning bij delen). Nieuwe vraag “Kan ik OKKIE. steunen?”. Steun OKKIE. staat in de voettekst.
+- **Darters:** de dubbele profielen van Evy en Lynn zijn uit de lijst gehaald (verborgen, niets gewist; de profielen
+  met de meeste trainingen blijven zichtbaar). Lynn staat er zonder achternaam. Een naam die online is aangepast,
+  neemt de app nu over bij het openen van Darters, zodat “Opslaan” de oude naam niet terugzet.
+- **Controle:** de updatecontrole wordt op main zelf overgeslagen (daar vergeleek hij de live versie met zichzelf en
+  gaf hij vals alarm); vóór publicatie draait hij zoals altijd op de releasebranch.
+
 ## 1.6.2 — Oude adres stuurt door
 
 - **martijndbesten.github.io/dartlog stuurt door naar app.okkiedarts.nl** (besluit eigenaar: het oude adres had één

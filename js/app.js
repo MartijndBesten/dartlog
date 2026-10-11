@@ -20,9 +20,11 @@ import * as SC from './share-card.js';
 
 FB.captureErrors();
 
-export const APP_VERSION = '1.6.2';
+export const APP_VERSION = '1.6.3';
 // "Nodig een vriend uit": altijd de website als link. Die blijft geldig, ook na de verhuizing van de app.
 export const INVITE_URL = 'https://okkiedarts.nl/';
+// Steun OKKIE.: alleen een link naar de website (betalen gaat daar, via een betaallink). In de app zelf kun je niets kopen.
+export const STEUN_URL = 'https://okkiedarts.nl/steun/';
 export const INVITE_TEXT = 'Ik train mijn darts met OKKIE. 🎯 Gratis, werkt gewoon op je telefoon en je ziet meteen of je beter wordt. Doe je mee?';
 
 const $ = sel => document.querySelector(sel);
@@ -1033,6 +1035,7 @@ VIEWS.more = () => {
     <nav class="card link-list" aria-label="Delen en hulp">
       <button class="link-row" data-act="invite" data-testid="invite-card"><span class="a-icon">${icon('invite', { size: 20 })}</span><span><b>Nodig een vriend uit</b><small>Een link naar okkiedarts.nl; er worden geen scores gedeeld</small></span>${icon('chevron', { size: 18 })}</button>
       <button class="link-row" data-go="hulp"><span class="a-icon">${icon('help', { size: 20 })}</span><span><b>Hulp &amp; feedback</b><small>Meld een probleem of stuur een idee</small></span>${icon('chevron', { size: 18 })}</button>
+      <a class="link-row" href="${STEUN_URL}" target="_blank" rel="noopener" data-testid="steun-link"><span class="a-icon">${icon('heart', { size: 20 })}</span><span><b>Steun OKKIE.</b><small>Vrijwillig, op okkiedarts.nl. In de app kun je niets kopen.</small></span>${icon('arrow', { size: 18 })}</a>
     </nav>
     <section class="card">
       <h3>Back-up en overzetten</h3>
@@ -1065,7 +1068,7 @@ VIEWS.more = () => {
     </section>
     <section class="card about">
       ${logoSVG({ height: 34 })}
-      <p class="muted small">Versie ${APP_VERSION}. OKKIE komt van "oche" (spreek uit: okkie), de werplijn waar je achter staat bij darts. Geen account, geen tracking, geen reclame.</p>
+      <p class="muted small">Versie ${APP_VERSION}. OKKIE komt van "oche" (spreek uit: okkie), de werplijn waar je achter staat bij darts. Geen account, geen tracking, geen reclame en geen aankopen in de app.</p>
       <p class="maker-line"><a class="maker" href="https://denckh.nl/" target="_blank" rel="noopener" aria-label="Ontwikkeld door Denckh (naar denckh.nl)"><span class="maker-role">Ontwikkeld door</span><img class="on-dark" src="./icons/denckh-logo-signature-light.svg" alt="Denckh" width="92" height="28"><img class="on-light" src="./icons/denckh-logo-signature.svg" alt="Denckh" width="92" height="28"></a></p>
     </section>
   </main>`;
