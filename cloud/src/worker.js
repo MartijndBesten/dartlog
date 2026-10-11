@@ -251,7 +251,7 @@ export default {
           'WHERE m.visible = 1 AND s.period = ? AND s.darts >= 30 ORDER BY (s.points * 1.0 / s.darts) DESC, s.sessions DESC, m.handle ASC LIMIT 200'
         ).bind(key).all();
         // Publieke, niet-persoonlijke data: 30 s aan de rand cachen scheelt databaseverkeer bij drukte.
-        return json({ period: key, ranking: (rows.results || []).map(({ id, ...r }) => r), scoring: 'gemiddelde per 3 pijlen' }, 200, cors, 'public, max-age=30');
+        return json({ period: key, ranking: (rows.results || []).map(({ id, ...r }) => r), scoring: 'gemiddelde per 3 pijlen' }, 200, cors, 'no-store');
       }
       if (path.startsWith('/v1/players/') && request.method === 'GET') {
         const handle = path.split('/')[3];
@@ -260,7 +260,7 @@ export default {
         if (!member) return fail('Profiel niet gevonden of afgeschermd.', 404, cors);
         const all = await env.DB.prepare('SELECT darts, points, sessions, highest_turn AS highestTurn, best30, best60, best99, hits100, hits140, hits180 FROM stats WHERE member_id = ? AND period = ?').bind(member.id, 'all').first();
         const trend = await env.DB.prepare("SELECT period, darts, points, sessions, challenge30 FROM stats WHERE member_id = ? AND period LIKE 'week:%' ORDER BY period DESC LIMIT 12").bind(member.id).all();
-        return json({ player: publicMember(member), totals: all || null, trend: trend.results || [] }, 200, cors, 'public, max-age=30');
+        return json({ player: publicMember(member), totals: all || null, trend: trend.results || [] }, 200, cors, 'no-store');
       }
       const darters = await handleDarters(request, env, path, H, cors);
       if (darters) return darters;
