@@ -37,7 +37,7 @@ test('homepage: demo-beurt telt op tot 85, tikken en Enter spelen opnieuw af', a
     expect(scores[0], 'begint bij 0').toBe(0);
     expect(scores.some(s => s > 0 && s < 85), 'telt zichtbaar op').toBe(true);
     expect(scores.at(-1), 'eindigt op 85').toBe(85);
-    expect(scores.every((s, i) => i === 0 || s >= scores[i - 1]), 'telt alleen op').toBe(true);
+    expect(scores.every((s, i) => i === 0 || s >= scores[i - 1]), 'telt alleen op: ' + scores.join(' ')).toBe(true);
     await expect(total).toHaveText('85');
     await expect(page.locator('[data-dart].hit')).toHaveCount(3);
     await expect(page.locator('[data-demo-avg]')).toHaveText('57,30');

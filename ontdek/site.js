@@ -31,7 +31,8 @@
       cancelAnimationFrame(frame);
       const start = performance.now();
       const step = now => {
-        const t = Math.min(1, (now - start) / ms), eased = 1 - Math.pow(1 - t, 3);
+        // De tijdstempel van het eerste frame kan vóór 'start' liggen: begrenzen, anders even -1 of terugtellen.
+        const t = Math.min(1, Math.max(0, (now - start) / ms)), eased = 1 - Math.pow(1 - t, 3);
         total.textContent = Math.round(from + (to - from) * eased);
         if (t < 1) frame = requestAnimationFrame(step);
       };
