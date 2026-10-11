@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.1
+
+- Darters, scherm voor ouders/verzorgers: knop en vinkje in de OKKIE.-stijl (waren standaardknoppen) en de
+  geldigheid van de link in gewone Nederlandse datum.
+
 ## 1.5.0 — Darters
 
 - **Darters** vervangt Mijn vrienden: één overzicht van alle darters die hun cijfers delen (naam, gemiddelde per 3 pijlen,
