@@ -42,7 +42,8 @@
       total.textContent = '85'; avg.textContent = '57,30'; bar.style.width = '67%';
     };
     const play = () => {
-      timers.forEach(clearTimeout); timers = [];
+      // Ook een nog lopende tel-animatie stoppen, anders telt de vorige beurt even door (tikken tijdens het afspelen).
+      timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(frame);
       if (reduce.matches) return finalState();
       phone.classList.remove('done');
       darts.forEach(d => d.classList.remove('hit', 'pop'));
@@ -67,7 +68,7 @@
     } else play();
     phone.addEventListener('click', play);
     phone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); play(); } });
-    reduce.addEventListener?.('change', () => { if (reduce.matches) { timers.forEach(clearTimeout); finalState(); } });
+    reduce.addEventListener?.('change', () => { if (reduce.matches) { timers.forEach(clearTimeout); cancelAnimationFrame(frame); finalState(); } });
   }
 
   // ---- Contact: e-mailadres kopiëren, met bevestiging ----
