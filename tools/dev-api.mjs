@@ -13,6 +13,7 @@ const env = {
   ALLOWED_ORIGINS: 'http://localhost:4173,http://127.0.0.1:4173',
   REGISTRATION_ENABLED: 'false',
   GROUPS_ENABLED: 'true',
+  MINORS_OPEN: 'true',   // alleen lokaal; in productie staat dit uit (VRIENDEN.md §4)
   GROUP_FOUNDER_CODE: TEST_FOUNDER_CODES.join(','),
 };
 

@@ -8,7 +8,7 @@ import { trainingOkay, normalizeCode } from '../src/guest.js';
 const ORIGIN = 'https://martijndbesten.github.io';
 const API = 'https://api.okkiedarts.nl';
 const FOUNDER = 'oprichter-gast-test-0000000001';
-const env0 = (extra = {}) => ({ DB: createD1(), ALLOWED_ORIGINS: ORIGIN, GROUPS_ENABLED: 'true', REGISTRATION_ENABLED: 'false', GROUP_FOUNDER_CODE: FOUNDER, ...extra });
+const env0 = (extra = {}) => ({ DB: createD1(), ALLOWED_ORIGINS: ORIGIN, GROUPS_ENABLED: 'true', REGISTRATION_ENABLED: 'false', GROUP_FOUNDER_CODE: FOUNDER, MINORS_OPEN: 'true', ...extra });
 const realFetch = globalThis.fetch;
 before(() => { globalThis.fetch = async u => { throw new Error('Onverwachte externe aanroep: ' + u); }; });
 after(() => { globalThis.fetch = realFetch; });

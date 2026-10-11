@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 
 // Mijn vrienden in de afgeschermde testomgeving (tools/dev-api.mjs): echte Worker-code, tijdelijke database,
 // alleen fictieve spelers en scores. Twee browsercontexten = twee telefoons.
-const DEV = { api: 'http://127.0.0.1:8799', groups: true };
+// minors: true alleen in deze testomgeving; in productie staat 'jonger dan 16' dicht (zie de test 'productie-instelling').
+const DEV = { api: 'http://127.0.0.1:8799', groups: true, minors: true };
 // Eenmalige oprichterscodes van de testserver (tools/dev-api.mjs): één per test en per toestel.
 const FOUNDER = (info, test) => `okkie-test-${info.project.name}-${test}-2026`;
 const DAY = 86400000;
@@ -17,13 +18,13 @@ function seed(name, scores) {
     matches: [], settings: { theme: 'dark', sound: false, vibrate: false }, active: { training: null, match: null },
   };
 }
-async function phone(browser, info, data) {
+async function phone(browser, info, data, dev = DEV) {
   const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch } = info.project.use;
   const context = await browser.newContext({ viewport, userAgent, deviceScaleFactor, isMobile, hasTouch });
   await context.addInitScript(([d, dev]) => {
     if (d && !localStorage.getItem('oche.data')) localStorage.setItem('oche.data', JSON.stringify(d));
     localStorage.setItem('okkie.dev', JSON.stringify(dev));
-  }, [data, DEV]);
+  }, [data, dev]);
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
@@ -200,6 +201,19 @@ test('jong en oud: kind (12) doet mee na één tik van een ouder, zonder ouderac
   expect(await training(K.page)).toBe(beforeK);
   for (const p of [A, K, M]) expect(p.errors).toEqual([]);
   for (const p of [A, K, M]) await p.context.close();
+});
+
+test('productie-instelling: jonger dan 16 zichtbaar maar dicht, 16+ kan zich aanmelden', async ({ browser }, info) => {
+  test.skip(info.project.name !== 'iphone', 'één keer is genoeg');
+  const P = await phone(browser, info, seed('Martijn', []), { api: DEV.api, groups: true });
+  await P.page.goto('/vrienden/');
+  const reg = P.page.locator('#register');
+  await expect(reg).toBeVisible();
+  await expect(reg.getByTestId('minor-closed')).toContainText('voorlopig voor 16 jaar en ouder');
+  await expect(reg.locator('input[name=age][value=minor]')).toBeDisabled();
+  await expect(reg.locator('input[name=age][value=adult]')).toBeEnabled();
+  expect(P.errors).toEqual([]);
+  await P.context.close();
 });
 
 test('zonder testinstelling (zoals nu live): "binnenkort", app ongewijzigd, link vanuit de app', async ({ page }, info) => {

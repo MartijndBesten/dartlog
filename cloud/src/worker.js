@@ -1,7 +1,7 @@
 import { adminHtml } from './admin-page.js';
 import { isAdminRequest, adminEmail, adminHostMatches } from './admin-auth.js';
 import { handleGuest } from './guest.js';
-import { handleGroups, groupsOpen, inviteValid, releaseMemberships, minorMayStore, weekKey, LIMITS } from './groups.js';
+import { handleGroups, groupsOpen, minorsOpen, MINORS_CLOSED, inviteValid, releaseMemberships, minorMayStore, weekKey, LIMITS } from './groups.js';
 
 // Cloudflare Worker + D1 API voor OKKIE. Community.
 // De database bewaart uitsluitend een nickname, account-credentials (gehasht) en geaggregeerde statistieken.
@@ -198,6 +198,7 @@ export default {
           if (body.age !== 'adult' && body.age !== 'minor') return fail('Kies je leeftijd: 16 of ouder, of jonger dan 16.', 400, cors);
           if (!nickname) return fail('Vul je voornaam of bijnaam in (2 tot 24 tekens).', 400, cors);
           ageGroup = body.age;
+          if (ageGroup === 'minor' && !minorsOpen(env)) return fail(MINORS_CLOSED, 403, cors);
           consent = ageGroup === 'adult' ? 'zelf' : env.MINOR_CONSENT === 'dienst' ? 'dienst' : null;
           if (viaFounder) {
             // Oprichterscode(s): geheim GROUP_FOUNDER_CODE, één of meer codes (komma-gescheiden, min. 16 tekens).

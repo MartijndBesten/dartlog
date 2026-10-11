@@ -42,9 +42,11 @@ test('serviceworker: elk vooraf bewaard bestand bestaat, gebruikersgegevens blij
 test('openbare registratie staat dicht in de app en in de Worker-configuratie', async () => {
   const config = await import(new URL('../../community/config.js', import.meta.url));
   assert.equal(config.REGISTRATION_OPEN, false);
-  assert.equal(config.GROUPS_OPEN, false, 'Mijn vrienden staat in de app uit');
-  assert.equal((read('cloud/wrangler.toml').match(/^GROUPS_ENABLED = "false"\r?$/gm) || []).length, 2);
-  assert.doesNotMatch(read('cloud/wrangler.toml'), /GROUPS_ENABLED = "true"/);
+  // 1.4.0: Mijn vrienden aan voor 16+; jonger dan 16 dicht in app én Worker (MINORS_OPEN nergens "true").
+  assert.equal(config.GROUPS_OPEN, true);
+  assert.equal(config.MINORS_OPEN, false);
+  assert.match(config.API_BASE, /^https:\/\/okkie-api\.[a-z0-9-]+\.workers\.dev$/);
+  assert.doesNotMatch(read('cloud/wrangler.toml'), /^MINORS_OPEN = "true"/m);
   const toml = read('cloud/wrangler.toml');
   assert.equal((toml.match(/^REGISTRATION_ENABLED = "false"\r?$/gm) || []).length, 2);
 });

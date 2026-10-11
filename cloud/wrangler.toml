@@ -1,7 +1,9 @@
 # OKKIE. Community API — Cloudflare Worker + D1.
 # Twee omgevingen:
 #   (standaard)       staging/preview op *.workers.dev, eigen D1 "okkie-community-staging", geen beheer
-#   --env production  api.okkiedarts.nl + beheer.okkiedarts.nl, D1 "okkie-community"
+#   --env production  Worker "okkie-api" op workers.dev, D1 "okkie-community". api.okkiedarts.nl kan pas als de
+#                     Cloudflare-zone okkiedarts.nl actief is (nameservers); dat is bewust niet gedaan (DNSSEC bij STRATO).
+# Spelers jonger dan 16: alleen met MINORS_OPEN = "true" (na juridische toets en DPIA, VRIENDEN.md §4); nu nergens gezet.
 # Secrets (nooit in Git), per omgeving met `npx wrangler secret put <NAAM> [--env production]`:
 #   TURNSTILE_SECRET
 #   CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD, ADMIN_ALLOWED_EMAILS  (alleen production; zonder deze is beheer dicht)
@@ -20,11 +22,11 @@ crons = ["30 3 * * *"]
 
 [vars]
 # Meerdere origins gescheiden met komma; de bestaande PWA-origin blijft altijd nodig.
-ALLOWED_ORIGINS = "https://martijndbesten.github.io,https://okkiedarts.nl,https://www.okkiedarts.nl,http://localhost:4173"
+ALLOWED_ORIGINS = "https://app.okkiedarts.nl,https://martijndbesten.github.io,https://okkiedarts.nl,https://www.okkiedarts.nl,http://localhost:4173,http://127.0.0.1:4173"
 # Openbare registratie dicht tot privacyverklaring + ouderlijke toestemming (<16) geregeld zijn. Alleen "true" opent.
 REGISTRATION_ENABLED = "false"
-# Mijn vrienden (besloten groepen): alleen "true" opent. Productie pas na akkoord + bijgewerkte privacyverklaring.
-GROUPS_ENABLED = "false"
+# Mijn vrienden (besloten groepen): alleen "true" opent. Staging gelijk aan productie, voor de rooktest vooraf.
+GROUPS_ENABLED = "true"
 EMPTY_ACCOUNT_DAYS = "30"
 INACTIVE_DAYS = "730"
 
@@ -46,21 +48,21 @@ namespace_id = "1002"
 simple = { limit = 60, period = 60 }
 
 # ---------------------------------------------------------------------------
-# Productie: alleen api.okkiedarts.nl. beheer.okkiedarts.nl komt er pas bij nadat Cloudflare Access is ingesteld
-# (voeg dan { pattern = "beheer.okkiedarts.nl", custom_domain = true } toe). Vereist een actieve zone okkiedarts.nl.
+# Productie: Worker "okkie-api" op workers.dev (https://okkie-api.<account-subdomein>.workers.dev).
+# Later naar api.okkiedarts.nl: pas als de Cloudflare-zone okkiedarts.nl actief is; dan workers_dev = false en
+# routes = [{ pattern = "api.okkiedarts.nl", custom_domain = true }], en API_BASE in community/config.js aanpassen.
+# Beheer (beheer.okkiedarts.nl) blijft dicht zolang de Access-secrets niet gezet zijn.
 [env.production]
-workers_dev = false
-routes = [
-  { pattern = "api.okkiedarts.nl", custom_domain = true },
-]
+name = "okkie-api"
+workers_dev = true
 
 [env.production.vars]
-ALLOWED_ORIGINS = "https://martijndbesten.github.io,https://okkiedarts.nl,https://www.okkiedarts.nl,https://beheer.okkiedarts.nl"
+ALLOWED_ORIGINS = "https://app.okkiedarts.nl,https://martijndbesten.github.io,https://okkiedarts.nl,https://www.okkiedarts.nl"
 ADMIN_HOST = "beheer.okkiedarts.nl"
 # Openbare registratie dicht tot privacyverklaring + ouderlijke toestemming (<16) geregeld zijn. Alleen "true" opent.
 REGISTRATION_ENABLED = "false"
-# Mijn vrienden (besloten groepen): alleen "true" opent. Productie pas na akkoord + bijgewerkte privacyverklaring.
-GROUPS_ENABLED = "false"
+# Mijn vrienden (besloten groepen) aan sinds 1.4.0, voor 16+. Account alleen via uitnodiging of oprichterscode.
+GROUPS_ENABLED = "true"
 EMPTY_ACCOUNT_DAYS = "30"
 INACTIVE_DAYS = "730"
 

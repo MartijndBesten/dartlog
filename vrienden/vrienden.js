@@ -1,6 +1,6 @@
 // OKKIE. Mijn vrienden. Besloten groepen; alle rechten worden door de server gecontroleerd.
 // Lokale trainingen blijven op dit toestel: online gaan alleen de samenvattingen die de speler per groep kiest.
-import { GROUPS_OPEN } from '../community/config.js';
+import { GROUPS_OPEN, MINORS_OPEN } from '../community/config.js';
 import { apiAvailable, getAccount, upsertAccount, dropAccount, syncAccount, request, publicSnapshots } from '../js/community-sync.js';
 import { leaderboards, movement, placesOf, avg3, MIN_DARTS_ALL, MIN_DARTS_WEEK } from '../js/group-stats.js';
 
@@ -94,11 +94,14 @@ function join() {
     <form id="register" class="card" novalidate>
       <h2>${inv ? 'Maak je groepsprofiel' : 'Groep oprichten'}</h2>
       <label class="field">Je voornaam of bijnaam<input name="nickname" minlength="2" maxlength="24" required autocomplete="given-name" value="${esc(nick)}"></label>
-      <p class="help">Zo sta je op de ranglijst. Alleen je groepsleden zien dit; het profiel is niet openbaar. Geen achternaam nodig.</p>
+      <p class="help">Zo sta je op de ranglijst. Alleen je groepsleden zien dit; het profiel is niet openbaar. Geen achternaam nodig. Wat we bewaren en hoe je het wist: <a href="https://okkiedarts.nl/privacy/#vrienden" target="_blank" rel="noopener">privacyverklaring</a>.</p>
       ${inv ? '' : '<label class="field">Oprichterscode<input name="founder" required autocomplete="off"></label>'}
       <fieldset class="choices"><legend>Hoe oud ben je?</legend>
         <label class="check"><input type="radio" name="age" value="adult" required><span><b>16 jaar of ouder</b></span></label>
-        <label class="check"><input type="radio" name="age" value="minor"><span><b>Jonger dan 16</b><small>Dan stuur je voor deze groep een linkje naar je vader, moeder of verzorger. Die tikt op “Ik geef toestemming” en je doet mee.</small></span></label>
+        ${MINORS_OPEN
+          ? '<label class="check"><input type="radio" name="age" value="minor"><span><b>Jonger dan 16</b><small>Dan stuur je voor deze groep een linkje naar je vader, moeder of verzorger. Die tikt op “Ik geef toestemming” en je doet mee.</small></span></label>'
+          // Uitgeschakeld maar zichtbaar (en een tweede keuzerondje, zodat "age" niets kiest zolang niets is aangetikt).
+          : '<label class="check" data-testid="minor-closed"><input type="radio" name="age" value="minor" disabled><span><b>Jonger dan 16</b><small>Nog niet mogelijk: Mijn vrienden is voorlopig voor 16 jaar en ouder. OKKIE. zelf kun je gewoon blijven gebruiken; je trainingen blijven op je telefoon.</small></span></label>'}
       </fieldset>
       ${inv ? shareChoices() : shareChoices(null, 'Wat deel je met je nieuwe groep?')}
       ${inv ? '' : '<label class="field">Naam van je groep<input name="group" minlength="2" maxlength="40" required placeholder="Bijv. Dartvrienden"></label>'}
@@ -358,7 +361,7 @@ async function parentView() {
   }).join('');
   const head = `<span class="tag shared">Voor ouders en verzorgers</span><h2>${title}</h2>`;
   const what = `<h3>Wat de groep van ${esc(c.child)} ziet</h3><ul class="plain consent-list">${list}</ul>
-    <p class="help">Nooit gedeeld: losse pijlen, tijdstippen, achternaam, foto's of berichten. OKKIE. heeft geen chat. De groep is besloten en niet te vinden. We bewaren een voornaam of bijnaam, de leeftijdsgroep (jonger dan 16), deze aanvraag en, na jouw “ja”, de samengevatte scores. Meer in de <a href="../ontdek/privacy/">privacyverklaring</a>.</p>`;
+    <p class="help">Nooit gedeeld: losse pijlen, tijdstippen, achternaam, foto's of berichten. OKKIE. heeft geen chat. De groep is besloten en niet te vinden. We bewaren een voornaam of bijnaam, de leeftijdsgroep (jonger dan 16), deze aanvraag en, na jouw “ja”, de samengevatte scores. Meer in de <a href="https://okkiedarts.nl/privacy/#vrienden" target="_blank" rel="noopener">privacyverklaring</a>.</p>`;
   $('#vr').innerHTML = c.confirmed ?
     `<section class="card">${head}<p class="vr-ok">✅ Je hebt toestemming gegeven voor “${group}”.</p>${what}
       <h3>Toestemming voor deze groep intrekken</h3><p class="help">Dan verlaat ${esc(c.child)} “${group}” en vervalt de toestemming voor deze groep. Andere groepen blijven zoals ze zijn. Zit ${esc(c.child)} daarna in geen enkele groep meer, dan wissen we het online profiel en alle gedeelde scores. Trainen op de eigen telefoon blijft gewoon werken. Bewaar deze link zolang je de toestemming wilt kunnen intrekken.</p>

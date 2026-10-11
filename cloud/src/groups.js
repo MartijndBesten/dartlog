@@ -16,6 +16,10 @@ export const LIMITS = {
   trendWeeks: 8,
 };
 export const groupsOpen = env => env.GROUPS_ENABLED === 'true';
+// Spelers jonger dan 16: alleen als MINORS_OPEN exact "true" is (na juridische toets en DPIA, zie VRIENDEN.md).
+// Staat het uit, dan kan geen kind een profiel maken of toestemming laten geven; intrekken blijft altijd mogelijk.
+export const minorsOpen = env => env.MINORS_OPEN === 'true';
+export const MINORS_CLOSED = 'Mijn vrienden is voorlopig alleen voor spelers van 16 jaar en ouder. Je trainingen in OKKIE. werken gewoon door.';
 const GROUP_ID = /^[a-f0-9]{32}$/;
 const HANDLE = /^[a-z0-9]{12}$/;
 const TOKEN = /^[a-f0-9]{64}$/;
@@ -217,6 +221,7 @@ export async function handleGroups(request, env, path, h, cors) {
         expiresAt: c.confirmedAt ? null : c.expiresAt.slice(0, 10) }, 200, cors);
     }
     if (path === '/v1/consent/confirm') {
+      if (!minorsOpen(env)) return h.fail(MINORS_CLOSED, 403, cors);
       if (body.parent !== true) return h.fail('Bevestig dat je de ouder of verzorger bent.', 400, cors);
       if (c.confirmedAt) return h.json({ confirmed: true, joined: true, group: groupName, already: true }, 200, cors);
       let groupId = c.groupId;
@@ -271,6 +276,7 @@ export async function handleGroups(request, env, path, h, cors) {
 
   // Kind vraagt toestemming: lid worden (inviteToken), een groep oprichten (groupName) of meer delen (groupId).
   if (path === '/v1/consent/request' && method === 'POST') {
+    if (!minorsOpen(env)) return h.fail(MINORS_CLOSED, 403, cors);
     if (!needsParent(member)) return h.fail('Alleen nodig voor spelers jonger dan 16.', 400, cors);
     const body = await h.bodyJson(request);
     const share = shareFlags(body.share);

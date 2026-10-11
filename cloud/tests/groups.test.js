@@ -9,7 +9,7 @@ import { weekKey, LIMITS } from '../src/groups.js';
 const ORIGIN = 'https://martijndbesten.github.io';
 const API = 'https://api.okkiedarts.nl';
 const FOUNDER = 'oprichter-test-code-1234567890';
-const env0 = (extra = {}) => ({ DB: createD1(), ALLOWED_ORIGINS: ORIGIN, GROUPS_ENABLED: 'true', REGISTRATION_ENABLED: 'false', GROUP_FOUNDER_CODE: FOUNDER, ...extra });
+const env0 = (extra = {}) => ({ DB: createD1(), ALLOWED_ORIGINS: ORIGIN, GROUPS_ENABLED: 'true', REGISTRATION_ENABLED: 'false', GROUP_FOUNDER_CODE: FOUNDER, MINORS_OPEN: 'true', ...extra });
 
 const realFetch = globalThis.fetch;
 before(() => { globalThis.fetch = async u => { throw new Error('Onverwachte externe aanroep: ' + u); }; });
@@ -55,6 +55,29 @@ test('standaard uit: zonder GROUPS_ENABLED bestaat Mijn vrienden niet en blijft 
   }
   assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM members').get().n, 0);
   assert.equal((await (await call(env0(), '/v1/health')).json()).groups, true);
+});
+
+test('jonger dan 16 standaard dicht (MINORS_OPEN): geen kinderprofiel, geen toestemming geven; intrekken blijft mogelijk', async () => {
+  // Productie: MINORS_OPEN staat niet aan zolang juridische toets en DPIA ontbreken (VRIENDEN.md §4).
+  const env = env0({ MINORS_OPEN: undefined });
+  const owner = await founder(env);
+  const g = await makeGroup(env, owner);
+  const inv = await invite(env, owner, g.id);
+  const r = await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Kind', inviteToken: inv.token, age: 'minor' }, newIp: true });
+  assert.equal(r.status, 403);
+  assert.match((await r.json()).error, /16 jaar en ouder/);
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) n FROM members WHERE age_group = 'minor'").get().n, 0, 'er wordt niets van het kind bewaard');
+  await viaInvite(env, inv.token, 'Moeder');   // 16+ werkt gewoon
+  // Een kind uit de tijd dat het open stond: nieuwe toestemming kan niet meer, een gegeven toestemming intrekken wel.
+  const open = { ...env, MINORS_OPEN: 'true' };
+  const kid = await ok(await call(open, '/v1/register', { method: 'POST', body: { nickname: 'Noor', inviteToken: inv.token, age: 'minor' }, newIp: true }), 201);
+  const req = await ok(await call(open, '/v1/consent/request', { method: 'POST', token: kid.token, body: { inviteToken: inv.token, share: SHARE_ALL } }), 201);
+  assert.equal((await call(env, '/v1/consent/request', { method: 'POST', token: kid.token, body: { inviteToken: inv.token, share: SHARE_ALL } })).status, 403);
+  assert.equal((await call(env, '/v1/consent/confirm', { method: 'POST', body: { token: req.token, parent: true } })).status, 403);
+  const req2 = await ok(await call(open, '/v1/consent/request', { method: 'POST', token: kid.token, body: { inviteToken: inv.token, share: SHARE_ALL } }), 201);
+  await ok(await call(open, '/v1/consent/confirm', { method: 'POST', body: { token: req2.token, parent: true } }));
+  const w = await ok(await call(env, '/v1/consent/withdraw', { method: 'POST', body: { token: req2.token } }));
+  assert.equal(w.withdrawn, true);
 });
 
 test('oprichterscode: alleen met het juiste geheim, precies één keer, nooit een openbaar profiel', async () => {
