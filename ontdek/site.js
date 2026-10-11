@@ -31,7 +31,8 @@
       cancelAnimationFrame(frame);
       const start = performance.now();
       const step = now => {
-        const t = Math.min(1, (now - start) / ms), eased = 1 - Math.pow(1 - t, 3);
+        // De tijdstempel van het eerste frame kan vóór 'start' liggen: begrenzen, anders even -1 of terugtellen.
+        const t = Math.min(1, Math.max(0, (now - start) / ms)), eased = 1 - Math.pow(1 - t, 3);
         total.textContent = Math.round(from + (to - from) * eased);
         if (t < 1) frame = requestAnimationFrame(step);
       };
@@ -42,7 +43,8 @@
       total.textContent = '85'; avg.textContent = '57,30'; bar.style.width = '67%';
     };
     const play = () => {
-      timers.forEach(clearTimeout); timers = [];
+      // Ook een nog lopende tel-animatie stoppen, anders telt de vorige beurt even door (tikken tijdens het afspelen).
+      timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(frame);
       if (reduce.matches) return finalState();
       phone.classList.remove('done');
       darts.forEach(d => d.classList.remove('hit', 'pop'));
@@ -67,7 +69,7 @@
     } else play();
     phone.addEventListener('click', play);
     phone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); play(); } });
-    reduce.addEventListener?.('change', () => { if (reduce.matches) { timers.forEach(clearTimeout); finalState(); } });
+    reduce.addEventListener?.('change', () => { if (reduce.matches) { timers.forEach(clearTimeout); cancelAnimationFrame(frame); finalState(); } });
   }
 
   // ---- Contact: e-mailadres kopiëren, met bevestiging ----
