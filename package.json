@@ -1,6 +1,6 @@
 {
   "name": "okkie",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "private": true,
   "description": "OKKIE — persoonlijke darttrainer (PWA) met scoretraining, 301/501 en statistieken",
   "type": "module",

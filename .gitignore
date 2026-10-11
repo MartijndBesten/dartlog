@@ -8,3 +8,4 @@ cloud/dist/
 dist/
 .wrangler/
 .site-dryrun/
+dist-app/
