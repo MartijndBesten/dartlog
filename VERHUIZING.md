@@ -64,13 +64,14 @@ onbereikbaar). De nieuwe app komt daarom in een **aparte** repository.
 
 ## Stappen
 
-Stand 11 oktober 2026, ochtend: **stap 1–4 zijn klaar.** https://app.okkiedarts.nl/ draait 1.3.4 in testfase
-(repo `okkie-app`, Pages main/root, certificaat Let's Encrypt t/m 9 januari 2027, Enforce HTTPS aan; alle 45
-bestanden byte-gelijk aan de build). DNS: CNAME `app` bij STRATO, DNSSEC actief en geldig (DS 32639 bij .nl).
-Let op: STRATO beantwoordt een vraag naar type CNAME leeg, maar geeft bij een A-vraag het CNAME plus de GitHub-IP's;
-dat is voor browsers en GitHub voldoende. Het oude adres draait ongewijzigd 1.3.3 (zonder overdrachtscode).
-Livecheck op beide adressen groen; live overdracht oud → back-up → nieuw: "Overgezet en gecontroleerd", twee keer
-niets dubbel, oud onveranderd. **Volgende stap: 5 (echte iPhone).**
+Stand 11 oktober 2026, 07:20 UTC: **stap 1–4 en 6 zijn klaar.** Beide adressen draaien 1.3.4 uit dezelfde commit
+(`main` 9a601c0): het oude adres met `PROD.open = false` (overzetcode onder Meer, geen verhuismelding, geen
+doorverwijzing), https://app.okkiedarts.nl/ in testfase (repo `okkie-app`, certificaat Let's Encrypt t/m 9 januari
+2027, Enforce HTTPS aan). Live gecontroleerd: echte update van een bestaand 1.3.3-profiel (gegevens ongewijzigd),
+overzetcode oud → nieuw twee keer "Overgezet en gecontroleerd", niets dubbel, oud onveranderd.
+DNS: CNAME `app` bij STRATO, DNSSEC actief en geldig (DS 32639 bij .nl). STRATO beantwoordt een vraag naar type
+CNAME leeg, maar geeft bij een A-vraag het CNAME plus de GitHub-IP's; dat is voor browsers en GitHub voldoende.
+Stap 5 (echte iPhone) is door Martijn bewust na stap 6 gezet; **stap 7 pas na de iPhone-test.**
 
 1. **[Martijn]** Maak op github.com een **lege, openbare** repository `MartijndBesten/okkie-app` (zonder README).
    Claude kan dat niet zelf: de GitHub-koppeling geeft `403 Resource not accessible by integration` bij het aanmaken.
@@ -99,8 +100,10 @@ niets dubbel, oud onveranderd. **Volgende stap: 5 (echte iPhone).**
 6. **[Claude, na jouw akkoord]** 1.3.4 op `dartlog/main` (oude adres), **nog met `PROD.open = false`**: alleen de
    algemene overzetcode komt erbij onder Meer. Beide adressen draaien dan precies dezelfde versie. Daarna
    `okkie-app` opnieuw bouwen **zonder** testfase. Op de iPhone met je echte gegevens: oude app → Overzetcode →
-   nieuwe app.
-7. **[Claude, na jouw akkoord]** `PROD.open = true`: het oude adres toont "OKKIE. verhuist" (geen doorverwijzing).
+   nieuwe app. *(Gedaan op 11 oktober; `okkie-app` bewust nog in testfase, zie stap 7.)*
+7. **[Claude, na jouw akkoord]** Versie 1.3.5 met de serviceworkerfix (nieuwe versie haalt bestanden rechtstreeks
+   van de server, niet uit de browsercache van 10 minuten; test `tests/e2e/update-cache.spec.js`), `okkie-app`
+   opnieuw bouwen **zonder** testfase (vindbaar), en `PROD.open = true`: het oude adres toont "OKKIE. verhuist" (geen doorverwijzing).
    Website-knoppen en "Nodig een vriend uit" naar app.okkiedarts.nl. Vanaf hier altijd beide adressen tegelijk
    publiceren uit dezelfde commit; controle: beide `sw.js` noemen dezelfde `okkie-v…`.
 8. Het oude adres blijft bestaan als overdrachtspunt. Nooit automatisch doorverwijzen.
