@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.6.1 — Na de test op een echte iPhone
+
+- **Darters-ranglijst:** het label “jij” is weg (het stond bij elk profiel dat op dit toestel gekoppeld is, ook bij
+  andere spelers). De lijst is rustiger: duidelijke naam, gemiddelde groot rechts, overige cijfers leesbaar (geen
+  piepkleine tekst); beste 30/60/99 alleen als ze er zijn. Alles staat ook in het profiel (tik op de naam).
+- **Twee keer in de lijst:** bij delen aanzetten met een naam die al in Darters staat, vraagt OKKIE. eerst of dat je
+  eigen profiel van een andere telefoon of uit Safari is (dan terugzetten in plaats van een tweede maken). Onder
+  “Al gedeeld op een andere telefoon, of twee keer in de lijst?” staat hoe je een dubbel profiel opruimt. Niets wordt
+  automatisch samengevoegd of verwijderd.
+- **iPhone, bovenkant:** na een paginawissel in de geïnstalleerde app (bijv. naar Darters) gaf iOS soms 0 als veilige
+  ruimte; de kop schoof dan onder de klok. Nu een vaste minimale ruimte in de geïnstalleerde app, en een effen balk
+  achter de statusbalk zodat scrollende inhoud niet meer door de klok heen schijnt (app, Darters, uitleg).
+- **Gesproken aanmoedigingen:** de 180-call onderbreekt alleen nog als er echt iets klinkt (Safari slikte anders soms
+  de volgende zin in); tip over de stil-schakelaar van de iPhone bij de instelling.
+
 ## 1.6.0 — Regels, hulp en rustiger op elke iPhone
 
 - **Schermindeling iPhone hersteld.** In de geïnstalleerde app vielen het logo en de navigatie van Darters en de uitleg
