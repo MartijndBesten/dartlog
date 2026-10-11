@@ -216,15 +216,18 @@ test('productie-instelling: jonger dan 16 zichtbaar maar dicht, 16+ kan zich aan
   await P.context.close();
 });
 
-test('zonder testinstelling (zoals nu live): "binnenkort", app ongewijzigd, link vanuit de app', async ({ page }, info) => {
+test('zoals nu live (1.5.0): Home linkt naar Darters; een oude Mijn vrienden-link verwijst naar Darters', async ({ page }, info) => {
   test.skip(info.project.name !== 'iphone', 'één keer is genoeg');
   await page.goto('/');
   await page.fill('#wname', 'Sem');
   await page.click("text=Let's play darts");
-  await expect(page.getByRole('link', { name: 'Open Mijn vrienden' })).toBeVisible();
-  await page.getByRole('link', { name: 'Open Mijn vrienden' }).click();
-  await expect(page.locator('#vr')).toContainText('Binnenkort beschikbaar');
-  await page.getByRole('link', { name: 'Verder trainen' }).click();
+  await expect(page.getByRole('link', { name: 'Open Mijn vrienden' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Open Darters' })).toBeVisible();
+  await page.goto('/vrienden/');
+  await expect(page.locator('#vr')).toContainText('Mijn vrienden heet nu Darters');
+  await page.getByRole('link', { name: 'Naar Darters' }).click();
+  await expect(page).toHaveTitle(/Darters/);
+  await page.goto('/');
   await expect(page.locator('.hero h2')).toHaveText('Sem');
 });
 

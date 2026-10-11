@@ -42,8 +42,11 @@ test('serviceworker: elk vooraf bewaard bestand bestaat, gebruikersgegevens blij
 test('openbare registratie staat dicht in de app en in de Worker-configuratie', async () => {
   const config = await import(new URL('../../community/config.js', import.meta.url));
   assert.equal(config.REGISTRATION_OPEN, false);
-  // 1.4.0: Mijn vrienden aan voor 16+; jonger dan 16 dicht in app én Worker (MINORS_OPEN nergens "true").
-  assert.equal(config.GROUPS_OPEN, true);
+  // 1.5.0: Darters aan, Mijn vrienden uit (gegevens blijven); groepsroutes voor jonger dan 16 blijven dicht.
+  assert.equal(config.GROUPS_OPEN, false);
+  assert.equal(config.DARTERS_OPEN, true);
+  assert.equal((read('cloud/wrangler.toml').match(/^DARTERS_ENABLED = "true"\r?$/gm) || []).length, 2);
+  assert.equal((read('cloud/wrangler.toml').match(/^GROUPS_ENABLED = "false"\r?$/gm) || []).length, 2);
   assert.equal(config.MINORS_OPEN, false);
   assert.match(config.API_BASE, /^https:\/\/okkie-api\.[a-z0-9-]+\.workers\.dev$/);
   assert.doesNotMatch(read('cloud/wrangler.toml'), /^MINORS_OPEN = "true"/m);
@@ -95,7 +98,7 @@ test('juridisch: elke pagina toont maker, privacy en contact; geen privételefoo
   // Bewuste keuze van de eigenaar: geen openbaar (woon)adres op de site.
   for (const page of PAGES) assert.ok(!readFileSync(join(root, 'dist', page), 'utf8').includes('<dt>Adres</dt>'), `${page}: geen adres`);
   const privacy = readFileSync(join(root, 'dist/privacy/index.html'), 'utf8');
-  for (const topic of ['Wie is verantwoordelijk', 'Hosting', 'Cloudflare', 'GitHub', 'Kinderen', 'Jouw rechten', 'Autoriteit Persoonsgegevens', 'registratie staat uit']) {
+  for (const topic of ['Wie is verantwoordelijk', 'Hosting', 'Cloudflare', 'GitHub', 'Kinderen', 'Jouw rechten', 'Autoriteit Persoonsgegevens', 'Darters', 'Uitzetten en wissen', 'ouder of verzorger']) {
     assert.ok(privacy.includes(topic), `privacyverklaring noemt: ${topic}`);
   }
 });

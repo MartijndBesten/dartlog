@@ -7,6 +7,7 @@
 //   Zo blijft je eigen telefoon de enige plek waar jouw cijfers samenkomen (geen dubbele tellingen).
 // Staat aan/uit met Mijn vrienden (GROUPS_ENABLED).
 import { groupsOpen, minorMayStore } from './groups.js';
+import { dartersOpen, publicConsentOk } from './darters.js';
 
 export const GUEST_LIMITS = { passDays: 7, openPasses: 5, inboxDays: 60, maxTrainingAgeDays: 60 };
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // zonder 0/O, 1/I/L
@@ -36,15 +37,15 @@ export function trainingOkay(t) {
 export async function handleGuest(request, env, path, h, cors, member) {
   const own = path === '/v1/me/guest-pass' || path.startsWith('/v1/me/inbox');
   if (!own && !path.startsWith('/v1/guest/')) return null;
-  if (!groupsOpen(env)) return h.fail('Spelen op een andere telefoon is nog niet beschikbaar.', 404, cors);
+  if (!groupsOpen(env) && !dartersOpen(env)) return h.fail('Spelen op een andere telefoon is nog niet beschikbaar.', 404, cors);
   const method = request.method;
 
   if (own) {
     if (!member) return h.fail('Niet ingelogd; herstel je profiel met de herstelcode.', 401, cors);
     // Koppelcode maken. Alleen wie online statistieken mag hebben (jonger dan 16: met toestemming voor een groep).
     if (path === '/v1/me/guest-pass' && method === 'POST') {
-      const allowed = member.ageGroup === 'adult' || member.consentMethod === 'dienst' || await minorMayStore(env, member.id);
-      if (!allowed) return h.json({ needsParent: true, error: 'Dit kan pas als je ouder toestemming heeft gegeven voor een vriendengroep.' }, 403, cors);
+      const allowed = member.ageGroup === 'adult' || member.consentMethod === 'dienst' || await publicConsentOk(env, member.id) || await minorMayStore(env, member.id);
+      if (!allowed) return h.json({ needsParent: true, error: 'Dit kan pas als je ouder of verzorger toestemming heeft gegeven.' }, 403, cors);
       const open = (await env.DB.prepare("SELECT COUNT(*) AS n FROM guest_passes WHERE member_id = ? AND used_at IS NULL AND expires_at > datetime('now')").bind(member.id).first()).n;
       if (open >= GUEST_LIMITS.openPasses) return h.fail('Je hebt al een paar ongebruikte codes. Gebruik die eerst, of wacht tot ze verlopen.', 409, cors);
       const code = newCode();

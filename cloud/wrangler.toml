@@ -25,8 +25,9 @@ crons = ["30 3 * * *"]
 ALLOWED_ORIGINS = "https://app.okkiedarts.nl,https://martijndbesten.github.io,https://okkiedarts.nl,https://www.okkiedarts.nl,http://localhost:4173,http://127.0.0.1:4173"
 # Openbare registratie dicht tot privacyverklaring + ouderlijke toestemming (<16) geregeld zijn. Alleen "true" opent.
 REGISTRATION_ENABLED = "false"
-# Mijn vrienden (besloten groepen): alleen "true" opent. Staging gelijk aan productie, voor de rooktest vooraf.
-GROUPS_ENABLED = "true"
+# Mijn vrienden (besloten groepen) uit sinds 1.5.0; gegevens blijven bewaard. Darters (openbaar, één schakelaar) aan.
+GROUPS_ENABLED = "false"
+DARTERS_ENABLED = "true"
 EMPTY_ACCOUNT_DAYS = "30"
 INACTIVE_DAYS = "730"
 
@@ -61,8 +62,10 @@ ALLOWED_ORIGINS = "https://app.okkiedarts.nl,https://martijndbesten.github.io,ht
 ADMIN_HOST = "beheer.okkiedarts.nl"
 # Openbare registratie dicht tot privacyverklaring + ouderlijke toestemming (<16) geregeld zijn. Alleen "true" opent.
 REGISTRATION_ENABLED = "false"
-# Mijn vrienden (besloten groepen) aan sinds 1.4.0, voor 16+. Account alleen via uitnodiging of oprichterscode.
-GROUPS_ENABLED = "true"
+# Mijn vrienden (besloten groepen) uit sinds 1.5.0; besloten gegevens blijven bewaard en worden nooit automatisch openbaar.
+GROUPS_ENABLED = "false"
+# Darters: openbaar overzicht, één schakelaar per speler; jonger dan 16 pas na "ja" van een ouder (src/darters.js).
+DARTERS_ENABLED = "true"
 EMPTY_ACCOUNT_DAYS = "30"
 INACTIVE_DAYS = "730"
 

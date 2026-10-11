@@ -2,6 +2,7 @@ import { adminHtml } from './admin-page.js';
 import { isAdminRequest, adminEmail, adminHostMatches } from './admin-auth.js';
 import { handleGuest } from './guest.js';
 import { handleGroups, groupsOpen, minorsOpen, MINORS_CLOSED, inviteValid, releaseMemberships, minorMayStore, weekKey, LIMITS } from './groups.js';
+import { handleDarters, dartersOpen, publicConsentOk } from './darters.js';
 
 // Cloudflare Worker + D1 API voor OKKIE. Community.
 // De database bewaart uitsluitend een nickname, account-credentials (gehasht) en geaggregeerde statistieken.
@@ -135,7 +136,7 @@ async function audit(env, actor, action, target) {
 }
 
 // Hulpfuncties voor groups.js (geen dubbele implementatie van auth, hashing of rate limiting).
-const H = { json, fail, bodyJson, auth, limited, clientIp, hash, randomKey };
+const H = { json, fail, bodyJson, auth, limited, clientIp, hash, randomKey, cleanNickname };
 
 export default {
   async fetch(request, env) {
@@ -145,7 +146,7 @@ export default {
     if (request.method === 'OPTIONS') {
       return originAllowed(request, env) ? new Response(null, { status: 204, headers: { ...SECURITY_HEADERS, ...cors } }) : fail('Niet toegestaan.', 403);
     }
-    if (path === '/v1/health' && request.method === 'GET') return json({ ok: true, version: 1, registration: registrationOpen(env), groups: groupsOpen(env) }, 200, cors);
+    if (path === '/v1/health' && request.method === 'GET') return json({ ok: true, version: 1, registration: registrationOpen(env), groups: groupsOpen(env), darters: dartersOpen(env) }, 200, cors);
     if (!env.DB) return fail('Database niet geconfigureerd.', 503, cors);
     if (request.method !== 'GET' && !originAllowed(request, env)) return fail('Onbekende herkomst.', 403, cors);
     try {
@@ -245,23 +246,24 @@ export default {
         const key = currentPeriod(kind);
         const rows = await env.DB.prepare(
           'SELECT m.id, m.handle, m.nickname, s.darts, s.points, s.sessions, s.highest_turn AS highestTurn, ' +
-          's.best30, s.challenge30, s.hits100, s.hits140, s.hits180 FROM stats s JOIN members m ON m.id = s.member_id ' +
-          'WHERE m.visible = 1 AND s.period = ? AND s.darts >= 30 ORDER BY ' +
-          (kind === 'week' ? '(CASE WHEN s.challenge30 IS NULL THEN -1 ELSE s.challenge30 END) DESC, s.sessions DESC, m.handle ASC' :
-            '(s.points * 1.0 / s.darts) DESC, s.sessions DESC, m.handle ASC') + ' LIMIT 100'
+          's.best30, s.best60, s.best99, s.challenge30, s.hits100, s.hits140, s.hits180 FROM stats s JOIN members m ON m.id = s.member_id ' +
+          // Darters: voor elke periode gerangschikt op gemiddelde per 3 pijlen (minimaal 30 pijlen).
+          'WHERE m.visible = 1 AND s.period = ? AND s.darts >= 30 ORDER BY (s.points * 1.0 / s.darts) DESC, s.sessions DESC, m.handle ASC LIMIT 200'
         ).bind(key).all();
         // Publieke, niet-persoonlijke data: 30 s aan de rand cachen scheelt databaseverkeer bij drukte.
-        return json({ period: key, ranking: rows.results || [], scoring: kind === 'week' ? 'eerste 30 pijlen van de week' : 'gewogen gemiddelde per 3 pijlen' }, 200, cors, 'public, max-age=30');
+        return json({ period: key, ranking: (rows.results || []).map(({ id, ...r }) => r), scoring: 'gemiddelde per 3 pijlen' }, 200, cors, 'public, max-age=30');
       }
       if (path.startsWith('/v1/players/') && request.method === 'GET') {
         const handle = path.split('/')[3];
         if (!HANDLE.test(handle || '')) return fail('Profiel niet gevonden.', 404, cors);
         const member = await env.DB.prepare('SELECT id, handle, nickname FROM members WHERE handle = ? AND visible = 1').bind(handle).first();
         if (!member) return fail('Profiel niet gevonden of afgeschermd.', 404, cors);
-        const all = await env.DB.prepare('SELECT darts, points, sessions, highest_turn AS highestTurn, best30, hits100, hits140, hits180 FROM stats WHERE member_id = ? AND period = ?').bind(member.id, 'all').first();
+        const all = await env.DB.prepare('SELECT darts, points, sessions, highest_turn AS highestTurn, best30, best60, best99, hits100, hits140, hits180 FROM stats WHERE member_id = ? AND period = ?').bind(member.id, 'all').first();
         const trend = await env.DB.prepare("SELECT period, darts, points, sessions, challenge30 FROM stats WHERE member_id = ? AND period LIKE 'week:%' ORDER BY period DESC LIMIT 12").bind(member.id).all();
         return json({ player: publicMember(member), totals: all || null, trend: trend.results || [] }, 200, cors, 'public, max-age=30');
       }
+      const darters = await handleDarters(request, env, path, H, cors);
+      if (darters) return darters;
       if (path.startsWith('/v1/me')) {
         const member = await auth(request, env);
         if (!member) return fail('Niet ingelogd; herstel je profiel met de herstelcode.', 401, cors);
@@ -272,6 +274,9 @@ export default {
           const nickname = body.nickname === undefined ? member.nickname : cleanNickname(body.nickname);
           if (!nickname || (body.enabled !== undefined && typeof body.enabled !== 'boolean')) return fail('Ongeldige instellingen.', 400, cors);
           const enabled = body.enabled === undefined ? member.visible : (body.enabled ? 1 : 0);
+          // Jonger dan 16: openbaar pas na toestemming van een ouder/verzorger (darters.js).
+          if (enabled && !member.visible && member.ageGroup === 'minor' && member.consentMethod !== 'dienst' && !await publicConsentOk(env, member.id))
+            return json({ needsParent: true, error: 'Openbaar delen kan pas als je ouder of verzorger toestemming heeft gegeven.' }, 403, cors);
           await env.DB.prepare("UPDATE members SET nickname = ?, visible = ?, updated_at = datetime('now') WHERE id = ?")
             .bind(nickname,enabled,member.id).run();
           return json({ account: { ...publicMember(member), nickname }, enabled: !!enabled }, 200, cors);
@@ -300,7 +305,7 @@ export default {
           if (new Set(periods).size !== periods.length) return fail('Dubbele perioden.', 400, cors);
           // Dataminimalisatie: jonger dan 16 zonder groep mét gegeven ouderlijke toestemming → geen statistieken bewaren
           // (en eerder bewaarde wissen). Een besloten profiel bewaart alleen het totaal en de laatste weken die de groep toont.
-          if (member.ageGroup === 'minor' && member.consentMethod !== 'dienst' && !await minorMayStore(env, member.id)) {
+          if (member.ageGroup === 'minor' && member.consentMethod !== 'dienst' && !await publicConsentOk(env, member.id) && !await minorMayStore(env, member.id)) {
             await env.DB.prepare('DELETE FROM stats WHERE member_id = ?').bind(member.id).run();
             return json({ saved: 0, waitingForParent: true }, 200, cors);
           }

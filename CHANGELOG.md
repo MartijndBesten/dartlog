@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.5.0 — Darters
+
+- **Darters** vervangt Mijn vrienden: één overzicht van alle darters die hun cijfers delen (naam, gemiddelde per 3 pijlen,
+  trainingen, hoogste beurt, beste 30/60/99; alle tijden, maand, week). Iedereen kan kijken, ook zonder zelf te delen.
+- Per speler één schakelaar **Mijn statistieken delen met andere darters**, standaard uit. Aanzetten: naam bevestigen en
+  leeftijdsgroep kiezen, geen formulieren of codes. Cijfers worden na elke training vanzelf bijgewerkt, ook als je offline
+  trainde. Uitzetten: meteen uit het overzicht en online gewist; lokale trainingen blijven.
+- Jonger dan 16: pas zichtbaar (en pas cijfers online) na een ja van een ouder of verzorger via een link, zonder
+  ouderaccount; via dezelfde link intrekken wist alles online.
+- Groepen, uitnodigingen en oprichterscodes zijn uit de app. Bestaande besloten groepsgegevens blijven bewaard en worden
+  nooit automatisch openbaar. Profiel terugzetten op een andere telefoon en de koppelcode blijven werken.
+
 ## 1.4.1
 
 - Mijn vrienden: gedeelde cijfers die nog niet verstuurd waren (app direct gesloten, of offline getraind) gaan bij de
