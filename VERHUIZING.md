@@ -64,23 +64,40 @@ onbereikbaar). De nieuwe app komt daarom in een **aparte** repository.
 
 ## Stappen
 
-1. **[Martijn]** Maak op GitHub een lege, openbare repository `MartijndBesten/okkie-app` en geef Claude er toegang toe.
-2. **[Martijn]** STRATO DNS-beheer voor okkiedarts.nl: voeg een **CNAME**-record toe: naam `app`, waarde
-   `martijndbesten.github.io.` Raak nameservers en DNSSEC niet aan.
-3. **[Claude]** `node tools/build-app-site.mjs` en de inhoud van `dist-app/` (met `CNAME`) naar `okkie-app` pushen.
-4. **[Martijn of Claude]** In `okkie-app` → Settings → Pages: bron `main` / root, Custom domain `app.okkiedarts.nl`,
-   wachten op het certificaat, dan **Enforce HTTPS** aanzetten. Controle: `node tools/live-check.mjs https://app.okkiedarts.nl/`.
-5. **[Martijn, echte toestellen]** Met `PROD.open` tijdelijk alleen lokaal aan (of met een testkopie):
-   - iPhone, oude app op het beginscherm → Overzetcode → nieuwe app op het beginscherm zetten → daar plakken → verslag "Overgezet en gecontroleerd".
-   - iPhone in Safari (niet geïnstalleerd) → automatisch overzetten.
-   - Android Chrome → automatisch overzetten; daarna installeren via de prompt.
-   - Een lopende training overzetten en in de nieuwe app afmaken; nog eens overzetten: niets dubbel.
-   - Controleer per speler het aantal trainingen en het gemiddelde in beide apps.
-6. **[Claude, na jouw akkoord]** `PROD.open = true`, versie ophogen, publiceren op `dartlog/main`. Het oude adres toont
-   dan de kaart "OKKIE. verhuist" (geen doorverwijzing). Website: `APP` in `tools/build-public-site.mjs` en de
-   uitnodigingslinks naar `https://app.okkiedarts.nl/` zetten en de site opnieuw publiceren.
-7. Het oude adres blijft bestaan als overdrachtspunt. Pas na lange tijd en alleen met een expliciet besluit iets
-   wijzigen; nooit automatisch doorverwijzen.
+Stand 11 oktober 2026: oude adres draait 1.3.3 (zonder overdrachtscode), deze branch is 1.3.4.
+
+1. **[Martijn]** Maak op github.com een **lege, openbare** repository `MartijndBesten/okkie-app` (zonder README).
+   Claude kan dat niet zelf: de GitHub-koppeling geeft `403 Resource not accessible by integration` bij het aanmaken.
+   Staat de Claude GitHub-app op "Only select repositories", voeg `okkie-app` daar toe
+   (github.com → Settings → Applications → Claude → Configure).
+2. **[Martijn]** STRATO → okkiedarts.nl → DNS → CNAME-record: naam `app`, waarde `martijndbesten.github.io.`
+   Niets aan nameservers of DNSSEC veranderen. (De Cloudflare-zone voor okkiedarts.nl staat op "initializing":
+   de nameservers zijn nooit omgezet, dus STRATO bepaalt de DNS. Wordt die wissel ooit afgerond, dan moeten
+   álle records eerst in Cloudflare staan, ook `app`; anders gaat de site uit de lucht. Claude kan die zone niet
+   lezen: de Cloudflare-koppeling heeft geen DNS-rechten.)
+3. **[Claude]** `OKKIE_APP_STAGE=test node tools/build-app-site.mjs` en `dist-app/` naar `okkie-app` pushen.
+   Testfase: `noindex` en `robots.txt` dicht; verder byte-gelijk aan deze branch.
+4. **[Martijn]** `okkie-app` → Settings → Pages: Source *Deploy from a branch*, `main` / root. Custom domain
+   `app.okkiedarts.nl` (staat ook in het CNAME-bestand). Na het certificaat: **Enforce HTTPS**.
+   Controle door Claude: `node tools/live-check.mjs https://app.okkiedarts.nl/`.
+5. **[Martijn, echte iPhone]** Testen zonder het oude adres te veranderen:
+   - Oude app (1.3.3) → Meer → **Back-up downloaden** of **Bewaar via Delen** → in Safari op app.okkiedarts.nl
+     → Meer → Back-up terugzetten → Samenvoegen. Verslag moet "Overgezet en gecontroleerd" tonen; vergelijk per
+     speler aantal trainingen en gemiddelde met de oude app.
+   - app.okkiedarts.nl op het beginscherm zetten (Delen → Zet op beginscherm), openen vanaf het beginscherm:
+     is hij leeg of niet? (Dit bepaalt of iPhone hier aparte opslag gebruikt.)
+   - In Safari: Meer → **Overzetcode maken** → Kopieer → in de app op het beginscherm: Trainingen ophalen → Plakken
+     → Controleren → Overzetten. Daarna nog een keer: niets dubbel.
+   - Een training starten, halverwege overzetten, in de beginscherm-app afmaken.
+   - Installatieadvies bij een nieuwe speler (Eerst proberen / Installeren).
+6. **[Claude, na jouw akkoord]** 1.3.4 op `dartlog/main` (oude adres), **nog met `PROD.open = false`**: alleen de
+   algemene overzetcode komt erbij onder Meer. Beide adressen draaien dan precies dezelfde versie. Daarna
+   `okkie-app` opnieuw bouwen **zonder** testfase. Op de iPhone met je echte gegevens: oude app → Overzetcode →
+   nieuwe app.
+7. **[Claude, na jouw akkoord]** `PROD.open = true`: het oude adres toont "OKKIE. verhuist" (geen doorverwijzing).
+   Website-knoppen en "Nodig een vriend uit" naar app.okkiedarts.nl. Vanaf hier altijd beide adressen tegelijk
+   publiceren uit dezelfde commit; controle: beide `sw.js` noemen dezelfde `okkie-v…`.
+8. Het oude adres blijft bestaan als overdrachtspunt. Nooit automatisch doorverwijzen.
 
 Terugdraaien: `PROD.open = false` en opnieuw publiceren. Het oude adres werkt gewoon door; wat al is overgezet blijft
 in de nieuwe app staan.
