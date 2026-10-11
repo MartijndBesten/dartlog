@@ -52,3 +52,26 @@ test('account gekoppeld per lokale speler en verwijderbaar zonder trainingen te 
   assert.equal(getAccount('a',storage),null);
   assert.equal(getAccount('b',storage).token,'other');
 });
+
+test('gedeelde cijfers: wat nog niet verstuurd is (app dicht, offline) gaat bij de volgende start alsnog mee', async () => {
+  const { queueCommunitySync, resumePendingSync, getAccount, upsertAccount } = await import('../../js/community-sync.js');
+  const m = new Map(); const st = { getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) };
+  const data = { players: [{ id: 'p1', name: 'Senn' }], trainings: [] };
+  upsertAccount('p1', { id: 'x', handle: 'abcdefabcdef', token: 't'.repeat(64), enabled: true }, st);
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (url, init) => { calls.push(init.method); throw new TypeError('offline'); };
+    queueCommunitySync(data, ['p1'], {}, st);
+    await new Promise(r => setTimeout(r, 10));
+    assert.ok(getAccount('p1', st).pendingAt, 'blijft gemarkeerd als het versturen mislukt');
+    assert.deepEqual(resumePendingSync({ players: [] }, st), [], 'alleen voor spelers op deze telefoon');
+    globalThis.fetch = async (url, init) => { calls.push(init.method); return new Response('{"saved":1}', { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+    assert.deepEqual(resumePendingSync(data, st), ['p1']);
+    await new Promise(r => setTimeout(r, 10));
+    assert.equal(getAccount('p1', st).pendingAt, undefined, 'na gelukt versturen niet meer gemarkeerd');
+    assert.ok(getAccount('p1', st).lastSync);
+    assert.deepEqual(resumePendingSync(data, st), [], 'niets meer te doen');
+    assert.deepEqual(calls, ['PUT', 'PUT']);
+  } finally { globalThis.fetch = realFetch; }
+});

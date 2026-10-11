@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.1
+
+- Mijn vrienden: gedeelde cijfers die nog niet verstuurd waren (app direct gesloten, of offline getraind) gaan bij de
+  volgende start of zodra er weer internet is alsnog mee. Gevonden bij de livetest van 1.4.0 met een andere telefoon.
+
 ## 1.4.0 — Mijn vrienden en de verhuizing naar app.okkiedarts.nl
 
 - **Mijn vrienden**: besloten vriendengroepen. Groep maken, vrienden uitnodigen met een persoonlijke link (delen via WhatsApp of het deelmenu), lid worden, meerdere groepen, verlaten, leden en uitnodigingen beheren.
