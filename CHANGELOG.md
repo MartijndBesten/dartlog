@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.6.0 — Regels, hulp en rustiger op elke iPhone
+
+- **Schermindeling iPhone hersteld.** In de geïnstalleerde app vielen het logo en de navigatie van Darters en de uitleg
+  onder de statusbalk. Het invoerveld voor de overzetcode (12px) liet de iPhone inzoomen en niet meer uitzoomen,
+  waardoor de kop half verdween en scrollen vreemd werd. Nu: safe areas op alle pagina's, invoervelden minimaal 16px,
+  vensters scrollen zonder de pagina erachter mee te trekken, en een herstel na het sluiten van het toetsenbord.
+- **Meer → Dartregels & afmetingen:** maattekening (bull 1,73 m, werplijn 2,37 m, diagonaal 2,934 m) en de regels van
+  501, dubbel uitgooien, bust, scores, legs en sets. Gecontroleerd met de WDF-regels en het DRA Rule Book 2026.
+- **Meer → Hulp & feedback:** probleem melden of idee insturen, met optioneel e-mailadres en schermafbeelding. Vooraf zie
+  je welke technische gegevens meegaan (versie, toestel, scherm, laatste foutmeldingen van die sessie). Komt binnen in een
+  besloten inbox; bescherming tegen spam (alleen vanaf de app, honeypot, limieten per minuut en per dag).
+- **Gesproken aanmoedigingen** (Instellingen, standaard uit): de stem van je telefoon bij een persoonlijk record, je eerste
+  100+/140+/180, een nieuwe hoogste beurt, een finish van 100+ of op de bull en een duidelijk betere training. Een 180
+  krijgt de Engelse dartscall. Nooit bij elke beurt, nooit dezelfde zin twee keer achter elkaar, geen namen.
+- **Persoonlijk doel** bij Trainen (vanaf 3 vergelijkbare trainingen): iets boven je recente niveau of je record; op de
+  uitslag zie je of je het haalde. Alleen vergeleken met jezelf.
+- **Deel je score:** nette scorekaart (zonder naam, gemaakt op je telefoon) en "Daag een vriend uit". Na een record of
+  gehaald doel is de knop iets duidelijker, hooguit eens per twee weken.
+- **Spelers beheren** (Meer → ✎): naam wijzigen, statistieken wissen met behoud van de speler, of de speler helemaal
+  verwijderen, inclusief het Darters-profiel en de gedeelde cijfers online. Andere spelers op het toestel blijven
+  ongemoeid; gezamenlijke wedstrijden blijven voor hen bewaard (zonder naam van de verwijderde speler).
+- **Delen uitzetten werkt op alle telefoons:** staat het profiel op een andere telefoon uit of daar teruggezet, dan toont
+  deze telefoon het ook als uit. Lokale trainingen blijven altijd staan.
+- Server: lege profielen worden pas 30 dagen na de laatste wijziging opgeruimd (niet 30 dagen na aanmaken), zodat
+  statistieken wissen niet ongemerkt het profiel kost.
+
 ## 1.5.1
 
 - Darters, scherm voor ouders/verzorgers: knop en vinkje in de OKKIE.-stijl (waren standaardknoppen) en de

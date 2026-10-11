@@ -27,6 +27,13 @@ export function linkGuest(playerId, code, nickname, storage = localStorage) {
   d.links[playerId] = { code: normalizeCode(code), nickname, usedFor: null, linkedAt: new Date().toISOString() };
   saveGuest(d, storage);
 }
+// Speler verwijderd op deze telefoon: koppeling weg. Trainingen in de wachtrij horen bij de vriend zelf en blijven.
+export function unlinkGuest(playerId, storage = localStorage) {
+  const d = readGuest(storage);
+  if (!d.links[playerId]) return;
+  delete d.links[playerId];
+  saveGuest(d, storage);
+}
 // Bij de start van een training: elke gekoppelde speler met een ongebruikte code hoort bij déze training.
 export function claimGuests(training, storage = localStorage) {
   const d = readGuest(storage);

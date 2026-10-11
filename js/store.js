@@ -21,7 +21,7 @@ export function emptyData() {
     trainings: [],
     matches: [],
     active: { training: null, match: null },
-    settings: { theme: 'dark', sound: true, vibrate: true },
+    settings: { theme: 'dark', sound: true, vibrate: true, speech: false },
   };
 }
 

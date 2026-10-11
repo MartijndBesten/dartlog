@@ -16,6 +16,7 @@ const env = {
   DARTERS_ENABLED: 'true',
   MINORS_OPEN: 'true',   // alleen lokaal; in productie staat dit uit (VRIENDEN.md §4)
   GROUP_FOUNDER_CODE: TEST_FOUNDER_CODES.join(','),
+  FEEDBACK_KEY: 'okkie-lokale-test-inbox-sleutel-0000000000',   // alleen lokaal; productie: wrangler secret
 };
 
 createServer(async (req, res) => {

@@ -1,7 +1,7 @@
 // OKKIE — interface. Spelregels staan in logic.js, opslag in store.js.
 import * as L from './logic.js';
 import * as S from './store.js';
-import { queueCommunitySync, resumePendingSync, getAccount, apiAvailable } from './community-sync.js';
+import { queueCommunitySync, resumePendingSync, getAccount, apiAvailable, request, dropAccount } from './community-sync.js';
 import * as G from './guest-sync.js';
 import * as Backup from './backup-alert.js';
 import { boardSVG, heatLegend } from './board.js';
@@ -12,8 +12,15 @@ import { icon } from './icons.js';
 import * as T from './transfer.js';
 import * as I from './install.js';
 import { DARTCOUNTER_SET, dartCounterTrainings, hasDartCounterSet } from './imports.js';
+import { rulesPage } from './rules.js';
+import * as FB from './feedback.js';
+import * as SP from './speech.js';
+import * as M from './motivation.js';
+import * as SC from './share-card.js';
 
-export const APP_VERSION = '1.5.1';
+FB.captureErrors();
+
+export const APP_VERSION = '1.6.0';
 // "Nodig een vriend uit": altijd de website als link. Die blijft geldig, ook na de verhuizing van de app.
 export const INVITE_URL = 'https://okkiedarts.nl/';
 export const INVITE_TEXT = 'Ik train mijn darts met OKKIE. 🎯 Gratis, werkt gewoon op je telefoon en je ziet meteen of je beter wordt. Doe je mee?';
@@ -44,6 +51,7 @@ const ui = {
   setup: { kind: 'score', turns: 10, custom: 15 },
   match: { start: 501, bestOf: 3, doubleOut: true, players: [] },
   installEvent: null,
+  fb: { kind: 'probleem', message: '', contact: '', screenshot: null, busy: false, error: '', sent: null, startedAt: 0 },
 };
 
 // ---------- Hulpjes ----------
@@ -180,6 +188,38 @@ function turnCelebration(score) {
   else if (score >= 100) { celebrate(String(score), '100+!', 'ton'); beep('ton'); haptic(40); }
 }
 
+// ---------- Gesproken aanmoedigingen (speech.js): alleen als de speler ze aanzette, nooit bij elke beurt ----------
+const speechOn = () => !!data.settings.speech && SP.speechSupported();
+// Hoogste beurt uit opgeslagen trainingen/wedstrijden, één keer per sessie berekend.
+function savedHigh(playerId) {
+  ui.savedHigh ||= new Map();
+  if (!ui.savedHigh.has(playerId)) ui.savedHigh.set(playerId, M.highestTurn(data, playerId));
+  return ui.savedHigh.get(playerId);
+}
+function voiceTurn(playerId, score, prevInSession) {
+  if (!speechOn() || !playerId || score < 100) return;
+  const line = SP.turnLine(score, Math.max(savedHigh(playerId), prevInSession || 0));
+  if (!line) return;
+  if (line.call180) SP.call180();
+  if (line.text) SP.say(line.text);
+}
+const VOICE_KEY = 'okkie.voice.v1';
+function voiceTraining(r, t) {
+  if (!speechOn() || r.group) return;
+  const keys = ['avg30', 'avg60', 'avg99', 'clock', 'tons'].filter(k => r.recordKeys?.includes(k));
+  const records = keys.map(k => ({ label: RECORD_LABELS[k][0], spoken: k === 'clock' ? r.after[k] + ' pijlen' : k === 'tons' ? r.after[k] + ' keer honderd plus' : SP.spokenNumber(r.after[k]) + ' gemiddeld' }));
+  const tot = L.trainingTotals(t);
+  const goalReached = !!r.goal && tot.avg >= r.goal.target;
+  let improved = false, state = {};
+  try { state = JSON.parse(localStorage.getItem(VOICE_KEY) || '{}') || {}; } catch { /* leeg */ }
+  // Verbetering hooguit eens per 3 dagen noemen, zodat het iets bijzonders blijft.
+  if (t.kind === 'score' && !(state.improvedAt > Date.now() - 3 * 864e5)) {
+    improved = M.improvedClearly(tot.avg, M.comparable(data.trainings, t.playerId, t.limitTurns).filter(x => x.t.id !== t.id));
+  }
+  const line = SP.trainingLine({ records, improved, goalReached });
+  if (line && SP.say(line.text) && line.improvement) { try { localStorage.setItem(VOICE_KEY, JSON.stringify({ ...state, improvedAt: Date.now() })); } catch { /* geen opslag */ } }
+}
+
 // ---------- Modal ----------
 function modal(html, { onClose } = {}) {
   hideOverlays();
@@ -233,6 +273,7 @@ function render() {
 }
 
 function tabOf(view) {
+  if (view === 'regels' || view === 'hulp') return 'more';
   if (view.startsWith('train') || view === 'result-training') return 'train';
   if (view.startsWith('match') || view === 'result-match') return 'match';
   return view;
@@ -392,6 +433,7 @@ VIEWS.train = () => {
         ${opt(-1, s.turns === -1 ? String(s.custom * 3) : '…', 'eigen')}
       </div>
       <p class="choice-info">${info}</p>
+      ${goalLine(ps, s)}
       ${s.turns === -1 ? `<label class="inline">Aantal beurten <input type="number" min="1" max="200" inputmode="numeric" value="${s.custom}" data-input="custom-turns"></label>` : ''}
       <h3 class="who">Wie gooien er? <small>max. 4, om de beurt</small></h3>
       <ol class="match-players" data-testid="train-players">${ps.map((id, i) => `<li><span><i class="dot" style="background:${esc(player(id).color)}"></i> ${esc(player(id).name)}${G.guestLink(id)?.code ? ' <span class="linked" title="Gekoppeld: deze training gaat naar zijn eigen OKKIE.">🔗</span>' : ''}</span>
@@ -411,6 +453,15 @@ VIEWS.train = () => {
     </section>
   </main>`;
 };
+
+// Persoonlijk doel onder de keuze, alleen als je alleen traint en er genoeg vergelijkbare trainingen zijn.
+function goalLine(ps, s) {
+  if (ps.length !== 1) return '';
+  const g = M.goalFor(data.trainings, ps[0], s.turns === -1 ? s.custom : s.turns || null);
+  if (!g) return '';
+  return `<p class="goal-line" data-testid="goal"><span>Jouw doel: <b>${fmt(g.target, 1)}</b> gemiddeld${g.record ? ', je record verbeteren' : ''}</span>
+    <small>Laatste keren ${fmt(g.recent, 1)} · record ${fmt(g.best, 1)}</small></p>`;
+}
 
 // ----- Toetsenbord -----
 function keypad({ highlight = null } = {}) {
@@ -536,6 +587,7 @@ VIEWS['result-training'] = () => {
       ${r.newBadges.length ? badgeBanner(r.newBadges) : ''}
       <section class="tiles three">${tile('Trefkans', Math.round(st.hitRate * 100) + '%')}${tile('Pijlen', st.darts)}${tile('Beste ooit', r.bestClock ? r.bestClock + ' pijlen' : '–')}</section>
       <div class="row-actions"><button class="btn primary big" data-act="again">Nog een keer</button><button class="btn ghost big" data-go="home">Home</button></div>
+      ${shareButton(r)}
     </main>`;
   }
   if (r.group) {
@@ -564,7 +616,8 @@ VIEWS['result-training'] = () => {
   const limitDarts = (t.limitTurns || 0) * 3;
   return `${header('Uitslag', 'home')}<main class="page">
     <section class="result-hero"><small>${esc(trainingTitle(t))}${limitDarts && tot.darts < limitDarts ? ' · onvolledig' : ''}</small><strong data-testid="result-avg">${fmt(tot.avg, 2)}</strong><span>gemiddelde per 3 pijlen</span>
-      ${compareLine(tot.avg, r.prevAvg)}</section>
+      ${compareLine(tot.avg, r.prevAvg)}
+      ${r.goal && !(limitDarts && tot.darts < limitDarts) ? `<em class="cmp ${tot.avg >= r.goal.target ? 'up' : ''}" data-testid="goal-result">${tot.avg >= r.goal.target ? `Doel ${fmt(r.goal.target, 1)} gehaald!` : `Doel ${fmt(r.goal.target, 1)}: nog ${fmt(r.goal.target - tot.avg, 1)} te gaan.`}</em>` : ''}</section>
     ${r.records.length ? `<section class="records-banner">🏅 <b>Nieuw record!</b> ${r.records.map(esc).join(' · ')}</section>` : ''}
     <section class="tiles">
       ${tile('Totaal', int(tot.points))}${tile('Hoogste beurt', tot.high ?? '–')}${tile('Pijlen', tot.darts)}${tile('100+', tot.tons)}
@@ -575,8 +628,39 @@ VIEWS['result-training'] = () => {
       <h4>Per beurt</h4>${turnBars(t.turns)}
     </details>
     <div class="row-actions"><button class="btn primary big" data-act="again">Nog een keer</button><button class="btn ghost big" data-go="stats">Statistieken</button></div>
+    ${shareButton(r)}
   </main>`;
 };
+
+// Delen van één eigen training. Na een record of gehaald doel iets duidelijker, maar hooguit eens per 2 weken (SHARE_KEY).
+function shareButton(r) {
+  return `<p class="share-row"><button class="btn ${r.suggestShare ? 'secondary' : 'ghost'} small" data-act="share-result" data-testid="share-result">${icon('share', { size: 17 })}${r.suggestShare ? (r.records?.length ? 'Deel je record' : 'Deel je score of daag een vriend uit') : 'Deel je score'}</button></p>`;
+}
+const SHARE_KEY = 'okkie.share.v1';
+function shouldSuggestShare(r, t) {
+  const good = r.records?.length || (r.goal && t && L.trainingTotals(t).avg >= r.goal.target);
+  if (!good) return false;
+  let st = {}; try { st = JSON.parse(localStorage.getItem(SHARE_KEY) || '{}') || {}; } catch { /* leeg */ }
+  if (st.suggestedAt > Date.now() - 14 * 864e5) return false;
+  try { localStorage.setItem(SHARE_KEY, JSON.stringify({ ...st, suggestedAt: Date.now() })); } catch { /* geen opslag */ }
+  return true;
+}
+function shareData() {
+  const r = ui.result, t = r && data.trainings.find(x => x.id === r.id);
+  if (!t) return null;
+  const date = new Date(t.startedAt).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+  if (t.kind === 'clock') {
+    const st = L.clockState(t);
+    return { card: { title: 'Rond de klok', value: st.done ? String(st.darts) : st.hits + '/21', unit: st.done ? 'pijlen nodig' : 'doelen geraakt', badge: r.recordKeys?.includes('clock') ? 'Nieuw persoonlijk record' : null,
+      tiles: [['Trefkans', Math.round(st.hitRate * 100) + '%'], ['Pijlen', st.darts], ['Beste ooit', r.bestClock || '–']], date },
+      challenge: st.done ? `Ik ging rond de klok in ${st.darts} pijlen met OKKIE. Lukt het jou sneller? 🎯 ${INVITE_URL}` : `Ik oefen rond de klok met OKKIE. Doe je mee? 🎯 ${INVITE_URL}` };
+  }
+  const tot = L.trainingTotals(t);
+  const goalHit = r.goal && tot.avg >= r.goal.target;
+  return { card: { title: trainingTitle(t), value: fmt(tot.avg, 2), unit: 'gemiddeld per 3 pijlen', badge: r.records?.length ? 'Nieuw persoonlijk record' : goalHit ? 'Doel gehaald' : null,
+    tiles: [['Hoogste beurt', tot.high ?? '–'], ['100+', tot.tons], ['180', tot.t180]], date },
+    challenge: `Ik gooide ${fmt(tot.avg, 2)} gemiddeld op ${tot.darts} pijlen in OKKIE. Kun jij dat verslaan? 🎯 ${INVITE_URL}` };
+}
 
 function badgeBanner(ids) {
   return `<div class="badge-banner">${ids.map(id => { const b = BADGES.find(x => x.id === id); return `<div><span class="badge-icon">${b.icon}</span><div><small>Badge verdiend!</small><b>${esc(b.name)}</b></div></div>`; }).join('')}</div>`;
@@ -841,6 +925,10 @@ function recordList() {
   return `<ul class="records">${rows.map(([k, [lab, f]]) => `<li><span>${lab}</span><b>${f(r[k])}</b></li>`).join('')}</ul>`;
 }
 
+function recordKeys(before, after) {
+  return Object.keys(RECORD_LABELS).filter(k => after[k] !== undefined && before[k] !== undefined && (k === 'clock' ? after[k] < before[k] : after[k] > before[k]));
+}
+
 function diffRecords(before, after) {
   const out = [];
   for (const [k, [lab, f]] of Object.entries(RECORD_LABELS)) {
@@ -919,8 +1007,7 @@ VIEWS.more = () => {
       <h3>Spelers</h3>
       <ul class="players">${data.players.map(p => `<li><span class="dot" style="background:${esc(p.color)}"></span><b>${esc(p.name)}</b>
         ${p.id === data.activePlayerId ? '<small class="muted">actief</small>' : `<button class="link" data-act="use-player" data-arg="${esc(p.id)}">Kiezen</button>`}
-        <button class="icon-btn small" data-act="rename-player" data-arg="${esc(p.id)}" aria-label="Naam wijzigen">✎</button>
-        ${data.players.length > 1 ? `<button class="icon-btn small" data-act="delete-player" data-arg="${esc(p.id)}" aria-label="Speler verwijderen">✕</button>` : ''}</li>`).join('')}</ul>
+        <button class="icon-btn small" data-act="rename-player" data-arg="${esc(p.id)}" aria-label="${esc(p.name)} beheren: naam, statistieken wissen of verwijderen" data-testid="manage-${esc(p.id)}">✎</button></li>`).join('')}</ul>
       <form data-form="add-player" class="guest"><input name="name" maxlength="24" placeholder="Nieuwe speler" aria-label="Naam nieuwe speler"><button class="btn secondary">+ Speler</button></form>
     </section>
     ${T.announce() ? moveCard() : ''}
@@ -930,11 +1017,11 @@ VIEWS.more = () => {
       <p class="muted">Stuur OKKIE. naar een vriend, je oma of je dartclub. Dit is een gewone link naar okkiedarts.nl; er worden geen scores gedeeld.</p>
       <button class="btn secondary" data-act="invite">${icon('invite', { size: 19 })}Nodig een vriend uit</button>
     </section>
-    <section class="card">
-      <h3>Hoe werkt OKKIE.?</h3>
-      <p class="muted">Uitleg voor kinderen en beginners. Probeer drie pijlen, leer DOUBLE en TRIPLE en start je eerste training.</p>
-      <a class="btn secondary" href="./uitleg/">${icon('book', { size: 19 })}Open de uitleg</a>
-    </section>
+    <nav class="card link-list" aria-label="Uitleg en hulp">
+      <a class="link-row" href="./uitleg/"><span class="a-icon">${icon('book', { size: 20 })}</span><span><b>Hoe werkt OKKIE.?</b><small>Uitleg voor kinderen en beginners</small></span>${icon('chevron', { size: 18 })}</a>
+      <button class="link-row" data-go="regels"><span class="a-icon">${icon('ruler', { size: 20 })}</span><span><b>Dartregels &amp; afmetingen</b><small>Bord ophangen, 501, dubbel uit, bust</small></span>${icon('chevron', { size: 18 })}</button>
+      <button class="link-row" data-go="hulp"><span class="a-icon">${icon('help', { size: 20 })}</span><span><b>Hulp &amp; feedback</b><small>Meld een probleem of stuur een idee</small></span>${icon('chevron', { size: 18 })}</button>
+    </nav>
     <section class="card">
       <h3>Geschiedenis</h3>
       <p class="muted">Alle trainingen en wedstrijden terugkijken, corrigeren of verwijderen.</p>
@@ -988,6 +1075,9 @@ VIEWS.more = () => {
     <section class="card">
       <h3>Instellingen</h3>
       ${toggle('sound', 'Geluidjes')}${toggle('vibrate', 'Trillen bij tikken')}
+      ${SP.speechSupported() ? `${toggle('speech', 'Gesproken aanmoedigingen')}
+        <p class="muted small setting-note">Een stem bij een persoonlijk record, je eerste 100+ of 180 en een mooie finish. Niet bij elke beurt. Gebruikt de stem van je telefoon; hoor je niets, zet dan het geluid aan.${data.settings.speech ? ' <button class="link" data-act="speech-test">Laat horen</button>' : ''}</p>`
+        : '<p class="muted small setting-note">Gesproken aanmoedigingen werken niet in deze browser.</p>'}
       <div class="setting"><span>Thema</span><div class="chips small"><button class="chip ${data.settings.theme === 'dark' ? 'on' : ''}" data-act="theme" data-arg="dark">Donker</button><button class="chip ${data.settings.theme === 'light' ? 'on' : ''}" data-act="theme" data-arg="light">Licht</button></div></div>
     </section>
     <section class="card about">
@@ -998,6 +1088,15 @@ VIEWS.more = () => {
   </main>`;
 };
 
+VIEWS.hulp = () => {
+  if (!ui.fb.startedAt) ui.fb.startedAt = Date.now();
+  return `${header('Hulp & feedback', 'more')}
+  <main class="page">${FB.feedbackPage(ui.fb, FB.techInfo({ version: APP_VERSION, installed: I.isStandalone() }))}</main>`;
+};
+
+VIEWS.regels = () => `${header('Dartregels', 'more')}
+  <main class="page rules">${rulesPage()}</main>`;
+
 function toggle(key, label) {
   return `<label class="setting"><span>${label}</span><input type="checkbox" class="switch" data-input="setting" data-arg="${key}" ${data.settings[key] ? 'checked' : ''}></label>`;
 }
@@ -1005,10 +1104,13 @@ function toggle(key, label) {
 // ---------- Acties ----------
 function startScore() {
   finishActiveTraining(false);
+  ui.savedHigh = null;
   const s = ui.setup;
   const turns = s.turns === -1 ? Math.max(1, Math.min(200, Number(s.custom) || 10)) : s.turns;
   const players = setupPlayers().slice(0, 4);
-  data.active.training = { id: S.uid(), playerId: players[0], players, kind: 'score', limitTurns: turns || null, startedAt: now(), turns: [], pending: [] };
+  // Persoonlijk doel (motivation.js) alleen bij alleen trainen: vergeleken met je eigen eerdere trainingen.
+  const goal = players.length === 1 ? M.goalFor(data.trainings, players[0], turns || null) : null;
+  data.active.training = { id: S.uid(), playerId: players[0], players, kind: 'score', limitTurns: turns || null, startedAt: now(), turns: [], pending: [], ...(goal ? { goal } : {}) };
   G.claimGuests(data.active.training);
   ui.mod = 1;
   save();
@@ -1064,12 +1166,16 @@ function finishActiveTraining(showResult = true) {
   if (G.queueGuestTrainings(t.id, saved)) sendGuests();
   const per = saved.map(tr => {
     const b = before.get(tr.playerId);
-    return { id: tr.id, playerId: tr.playerId, prevAvg: b.prev, records: diffRecords(b.rec, records(tr.playerId)), newBadges: [...earnedBadges(data, tr.playerId)].filter(x => !b.badges.has(x)) };
+    const after = records(tr.playerId);
+    return { id: tr.id, playerId: tr.playerId, prevAvg: b.prev, records: diffRecords(b.rec, after), recordKeys: recordKeys(b.rec, after), after, newBadges: [...earnedBadges(data, tr.playerId)].filter(x => !b.badges.has(x)) };
   });
   const main = per.find(x => x.playerId === data.activePlayerId) || per[0];
-  ui.result = { ...main, bestClock: records(main.playerId).clock, group: per.length > 1 ? per : null, players: [...t.players], limitTurns: t.limitTurns, kind: t.kind };
+  ui.result = { ...main, bestClock: records(main.playerId).clock, group: per.length > 1 ? per : null, players: [...t.players], limitTurns: t.limitTurns, kind: t.kind, goal: per.length === 1 ? t.goal || null : null };
+  ui.savedHigh = null;
+  if (!ui.result.group) ui.result.suggestShare = shouldSuggestShare(ui.result, saved.find(x => x.id === main.id));
   if (showResult) {
     go('result-training');
+    voiceTraining(ui.result, saved.find(x => x.id === main.id));
     if (per.some(x => x.newBadges.length || x.records.length)) { beep('win'); haptic([30, 30, 60]); }
   }
 }
@@ -1100,10 +1206,13 @@ function addDart(code) {
   }
   if (tr.pending.length === 3) {
     const score = L.turnScore(tr.pending);
-    tr.turns.push({ at: now(), darts: tr.pending, p: curIdx(tr) });
+    const idx = curIdx(tr);
+    const prevInSession = Math.max(0, ...tr.turns.filter(x => (x.p ?? 0) === idx && x.darts.length === 3).map(x => L.turnScore(x.darts)));
+    tr.turns.push({ at: now(), darts: tr.pending, p: idx });
     tr.pending = [];
     save();
     turnCelebration(score);
+    if (tr.kind === 'score') voiceTurn(tr.players[idx], score, prevInSession);
     if (trainingDone(tr)) {
       finishActiveTraining(true);
       return;
@@ -1126,6 +1235,7 @@ function undo() {
 
 function startMatch() {
   const m = ui.match;
+  ui.savedHigh = null;
   if (!m.players.length) return toast('Voeg minstens één speler toe.');
   data.active.match = {
     id: S.uid(),
@@ -1150,11 +1260,15 @@ function addMatchDart(code) {
   ui.mod = 1;
   const r = L.x01Turn(ls.remaining[p], m.pending, m.settings.doubleOut);
   if (r.bust || r.finished || m.pending.length === 3) {
+    const prevInMatch = speechOn() ? L.matchState(m).totals[p].high : 0;
     leg.turns.push({ p, darts: m.pending, at: now() });
     m.pending = [];
     if (r.bust) { celebrate('BUST', `${m.players[p].name} blijft op ${ls.remaining[p]}`, 'bust'); beep('bust'); haptic([60, 40, 60]); }
-    else if (r.finished) return legWon(m, p, r.scored);
-    else turnCelebration(r.scored);
+    else if (r.finished) {
+      if (speechOn()) { const last = leg.turns[leg.turns.length - 1].darts; const line = SP.checkoutLine(r.scored, last[last.length - 1]); if (line) SP.say(line.text); }
+      return legWon(m, p, r.scored);
+    }
+    else { turnCelebration(r.scored); voiceTurn(m.players[p].id, r.scored, prevInMatch); }
   }
   save();
   render();
@@ -1532,6 +1646,39 @@ const ACTIONS = {
   'invite-share': inviteShare,
   'invite-copy': inviteCopy,
   'modal-ok': () => confirmBox.ok?.(),
+  'share-result': async () => {
+    const d = shareData();
+    if (!d) return;
+    try {
+      ui.shareBlob = await SC.drawScoreCard(d.card); ui.shareChallenge = d.challenge;
+      if (ui.shareUrl) URL.revokeObjectURL(ui.shareUrl);
+      ui.shareUrl = URL.createObjectURL(ui.shareBlob);
+    } catch { return toast('Een scorekaart maken lukt op dit toestel niet.'); }
+    modal(`<h3>Deel je score</h3>
+      <img class="share-preview" src="${ui.shareUrl}" alt="Scorekaart: ${esc(d.card.title)}, ${esc(d.card.value)} ${esc(d.card.unit)}" data-testid="share-preview">
+      <p class="muted small">Zonder je naam. Je kiest zelf met wie je hem deelt; er gaat niets naar OKKIE.</p>
+      <div class="modal-actions col">
+        <button class="btn primary" data-act="share-card">${icon('share', { size: 19 })}Scorekaart delen</button>
+        <button class="btn secondary" data-act="share-challenge" data-testid="share-challenge">${icon('invite', { size: 19 })}Daag een vriend uit</button>
+        <button class="btn ghost" data-act="modal-close">Sluiten</button>
+      </div>`);
+  },
+  'share-card': async () => {
+    if (!ui.shareBlob) return;
+    const how = await SC.shareCard(ui.shareBlob, `Mijn training in OKKIE. 🎯 ${INVITE_URL}`);
+    if (how === 'shared') closeModal();
+    if (how === 'downloaded') toast('Scorekaart bewaard als afbeelding. Deel hem vanuit je foto’s of bestanden.');
+  },
+  'share-challenge': async () => {
+    const text = ui.shareChallenge || inviteMessage();
+    if (navigator.share) {
+      try { await navigator.share({ text }); closeModal(); return; } catch (e) { if (e.name === 'AbortError') return; }
+    }
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener');
+  },
+  'speech-test': () => { SP.call180(); SP.say('Zo klinkt OKKIE. bij een honderdtachtig.'); },
+  'fb-shot-remove': () => { ui.fb.screenshot = null; render(); },
+  'fb-again': () => { ui.fb = { kind: ui.fb.kind, message: '', contact: '', screenshot: null, busy: false, error: '', sent: null, startedAt: Date.now() }; render(); },
   'switch-player': switchPlayerModal,
   'use-player': id => {
     if (data.active.training || data.active.match) {
@@ -1620,25 +1767,45 @@ const ACTIONS = {
   'delete-match': id => confirmBox('Wedstrijd verwijderen?', 'Deze wedstrijd verdwijnt definitief.', 'Verwijderen', () => {
     data.matches = data.matches.filter(m => m.id !== id); T.rememberRemoved(data, 'matches', [id]); save(); closeModal(); render(); toast('Wedstrijd verwijderd.');
   }),
+  // Speler beheren: naam, statistieken wissen (speler blijft) of de speler helemaal verwijderen.
   'rename-player': id => {
     const p = player(id);
-    modal(`<h3>Naam wijzigen</h3><form data-form="rename" data-arg="${esc(id)}"><input name="name" maxlength="24" value="${esc(p.name)}" aria-label="Nieuwe naam" required><div class="modal-actions"><button type="button" class="btn ghost" data-act="modal-close">Annuleren</button><button class="btn primary">Opslaan</button></div></form>`);
+    if (!p) return;
+    const c = playerDataCount(id), acct = getAccount(id);
+    modal(`<h3>${esc(p.name)}</h3>
+      <form data-form="rename" data-arg="${esc(id)}"><label for="pname">Naam</label><div class="guest"><input id="pname" name="name" maxlength="24" value="${esc(p.name)}" required><button class="btn secondary">Opslaan</button></div></form>
+      <h4>Gegevens van ${esc(p.name)}</h4>
+      <p class="muted small" data-testid="player-data">${c.trainings} training${c.trainings === 1 ? '' : 'en'} en ${c.matches} wedstrijd${c.matches === 1 ? '' : 'en'} op deze telefoon${acct?.enabled ? '. Deelt cijfers in Darters.' : '.'}</p>
+      <div class="modal-actions col">
+        <button class="btn secondary" data-act="reset-player" data-arg="${esc(id)}" data-testid="reset-player">Statistieken wissen</button>
+        <button class="btn danger ghost" data-act="delete-player" data-arg="${esc(id)}" data-testid="delete-player">Speler verwijderen</button>
+        <button class="btn ghost" data-act="modal-close">Sluiten</button>
+      </div>
+      <p class="muted small">Tip: bewaar eerst een back-up (Meer → Back-up). Andere spelers op deze telefoon blijven altijd ongemoeid.</p>`);
+  },
+  'reset-player': id => {
+    const p = player(id), c = playerDataCount(id), acct = getAccount(id);
+    if (!p) return;
+    confirmBox(`Statistieken van ${p.name} wissen?`, `${c.trainings} training${c.trainings === 1 ? '' : 'en'} en ${c.matches} wedstrijd${c.matches === 1 ? '' : 'en'} van ${p.name} worden van deze telefoon gewist; ${p.name} blijft als speler bestaan. Wedstrijden samen met andere spelers op deze telefoon blijven voor hen bewaard.${acct?.enabled ? ' De gedeelde cijfers in Darters gaan ook naar nul.' : ''} Dit kun je alleen terugdraaien met een back-up.`, 'Wissen', () => {
+      removePlayerData(id, { keepPlayer: true });
+      save();
+      if (acct?.enabled) queueCommunitySync(data, [id], { replace: true });
+      closeModal(); render(); toast(`De statistieken van ${p.name} zijn gewist.`);
+    });
   },
   'delete-player': id => {
-    if (getAccount(id)) return modal('<h3>Eerst online profiel verwijderen</h3><p>Deze speler heeft een gekoppeld openbaar profiel. Zet eerst bij Darters delen uit voor deze speler; dan worden de gedeelde cijfers online gewist.</p><div class="modal-actions"><a class="btn primary" href="./community/">Naar Darters</a><button class="btn ghost" data-act="modal-close">Sluiten</button></div>');
-    const p = player(id);
-    const n = data.trainings.filter(t => t.playerId === id).length;
-    confirmBox(`${p.name} verwijderen?`, `Ook ${n} training(en) van ${p.name} worden verwijderd. Wedstrijden blijven bewaard. Tip: maak eerst een back-up.`, 'Verwijderen', () => {
-      T.rememberRemoved(data, 'players', [id]);
-      T.rememberRemoved(data, 'trainings', data.trainings.filter(t => t.playerId === id).map(t => t.id));
-      data.players = data.players.filter(x => x.id !== id);
-      data.trainings = data.trainings.filter(t => t.playerId !== id);
-      data.matches.forEach(m => m.players.forEach(mp => { if (mp.id === id) mp.id = null; }));
-      if (data.active.training?.players?.includes(id)) data.active.training = null;
-      ui.setup.players = (ui.setup.players || []).filter(x => x !== id);
-      if (data.activePlayerId === id) data.activePlayerId = data.players[0].id;
-      ui.match.players = [];
-      save(); closeModal(); render();
+    const p = player(id), c = playerDataCount(id), acct = getAccount(id);
+    if (!p) return;
+    const last = data.players.length === 1;
+    confirmBox(`${p.name} helemaal verwijderen?`, `${p.name} en ${c.trainings} training${c.trainings === 1 ? '' : 'en'} en ${c.matches} wedstrijd${c.matches === 1 ? '' : 'en'} worden van deze telefoon gewist.${acct?.token ? ' Het Darters-profiel en de gedeelde cijfers worden ook online gewist.' : ''} Wedstrijden samen met andere spelers op deze telefoon blijven voor hen bewaard, zonder ${p.name}s naam.${last ? ' Dit is de laatste speler: daarna begint OKKIE. opnieuw.' : ''} Dit kun je alleen terugdraaien met een back-up.`, 'Verwijderen', async () => {
+      if (acct?.token) {
+        try { await deleteOnlineProfile(acct); }
+        catch (e) { return toast(e instanceof TypeError ? 'Geen internet. Verwijderen lukt als je online bent; de online cijfers moeten ook weg.' : e.message, 'error'); }
+        dropAccount(id);
+      }
+      removePlayerData(id, { keepPlayer: false });
+      G.unlinkGuest(id);
+      save(); closeModal(); render(); toast(`${p.name} is verwijderd.`);
     });
   },
   'export': exportBackup,
@@ -1661,6 +1828,47 @@ const ACTIONS = {
   'theme': v => { data.settings.theme = v; applyTheme(); save(); render(); },
   'install': async () => { const e = ui.installEvent; if (!e) return; e.prompt(); await e.userChoice; ui.installEvent = null; render(); },
 };
+
+// ---------- Wissen en verwijderen per speler ----------
+function playerDataCount(id) {
+  return { trainings: data.trainings.filter(t => t.playerId === id).length, matches: data.matches.filter(m => m.players.some(mp => mp.id === id)).length };
+}
+// Alleen gegevens van deze ene speler. Een wedstrijd met een andere speler van deze telefoon blijft voor die speler bestaan;
+// een wedstrijd die alleen van deze speler was (eventueel met gasten zonder eigen speler) gaat weg.
+function removePlayerData(id, { keepPlayer }) {
+  const trIds = data.trainings.filter(t => t.playerId === id).map(t => t.id);
+  T.rememberRemoved(data, 'trainings', trIds);
+  data.trainings = data.trainings.filter(t => t.playerId !== id);
+  const others = new Set(data.players.filter(p => p.id !== id).map(p => p.id));
+  const own = data.matches.filter(m => m.players.some(mp => mp.id === id || mp.formerId === id) && !m.players.some(mp => mp.id && others.has(mp.id)));
+  T.rememberRemoved(data, 'matches', own.map(m => m.id));
+  data.matches = data.matches.filter(m => !own.includes(m));
+  // Gewist: telt niet meer mee voor deze speler (formerId onthoudt wie het was). Verwijderd: ook de naam eruit.
+  data.matches.forEach(m => m.players.forEach(mp => {
+    if (mp.id !== id && mp.formerId !== id) return;
+    mp.id = null;
+    if (keepPlayer) mp.formerId = id; else { delete mp.formerId; mp.name = 'Verwijderde speler'; }
+  }));
+  if (data.active.training?.players?.includes(id)) data.active.training = null;
+  if (data.active.match?.players?.some(mp => mp.id === id)) data.active.match = null;
+  ui.setup.players = (ui.setup.players || []).filter(x => x !== id);
+  ui.match.players = [];
+  if (keepPlayer) return;
+  T.rememberRemoved(data, 'players', [id]);
+  data.players = data.players.filter(x => x.id !== id);
+  if (data.activePlayerId === id) data.activePlayerId = data.players[0]?.id || null;
+}
+// Darters-profiel online wissen. Staat het profiel inmiddels op een andere telefoon (token vervangen), dan met de
+// bewaarde herstelcode opnieuw toegang krijgen en daarna wissen. Bestaat het online al niet meer: klaar.
+async function deleteOnlineProfile(acct) {
+  try { await request('/v1/me', 'DELETE', null, acct.token); return; }
+  catch (e) { if (e.status !== 401) throw e; }
+  if (!acct.handle || !acct.recovery) return;
+  let fresh;
+  try { fresh = await request('/v1/recover', 'POST', { handle: acct.handle, recovery: acct.recovery }); }
+  catch (e) { if (e.status === 401) return; throw e; }
+  await request('/v1/me', 'DELETE', null, fresh.token);
+}
 
 // Na overzetten vanaf het (lege) welkomstscherm: naar de lopende sessie als die er is, anders naar Home.
 // Vanuit Meer (back-up terugzetten, code invoeren) blijf je waar je was.
@@ -1755,6 +1963,23 @@ const FORMS = {
     data.matches.forEach(m => m.players.forEach(mp => { if (mp.id === p.id) mp.name = name; }));
     save(); closeModal(); render();
   },
+  feedback: async fd => {
+    const f = ui.fb;
+    if (f.busy) return;
+    f.message = String(fd.get('message') || '').trim(); f.contact = String(fd.get('contact') || '').trim();
+    if (f.message.length < 5) { f.error = f.kind === 'idee' ? 'Schrijf je idee in een paar woorden.' : 'Schrijf kort wat er misging.'; return render(); }
+    if (f.contact && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.contact)) { f.error = 'Dit e-mailadres klopt niet. Laat het leeg als je geen antwoord nodig hebt.'; return render(); }
+    f.busy = true; f.error = ''; render();
+    try {
+      await FB.sendFeedback({ kind: f.kind, message: f.message, contact: f.contact, website: String(fd.get('website') || ''), startedAt: f.startedAt, screenshot: f.screenshot,
+        meta: FB.techInfo({ version: APP_VERSION, installed: I.isStandalone() }) });
+      ui.fb = { kind: f.kind, message: '', contact: '', screenshot: null, busy: false, error: '', sent: f.kind, contactGiven: !!f.contact, startedAt: 0 };
+    } catch (e) {
+      f.busy = false;
+      f.error = e instanceof TypeError ? 'Geen internet. Je bericht blijft staan; probeer het zo nog eens.' : e.message;
+    }
+    if (ui.view === 'hulp') render();
+  },
   type: (fd) => {
     const r = L.parseLine(fd.get('line'));
     if (r.error) return toast(r.error, 'error');
@@ -1793,9 +2018,21 @@ document.addEventListener('submit', e => {
 document.addEventListener('change', e => {
   const el = e.target;
   if (el.dataset.input === 'import') { importBackup(el.files[0]); el.value = ''; }
-  if (el.dataset.input === 'setting') { data.settings[el.dataset.arg] = el.checked; save(); }
+  if (el.dataset.input === 'setting') {
+    data.settings[el.dataset.arg] = el.checked; save();
+    // Direct na de tik iets zeggen: zo hoor je dat het werkt (en mag de iPhone daarna ook spreken).
+    if (el.dataset.arg === 'speech') { if (el.checked) SP.say('Gesproken aanmoedigingen staan aan.'); render(); }
+  }
   if (el.dataset.input === 'transfer-secrets') prepareTransfer({ secrets: el.checked }).then(() => transferCodeModal(false));
+  if (el.dataset.input === 'fb-kind') { ui.fb.kind = el.value === 'idee' ? 'idee' : 'probleem'; render(); }
+  if (el.dataset.input === 'fb-shot' && el.files[0]) FB.shrinkImage(el.files[0]).then(d => { ui.fb.screenshot = d; if (ui.view === 'hulp') render(); }).catch(err => toast(err.message, 'error'));
   if (el.dataset.input === 'custom-turns') { ui.setup.custom = Math.max(1, Math.min(200, Number(el.value) || 1)); render(); }
+});
+
+// Hulp & feedback: wat je typt bewaren (het scherm wordt bij andere keuzes opnieuw opgebouwd).
+document.addEventListener('input', e => {
+  const el = e.target;
+  if (el.dataset?.input === 'fb-text' && (el.name === 'message' || el.name === 'contact')) ui.fb[el.name] = el.value;
 });
 
 // Toetsenbord op desktop: cijfers typen gaat via het typvak; Escape sluit een venster.
@@ -1804,6 +2041,13 @@ document.addEventListener('keydown', e => {
   if (PLAY_VIEWS.has(ui.view) && !ui.typing && $('#modal').hidden && /^[0-9a-zA-Z]$/.test(e.key) && !e.ctrlKey && !e.metaKey) {
     ui.typing = true; render();
   }
+});
+
+// iPhone: na het sluiten van het toetsenbord blijft de pagina soms een stukje verschoven (kop onder de statusbalk,
+// vreemd scrollen). Op dezelfde plek opnieuw scrollen laat Safari de indeling herberekenen; verder geen effect.
+document.addEventListener('focusout', e => {
+  if (!e.target.matches?.('input, textarea, select')) return;
+  setTimeout(() => { if (!document.activeElement?.matches?.('input, textarea, select')) window.scrollTo(window.scrollX, window.scrollY); }, 60);
 });
 
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); ui.installEvent = e; if (ui.view === 'more') render(); });

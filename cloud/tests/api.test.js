@@ -264,14 +264,18 @@ test('opschoning: lege accounts na 30 dagen, inactieve accounts na 2 jaar, actie
   const a = await register(env, 'Actief');
   await call(env, '/v1/me/snapshots', { method: 'PUT', token: a.token, body: { snapshots: [snap('all', 600)] } });
   const b = await register(env, 'Leeg oud');
-  env.DB.raw.prepare("UPDATE members SET created_at = datetime('now','-40 days') WHERE handle = ?").run(b.account.handle);
+  env.DB.raw.prepare("UPDATE members SET created_at = datetime('now','-40 days'), updated_at = datetime('now','-40 days') WHERE handle = ?").run(b.account.handle);
   const c = await register(env, 'Leeg nieuw');
+  // Oud profiel dat net zijn statistieken op nul zette (lege snapshots): blijft nog 30 dagen bestaan.
+  const e = await register(env, 'Net gewist');
+  env.DB.raw.prepare("UPDATE members SET created_at = datetime('now','-400 days') WHERE handle = ?").run(e.account.handle);
+  await call(env, '/v1/me/snapshots', { method: 'PUT', token: e.token, body: { snapshots: [], replace: true } });
   const d = await register(env, 'Inactief');
   await call(env, '/v1/me/snapshots', { method: 'PUT', token: d.token, body: { snapshots: [snap('all', 600)] } });
   env.DB.raw.prepare("UPDATE members SET updated_at = datetime('now','-800 days') WHERE handle = ?").run(d.account.handle);
   await worker.scheduled({}, env);
   const left = env.DB.raw.prepare('SELECT nickname FROM members ORDER BY nickname').all().map(x => x.nickname);
-  assert.deepEqual(left, ['Actief', 'Leeg nieuw']);
+  assert.deepEqual(left, ['Actief', 'Leeg nieuw', 'Net gewist']);
   assert.equal(env.DB.raw.prepare('SELECT COUNT(*) AS n FROM stats').get().n, 1);
   assert.ok(c);
 });

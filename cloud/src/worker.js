@@ -3,6 +3,7 @@ import { isAdminRequest, adminEmail, adminHostMatches } from './admin-auth.js';
 import { handleGuest } from './guest.js';
 import { handleGroups, groupsOpen, minorsOpen, MINORS_CLOSED, inviteValid, releaseMemberships, minorMayStore, weekKey, LIMITS } from './groups.js';
 import { handleDarters, dartersOpen, publicConsentOk } from './darters.js';
+import { handleFeedback, handleFeedbackAdmin, cleanupFeedback } from './feedback.js';
 
 // Cloudflare Worker + D1 API voor OKKIE. Community.
 // De database bewaart uitsluitend een nickname, account-credentials (gehasht) en geaggregeerde statistieken.
@@ -148,8 +149,16 @@ export default {
     }
     if (path === '/v1/health' && request.method === 'GET') return json({ ok: true, version: 1, registration: registrationOpen(env), groups: groupsOpen(env), darters: dartersOpen(env) }, 200, cors);
     if (!env.DB) return fail('Database niet geconfigureerd.', 503, cors);
+    // Besloten inbox voor Hulp & feedback: staat op het adres van de Worker zelf, dus vóór de Origin-controle.
+    if (path.startsWith('/v1/feedback/')) {
+      try { const r = await handleFeedbackAdmin(request, env, path, H); if (r) return r; }
+      catch (error) { console.error(error); return fail('Er ging iets mis.', 500); }
+    }
     if (request.method !== 'GET' && !originAllowed(request, env)) return fail('Onbekende herkomst.', 403, cors);
     try {
+      // Hulp & feedback uit de app (feedback.js): eigen limieten en groottes.
+      const feedback = await handleFeedback(request, env, path, H, cors);
+      if (feedback) return feedback;
       // Privébeheer uitsluitend op het afzonderlijke beheerdomein. De Worker
       // verifieert de Access-JWT zelf: de Cloudflare Access-gateway alleen is niet genoeg.
       if (path === '/beheer' || path === '/v1/admin/overview') {
@@ -397,7 +406,8 @@ export default {
     const emptyDays = Math.max(1, Number(env.EMPTY_ACCOUNT_DAYS || 30));
     const inactiveDays = Math.max(30, Number(env.INACTIVE_DAYS || 730));
     const empty = await env.DB.prepare(
-      "DELETE FROM members WHERE id IN (SELECT m.id FROM members m LEFT JOIN stats s ON s.member_id = m.id WHERE s.member_id IS NULL AND m.created_at < datetime('now', ?) AND NOT EXISTS (SELECT 1 FROM group_members gm WHERE gm.member_id = m.id))"
+      // updated_at (niet created_at): wie net zijn statistieken op nul zette, houdt zijn profiel nog EMPTY_ACCOUNT_DAYS.
+      "DELETE FROM members WHERE id IN (SELECT m.id FROM members m LEFT JOIN stats s ON s.member_id = m.id WHERE s.member_id IS NULL AND m.updated_at < datetime('now', ?) AND NOT EXISTS (SELECT 1 FROM group_members gm WHERE gm.member_id = m.id))"
     ).bind(`-${emptyDays} days`).run();
     const stale = await env.DB.prepare('SELECT id FROM members WHERE updated_at < datetime(\'now\', ?)').bind(`-${inactiveDays} days`).all();
     for (const row of stale.results || []) {
@@ -411,6 +421,7 @@ export default {
     await env.DB.prepare("DELETE FROM parent_consents WHERE confirmed_at IS NULL AND expires_at < datetime('now')").run();
     await env.DB.prepare("DELETE FROM guest_passes WHERE expires_at < datetime('now', '-1 day')").run();
     await env.DB.prepare("DELETE FROM guest_inbox WHERE received_at < datetime('now', '-60 days')").run();
+    await cleanupFeedback(env);
     console.log(`OKKIE opschoning: ${empty.meta?.changes || 0} lege accounts, ${(stale.results || []).length} inactieve accounts verwijderd.`);
   },
 };
