@@ -139,6 +139,9 @@ export function parseBackup(text) {
   if (errors.length) return { error: 'Back-up afgekeurd: ' + errors.join(' ') };
   const data = { ...emptyData(), ...raw, settings: { ...emptyData().settings, ...(raw.settings || {}) } };
   data.active = { training: null, match: null, ...(raw.active || {}) };
+  // Spelerskleur komt in een style-attribuut terecht: alleen een echte kleurcode toestaan (een vervalste
+  // back-up of overzetcode kan anders CSS meegeven).
+  data.players = data.players.map((p, i) => (typeof p.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(p.color) ? p : { ...p, color: PLAYER_COLORS[i % PLAYER_COLORS.length] }));
   return { data };
 }
 

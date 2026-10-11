@@ -102,6 +102,7 @@ test('overzetcode (zoals vanuit een geïnstalleerde iPhone-app): nieuwe app al i
   await newP.getByTestId('enter-code').click();
   await newP.click('[data-act=transfer-paste]');
   await expect(newP.locator('#modal')).toContainText('In deze code: 2 spelers, 12 trainingen, 1 wedstrijd en een lopende training');
+  await expect(newP.getByTestId('transfer-names')).toContainText('Senn, Mila');
   await newP.getByTestId('transfer-apply').click();
   await expect(newP.getByTestId('transfer-result')).toHaveText('Overgezet en gecontroleerd');
   // Online profielsleutel gaat standaard niet mee in een code; dat wordt gemeld
