@@ -287,3 +287,25 @@ test('een vreemd venster of los geopende #overzetten kan geen gegevens injectere
   expect(errors).toEqual([]);
   await ctx.close();
 });
+
+test('nieuwe bezoeker op het oude adres: verwijzing naar het nieuwe adres, geen doorverwijzing', async ({ browser }, info) => {
+  const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch } = info.project.use;
+  const ctx = await browser.newContext({ viewport, userAgent, deviceScaleFactor, isMobile, hasTouch });
+  await ctx.addInitScript(dev => localStorage.setItem('okkie.dev', JSON.stringify(dev)), DEV);   // zonder trainingen
+  const oldP = await ctx.newPage();
+  await oldP.goto(OLD + '/');
+  const card = oldP.getByTestId('new-here');
+  await expect(card).toContainText('OKKIE. staat nu op app.okkiedarts.nl');
+  await expect(card.getByRole('link', { name: 'Open app.okkiedarts.nl' })).toHaveAttribute('href', NEW + '/');
+  expect(oldP.url()).toBe(OLD + '/');
+  // Hier gewoon beginnen kan nog steeds.
+  await oldP.fill('#wname', 'Sem');
+  await oldP.click("text=Let's play darts");
+  await expect(oldP.locator('.hero h2')).toHaveText('Sem');
+  // Op het nieuwe adres staat deze kaart niet.
+  const newP = await ctx.newPage();
+  await newP.goto(NEW + '/');
+  await expect(newP.getByTestId('fetch-card')).toBeVisible();
+  await expect(newP.getByTestId('new-here')).toHaveCount(0);
+  await ctx.close();
+});

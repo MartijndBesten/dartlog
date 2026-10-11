@@ -1,6 +1,15 @@
 # Changelog
 
-## 1.3.4 (branch nacht/installatie-en-overdracht, nog niet live)
+## 1.3.5 — verhuizing naar app.okkiedarts.nl aangekondigd
+
+- Het oude adres kondigt de verhuizing aan (`PROD.open = true`): "OKKIE. verhuist naar app.okkiedarts.nl" met
+  "Zet mijn trainingen over" op Home en onder Meer. Nooit doorverwijzen, nooit wissen; het oude adres blijft werken.
+- Nieuwe bezoeker op het oude adres (lege app): verwijzing "Open app.okkiedarts.nl"; hier beginnen kan nog steeds.
+- Website (homepage, privacy, contact) en de uitlegpagina openen de app op app.okkiedarts.nl.
+- Serviceworker: een nieuwe versie haalt haar bestanden rechtstreeks van de server, niet uit de browsercache van
+  10 minuten (bij de update naar 1.3.4 kon tijdelijk een oude app.js naast nieuwe bestanden in de offline-opslag staan).
+
+## 1.3.4 (live 11 oktober 2026)
 
 - Verhuizing naar app.okkiedarts.nl voorbereid, standaard **uit** (`PROD.open = false` in `js/transfer.js`). Zie VERHUIZING.md.
   Automatisch overzetten tussen twee vensters, overzetcode (kopiëren en plakken, ook vanuit de iPhone-app op het beginscherm) en het back-upbestand.

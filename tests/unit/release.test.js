@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const read = file => readFileSync(join(root, file), 'utf8');
-const APP = 'https://martijndbesten.github.io/dartlog/';
+const APP = 'https://app.okkiedarts.nl/';
 // Enige toegestane externe bestemmingen vanaf okkiedarts.nl.
 const EXTERNAL = [APP, APP + 'community/', 'https://denckh.nl/', 'https://okkiedarts.nl/privacy/', 'https://okkiedarts.nl/contact/',
   // canonieke adressen van de pagina's zelf
@@ -209,7 +209,8 @@ test('app-build voor app.okkiedarts.nl: alleen de app, met CNAME, en de verhuizi
   assert.ok(!files.includes('ontdek/index.html'), 'geen kopie van de website op app.okkiedarts.nl');
   assert.doesNotMatch(readFileSync(join(dist, 'community/index.html'), 'utf8'), /href="\.\.\/ontdek\/"/);
   const { PROD } = await import(new URL('../../js/transfer.js', import.meta.url));
-  assert.equal(PROD.open, false, 'verhuizing pas aankondigen na tests op echte toestellen (VERHUIZING.md)');
+  // Stap 7 (VERHUIZING.md): aankondigen op het oude adres, nooit doorverwijzen.
+  assert.equal(PROD.open, true);
   // Het oude adres krijgt nooit een eigen domein (dat zou automatisch doorverwijzen).
   assert.ok(!existsSync(join(root, 'CNAME')), 'geen CNAME in de dartlog-repo');
   const { INSTALL_ORIGINS } = await import(new URL('../../js/install.js', import.meta.url));

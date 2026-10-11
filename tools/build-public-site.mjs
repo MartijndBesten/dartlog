@@ -1,13 +1,13 @@
 // Bouw de publieke website voor okkiedarts.nl (Cloudflare Pages).
 // Uitvoer: dist/index.html (website), dist/privacy/, dist/contact/ en dist/uitleg/ (kinderuitleg).
-// Bewust GEEN tweede app op dit domein: trainingen staan in localStorage van de GitHub Pages-origin,
-// een kopie op okkiedarts.nl zou leeg beginnen. Alle app- en communitylinks gaan daarom naar APP.
+// Bewust GEEN app op dit domein zelf: trainingen staan in de browseropslag van het app-adres, een kopie op
+// okkiedarts.nl zou leeg beginnen. Alle app- en communitylinks gaan naar APP (sinds 1.3.5 app.okkiedarts.nl).
 import { existsSync, mkdirSync, rmSync, cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const dest = join(root, 'dist');
-const APP = 'https://martijndbesten.github.io/dartlog/';
+const APP = 'https://app.okkiedarts.nl/';
 rmSync(dest, {recursive: true, force:true});
 mkdirSync(dest,{recursive:true});
 // Merkbestanden uit icons/ komen op okkiedarts.nl in de root (/logo.svg, /og-image.jpg, ...).

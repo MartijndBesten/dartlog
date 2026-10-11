@@ -1,7 +1,7 @@
 // Controleert de echte onlineversie: node tools/live-check.mjs [url]
 import { chromium, devices } from '@playwright/test';
 
-const url = process.argv[2] || 'https://martijndbesten.github.io/dartlog/';
+const url = process.argv[2] || 'https://app.okkiedarts.nl/';
 const check = (ok, msg) => { console.log(`${ok ? 'OK  ' : 'FOUT'} ${msg}`); if (!ok) process.exitCode = 1; };
 // Lokaal Chrome; in een omgeving zonder Chrome: OKKIE_CHROMIUM=/pad/naar/chromium (en eventueel HTTPS_PROXY).
 const b = await chromium.launch(process.env.OKKIE_CHROMIUM

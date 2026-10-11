@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 // De gebouwde website (dist/, zoals straks op okkiedarts.nl), geserveerd op poort 4174 (zie playwright.config.js).
 const SITE = 'http://localhost:4174';
-const APP = 'https://martijndbesten.github.io/dartlog/';
+const APP = 'https://app.okkiedarts.nl/';
 // Alleen de toestelkenmerken (geen browserkeuze) voor een eigen context.
 const device = use => ({ viewport: use.viewport, userAgent: use.userAgent, deviceScaleFactor: use.deviceScaleFactor, isMobile: use.isMobile, hasTouch: use.hasTouch });
 const REVEALED = () => [...document.querySelectorAll('.reveal, .stagger > *')].filter(e => getComputedStyle(e).opacity !== '1').length;
