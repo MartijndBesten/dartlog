@@ -19,7 +19,7 @@ Ontwikkeld door **Denckh.**
 - **Samen trainen**: 1 tot 4 spelers (vrienden, familie) gooien om de beurt 3 pijlen; OKKIE springt automatisch naar de volgende naam, toont een ranglijst en bewaart voor iedereen een eigen training.
 - **Scores uit een andere app**: de 10 DartCounter-scoretrainingen met één tik toevoegen, of zelf een eindstand invullen (pijlen, totaal, hoogste beurt, datum). Deze tellen mee in gemiddelden en records, niet in de trefferkaart.
 - **Rond de klok**: 1 t/m 20 en de bull, in zo min mogelijk pijlen.
-- **Wedstrijd 301/501**: 1–4 spelers, 1 leg of best of 3/5/7/9, double-out of straight-out, bust-regels, uitgooi-advies, stoppen en later hervatten.
+- **Wedstrijd 301/501**: 1–4 spelers, 1 leg of best of 3/5/7/9, double-out of straight-out, bust-regels, uitgooi-advies, stoppen en later hervatten. Een tegenstander met eigen OKKIE. koppel je met zijn koppelcode (Speler toevoegen); zijn uitslag en wedstrijdcijfers gaan na afloop naar zijn eigen telefoon, ook als je offline speelde.
 - **Statistieken**: gemiddelde per 3 pijlen (altijd gewogen over alle pijlen), beste/slechtste training, 100+/140+/180, grafiek per training/dag/week/maand met trendlijn, "laatste 10" vergelijken, filter op 30/60/99/vrij.
 - **Trefferkaart**: dartbord dat laat zien welke vakken je het vaakst raakt (enkel/dubbel/triple).
 - **Records en badges**: persoonlijke records en 20 badges om te verdienen, met een korte viering bij 100+, 140+ en 180 (ONE HUNDRED AND EIGHTY!).

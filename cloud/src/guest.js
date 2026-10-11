@@ -1,6 +1,7 @@
 // OKKIE. Spelen op een andere telefoon, met behoud van je eigen statistieken.
 // - Je eigen telefoon maakt een koppelcode (8 tekens, 7 dagen geldig, alleen gehasht bewaard).
-// - De telefoon van een vriend stuurt met die code precies één training (alleen de samenvatting) naar jouw inbox.
+// - De telefoon van een vriend stuurt met die code precies één training of één 301/501-wedstrijd (alleen de
+//   samenvatting) naar jouw inbox.
 //   De code geeft geen inzage in je profiel en kan niets anders wijzigen. Opnieuw versturen van dezelfde training
 //   (bijv. na een netwerkfout of offline spelen) is onschuldig: er komt nooit een dubbele.
 // - Je eigen telefoon haalt de inbox op, voegt de training lokaal toe en bevestigt; dan wordt hij online gewist.
@@ -34,6 +35,30 @@ export function trainingOkay(t) {
   return true;
 }
 
+// Eén 301/501-wedstrijd: eindstand en de eigen cijfers van één speler (`me`). Alles moet onderling kloppen;
+// een gestopte wedstrijd heeft geen winnaar (die verzinnen we niet).
+export function matchOkay(m) {
+  if (!m || typeof m !== 'object') return false;
+  const int = v => Number.isSafeInteger(v) && v >= 0;
+  if (typeof m.id !== 'string' || !/^[A-Za-z0-9_-]{8,80}$/.test(m.id)) return false;
+  if (typeof m.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(m.date)) return false;
+  const day = Date.parse(m.date + 'T00:00:00Z');
+  if (!Number.isFinite(day) || day > Date.now() + 86400000 || day < Date.now() - GUEST_LIMITS.maxTrainingAgeDays * 86400000) return false;
+  if (![301, 501, 701].includes(m.start) || ![1, 3, 5, 7, 9].includes(m.bestOf) || typeof m.doubleOut !== 'boolean' || typeof m.stopped !== 'boolean') return false;
+  if (!Number.isInteger(m.players) || m.players < 2 || m.players > 4 || !Number.isInteger(m.me) || m.me < 0 || m.me >= m.players) return false;
+  const need = Math.floor(m.bestOf / 2) + 1;
+  if (!Array.isArray(m.won) || m.won.length !== m.players || !m.won.every(w => int(w) && w <= need)) return false;
+  const champs = m.won.filter(w => w === need).length;
+  if (m.winner === null) { if (!m.stopped || champs) return false; }
+  else if (!Number.isInteger(m.winner) || m.winner < 0 || m.winner >= m.players || m.won[m.winner] !== need || champs !== 1 || m.stopped) return false;
+  const legs = m.won.reduce((a, b) => a + b, 0);
+  if (!int(m.darts) || m.darts < 1 || m.darts > 3000 || !int(m.points) || m.points > m.darts * 60 || m.points > m.start * (legs + 1)) return false;
+  if (!int(m.high) || m.high > 180 || ![m.t100, m.t140, m.t180].every(int) || m.t180 > m.t140 || m.t140 > m.t100 || m.t100 > m.darts) return false;
+  if ((m.t100 > 0 && m.high < 100) || (m.t140 > 0 && m.high < 140) || (m.t180 > 0 && m.high !== 180)) return false;
+  if (!int(m.bestCheckout) || m.bestCheckout > 170 || (m.bestCheckout > 0 && m.won[m.me] < 1)) return false;
+  return true;
+}
+
 export async function handleGuest(request, env, path, h, cors, member) {
   const own = path === '/v1/me/guest-pass' || path.startsWith('/v1/me/inbox');
   if (!own && !path.startsWith('/v1/guest/')) return null;
@@ -54,10 +79,13 @@ export async function handleGuest(request, env, path, h, cors, member) {
       return h.json({ code: pretty(code), days: GUEST_LIMITS.passDays }, 201, cors);
     }
     if (path === '/v1/me/inbox' && method === 'GET') {
-      const rows = await env.DB.prepare(
-        'SELECT training_id AS id, played_on AS date, darts, points, high, tons, t140, t180 FROM guest_inbox WHERE member_id = ? ORDER BY received_at LIMIT 100'
-      ).bind(member.id).all();
-      return h.json({ trainings: rows.results || [] }, 200, cors);
+      const rows = (await env.DB.prepare(
+        'SELECT training_id AS id, played_on AS date, darts, points, high, tons, t140, t180, kind, match_json FROM guest_inbox WHERE member_id = ? ORDER BY received_at LIMIT 100'
+      ).bind(member.id).all()).results || [];
+      // Oudere apps lezen alleen `trainings`; wedstrijden blijven dan staan tot de app is bijgewerkt (nooit als training).
+      const trainings = rows.filter(r => r.kind !== 'match').map(({ kind, match_json, ...t }) => t);
+      const matches = rows.filter(r => r.kind === 'match').map(r => ({ id: r.id, date: r.date, darts: r.darts, points: r.points, high: r.high, t100: r.tons, t140: r.t140, t180: r.t180, ...JSON.parse(r.match_json || '{}') }));
+      return h.json({ trainings, matches }, 200, cors);
     }
     if (path === '/v1/me/inbox/ack' && method === 'POST') {
       const body = await h.bodyJson(request);
@@ -83,6 +111,21 @@ export async function handleGuest(request, env, path, h, cors, member) {
   if (path === '/v1/guest/preview') {
     if (!pass || pass.usedAt || !pass.valid) return gone();
     return h.json({ nickname: pass.nickname }, 200, cors);
+  }
+  if (path === '/v1/guest/match') {
+    const m = body.match;
+    if (!matchOkay(m)) return h.fail('Deze wedstrijd kan niet worden toegevoegd (onvolledige of onmogelijke gegevens).', 400, cors);
+    if (!pass) return gone();
+    if (pass.usedAt) return pass.usedFor === m.id ? h.json({ received: true, already: true, nickname: pass.nickname }, 200, cors) : gone();
+    if (!pass.valid) return gone();
+    const claimed = await env.DB.prepare("UPDATE guest_passes SET used_at = datetime('now'), used_training_id = ? WHERE id = ? AND used_at IS NULL").bind(m.id, pass.id).run();
+    if (!claimed.meta?.changes) return gone();
+    const result = { start: m.start, bestOf: m.bestOf, doubleOut: m.doubleOut, players: m.players, me: m.me, won: m.won, winner: m.winner, stopped: m.stopped, bestCheckout: m.bestCheckout };
+    await env.DB.prepare(
+      'INSERT INTO guest_inbox(member_id, training_id, played_on, darts, points, high, tons, t140, t180, kind, match_json, received_at) ' +
+      "VALUES(?,?,?,?,?,?,?,?,?,'match',?,datetime('now')) ON CONFLICT(member_id, training_id) DO NOTHING"
+    ).bind(pass.memberId, m.id, m.date, m.darts, m.points, m.high, m.t100, m.t140, m.t180, JSON.stringify(result)).run();
+    return h.json({ received: true, nickname: pass.nickname }, 201, cors);
   }
   if (path === '/v1/guest/training') {
     const t = body.training;

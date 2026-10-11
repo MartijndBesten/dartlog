@@ -83,7 +83,7 @@ body {
 button, input { font: inherit; color: inherit; }
 button { cursor: pointer; border: 0; background: none; touch-action: manipulation; }
 a { color: inherit; }
-a:not(.btn):not(.action):not(.maker) { color: var(--accent); text-underline-offset: 3px; }
+a:not(.btn):not(.action):not(.maker):not(.link-row) { color: var(--accent); text-underline-offset: 3px; }
 h1, h2, h3, h4 { margin: 0; line-height: 1.15; }
 h3 { font-size: 1.06rem; font-weight: 750; margin-bottom: 6px; letter-spacing: -.005em; }
 h4 { font-size: .78rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 16px 0 8px; font-weight: 700; }
@@ -685,3 +685,10 @@ a.link-row, a.link-row:visited { color: var(--text); }
 /* ---------- Delen van een training ---------- */
 .share-row { display: flex; justify-content: center; margin: 2px 0 0; }
 .share-preview { display: block; width: min(100%, 300px); margin: 6px auto 10px; border-radius: 16px; border: 1px solid var(--line); }
+
+/* ---------- Speler toevoegen (trainen en wedstrijd) ---------- */
+.add-btn { width: 100%; margin-top: 10px; }
+.add-known { margin: 4px 0 12px; }
+.modal .link-code { margin-top: 12px; }
+.link-row.compact { padding: 12px 0 2px; margin-top: 12px; border-top: 1px solid var(--line); border-radius: 0; }
+.link-row.compact > span:first-child { flex: 1; min-width: 0; display: grid; }

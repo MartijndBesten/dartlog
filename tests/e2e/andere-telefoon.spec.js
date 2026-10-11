@@ -40,6 +40,7 @@ async function training(page, { code, extra = [], scores }) {
   await page.fill('[data-input=custom-turns]', '1');
   await page.locator('[data-input=custom-turns]').dispatchEvent('change');
   if (code) {
+    await page.getByTestId('add-player').click();
     await page.getByTestId('guest-link-open').click();
     await page.locator('[data-form=guest-link] [name=code]').fill(code);
     await page.locator('[data-form=guest-link] [name=name]').fill('Senn');
@@ -47,7 +48,8 @@ async function training(page, { code, extra = [], scores }) {
     await expect(page.locator('#toast')).toContainText('is gekoppeld');
   }
   for (const name of extra) {
-    const chip = page.locator('.add-player .chip', { hasText: name });
+    await page.getByTestId('add-player').click();
+    const chip = page.locator('.add-known .chip', { hasText: name });
     if (await chip.count()) await chip.click();
     else { await page.fill('[data-form=train-player] input', name); await page.click('[data-form=train-player] .btn'); }
   }
@@ -90,7 +92,7 @@ test('drie spelers, twee telefoons: trainingen bij een vriend komen bij je eigen
   await B.context.setOffline(true);
   await training(B.page, { code: code2, extra: ['Lotte'], scores: [1, 20, 5] }); // Senn 60
   await B.page.click('.tabbar [data-go=more]');
-  await expect(B.page.getByTestId('guest-queue')).toContainText('1 training');
+  await expect(B.page.getByTestId('guest-queue')).toContainText('1 resultaat');
   await B.context.setOffline(false); // weer online: de app verstuurt de wachtrij vanzelf
   await expect.poll(() => B.page.evaluate(() => JSON.parse(localStorage.getItem('okkie.guest.v1')).queue.length), { timeout: 10000 }).toBe(0);
   await expect(B.page.getByTestId('guest-queue')).toHaveCount(0);
@@ -106,7 +108,7 @@ test('drie spelers, twee telefoons: trainingen bij een vriend komen bij je eigen
 
   // Thuis: Senns telefoon haalt de twee trainingen van Brams telefoon op
   await S.page.reload();
-  await expect(S.page.locator('#toast')).toContainText('2 trainingen van andere telefoons zijn toegevoegd');
+  await expect(S.page.locator('#toast')).toContainText('2 resultaten van andere telefoons zijn toegevoegd');
   await S.page.reload(); // nog eens openen: niets dubbel
   const sd = await stored(S.page);
   const sennOwn = sd.trainings.filter(t => t.playerId === 'p-senn');
@@ -119,7 +121,7 @@ test('drie spelers, twee telefoons: trainingen bij een vriend komen bij je eigen
 
   // Brams telefoon: Bram haalt zijn training van Senns telefoon op; zijn eigen scores blijven van hem
   await B.page.reload();
-  await expect(B.page.locator('#toast')).toContainText('training van een andere telefoon is toegevoegd');
+  await expect(B.page.locator('#toast')).toContainText('resultaat van een andere telefoon is toegevoegd');
   const bd = await stored(B.page);
   const bramOwn = bd.trainings.filter(t => t.playerId === 'p-bram');
   expect(bramOwn.length).toBe(4);
@@ -133,9 +135,89 @@ test('drie spelers, twee telefoons: trainingen bij een vriend komen bij je eigen
   expect((await get('/v1/me/inbox', senn.token)).trainings).toEqual([]);
   // Een naam alleen is niet genoeg: op Senns telefoon kan "Senn" niet als nieuwe gast worden toegevoegd
   await S.page.click('.tabbar [data-go=train]');
+  await S.page.click('[data-testid=add-player]');
   await S.page.fill('[data-form=train-player] input', 'senn');
   await S.page.click('[data-form=train-player] .btn');
   await expect(S.page.locator('[data-testid=train-players] li')).toHaveCount(1);
+  for (const p of [S, B]) expect(p.errors).toEqual([]);
+  for (const p of [S, B]) await p.context.close();
+});
+
+// ---------- Koppelcode bij een 301/501-wedstrijd ----------
+async function dart(page, c) {
+  const m = c.match(/^([SDT]?)(\d+)$/);
+  if (m[1] === 'D' || m[1] === 'T') await page.click(`[data-act=mod][data-arg="${m[1] === 'T' ? 3 : 2}"]`);
+  await page.click(`.nums [data-arg="${m[2]}"]`); await page.waitForTimeout(60);
+}
+async function linkOpponent(page, code, name) {
+  await page.getByTestId('add-player').click();
+  await page.getByTestId('guest-link-open').click();
+  await page.locator('[data-form=guest-link] [name=code]').fill(code);
+  await page.locator('[data-form=guest-link] [name=name]').fill(name);
+  await page.locator('[data-form=guest-link] .btn.primary').click();
+  await expect(page.locator('#toast')).toContainText('is gekoppeld');
+}
+
+test('501 op één telefoon: de gekoppelde tegenstander krijgt zijn eigen uitslag, als wedstrijd, zonder dubbele; ook offline', async ({ browser }, info) => {
+  test.skip(info.project.name !== 'iphone', 'één toestelformaat is genoeg');
+  test.setTimeout(180_000);
+  const senn = await post('/v1/darters/join', { nickname: 'SennW', age: 'adult' });
+  const bram = await post('/v1/darters/join', { nickname: 'BramW', age: 'adult' });
+  const S = await phone(browser, info, 'Senn', senn);
+  const B = await phone(browser, info, 'Bram', bram);
+  await S.page.goto('/'); await B.page.goto('/');
+  const before = await stored(S.page);
+
+  // Bram start 501 (1 leg) op zijn telefoon en koppelt Senn met Senns code
+  const code = await makeCode(S.page);
+  await B.page.click('.tabbar [data-go=match]');
+  await B.page.click('[data-act=match-set][data-arg="bestOf:1"]');
+  await linkOpponent(B.page, code, 'Senn');
+  await B.page.click('[data-testid=start-match]');
+  // Bram 3×3, Senn 180, 180, en 141 uit (T20 T19 D12)
+  for (const turn of [['S1', 'S1', 'S1'], ['T20', 'T20', 'T20'], ['S1', 'S1', 'S1'], ['T20', 'T20', 'T20'], ['S1', 'S1', 'S1'], ['T20', 'T19', 'D12']]) for (const c of turn) await dart(B.page, c);
+  await expect(B.page.getByTestId('sent-to')).toContainText('Senn');
+  await expect(B.page.locator('#toast')).toContainText('doorgestuurd naar Senn');
+  const bd = await stored(B.page);
+  expect(bd.matches).toHaveLength(1);
+  expect(bd.matches[0].legs[0].turns).toHaveLength(6);   // Brams telefoon bewaart de wedstrijd gewoon
+
+  // Senns telefoon: wedstrijd bij zijn wedstrijden, niet bij trainingen; nog eens openen geeft geen dubbele
+  await S.page.reload();
+  await expect(S.page.locator('#toast')).toContainText('resultaat van een andere telefoon is toegevoegd');
+  await S.page.reload();
+  let sd = await stored(S.page);
+  expect(sd.trainings.length).toBe(before.trainings.length);
+  expect(sd.matches).toHaveLength(1);
+  const m = sd.matches[0];
+  expect(m.source).toBe('Andere telefoon');
+  expect(m.players[m.summary.me]).toEqual({ id: 'p-senn', name: 'Senn' });
+  expect([m.summary.winner, m.summary.darts, m.summary.points, m.summary.high, m.summary.bestCheckout, m.summary.t180]).toEqual([1, 9, 501, 180, 141, 2]);
+  await S.page.click('.tabbar [data-go=more]'); await S.page.click('[data-go=history]');
+  await expect(S.page.locator('.history')).toContainText('Gewonnen');
+  await expect(S.page.locator('.history')).toContainText('gespeeld op andere telefoon');
+  await S.page.click('.tabbar [data-go=stats]');
+  await expect(S.page.locator('.records')).toContainText('141');   // hoogste finish als record
+
+  // Offline: nieuwe code, Brams telefoon zonder internet, wedstrijd na twee beurten gestopt (geen winnaar)
+  const code2 = await makeCode(S.page);
+  await B.context.setOffline(true);
+  await B.page.click('.tabbar [data-go=match]');
+  while (await B.page.locator('[data-act=mp-remove]').count() > 0) await B.page.locator('[data-act=mp-remove]').last().click();
+  await linkOpponent(B.page, code2, 'Senn');
+  await B.page.click('[data-testid=start-match]');
+  for (const c of ['T20', 'S5', 'S1', 'S20', 'S20', 'S20']) await dart(B.page, c);
+  await B.page.click('[data-act=stop-match]'); await B.page.click('[data-act=modal-ok]');
+  await B.page.click('.tabbar [data-go=more]');
+  await expect(B.page.getByTestId('guest-queue')).toContainText('1 resultaat');
+  await B.context.setOffline(false);
+  await expect.poll(() => B.page.evaluate(() => JSON.parse(localStorage.getItem('okkie.guest.v1')).queue.length), { timeout: 10000 }).toBe(0);
+  await S.page.reload(); await S.page.waitForTimeout(800); await S.page.reload();
+  sd = await stored(S.page);
+  expect(sd.matches).toHaveLength(2);
+  const stopped = sd.matches.find(x => x.stopped);
+  expect([stopped.summary.winner, stopped.summary.points, stopped.summary.darts]).toEqual([null, 60, 3]);
+  expect((await get('/v1/me/inbox', senn.token)).matches).toEqual([]);
   for (const p of [S, B]) expect(p.errors).toEqual([]);
   for (const p of [S, B]) await p.context.close();
 });

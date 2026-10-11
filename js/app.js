@@ -273,7 +273,7 @@ function render() {
 }
 
 function tabOf(view) {
-  if (view === 'regels' || view === 'hulp') return 'more';
+  if (['regels', 'hulp', 'andere-app', 'history'].includes(view)) return 'more';
   if (view.startsWith('train') || view === 'result-training') return 'train';
   if (view.startsWith('match') || view === 'result-match') return 'match';
   return view;
@@ -330,8 +330,6 @@ VIEWS.home = () => {
   const p = player();
   const recent = myTrainings('score').slice(-12);
   const at = data.active.training, am = data.active.match;
-  const earned = earnedBadges(data, data.activePlayerId);
-  const next = BADGES.find(b => !earned.has(b.id));
   const greet = (() => { const h = new Date().getHours(); return h < 6 ? 'Nachtsessie' : h < 12 ? 'Goedemorgen' : h < 18 ? 'Goedemiddag' : 'Goedenavond'; })();
   return `${header('')}
   <main class="page">
@@ -375,8 +373,6 @@ VIEWS.home = () => {
     </section>
     ${recent.length >= 2 ? `<section class="card"><div class="card-head"><h3>Laatste trainingen</h3><button class="link" data-go="stats">Alles bekijken</button></div>
       ${lineChart(recent.map(t => { const tot = L.trainingTotals(t); return { label: dateLabel(t.startedAt), value: tot.avg, sub: trainingTitle(t) }; }), { height: 160 })}</section>` : ''}
-    ${next ? `<section class="card next-badge"><span class="badge-icon locked">${next.icon}</span><div><small>Volgende badge</small><b>${esc(next.name)}</b><p>${esc(next.desc)}</p></div><span class="badge-count">${earned.size}/${BADGES.length}</span></section>` : ''}
-    <button class="invite-row" data-act="invite" data-testid="invite-home"><span class="a-icon">${icon('invite', { size: 20 })}</span><span><b>Nodig een vriend uit</b><small>Deel OKKIE. via WhatsApp of een ander appje</small></span></button>
   </main>`;
 };
 
@@ -416,7 +412,6 @@ function setupPlayers() {
 VIEWS.train = () => {
   const s = ui.setup;
   const ps = setupPlayers();
-  const others = data.players.filter(p => !ps.includes(p.id));
   const opt = (turns, label, sub) => `<button class="choice ${s.kind === 'score' && s.turns === turns ? 'on' : ''}" data-act="setup-turns" data-arg="${turns}" aria-pressed="${s.kind === 'score' && s.turns === turns}"><b>${label}</b><small>${sub}</small></button>`;
   const info = s.turns === 0 ? 'Vrij trainen: stop wanneer je wilt.' : s.turns === -1 ? `${s.custom} beurten van 3 pijlen (${s.custom * 3} pijlen).` : `${s.turns} beurten van 3 pijlen.`;
   return `${header('Trainen', 'home')}
@@ -439,11 +434,7 @@ VIEWS.train = () => {
       <ol class="match-players" data-testid="train-players">${ps.map((id, i) => `<li><span><i class="dot" style="background:${esc(player(id).color)}"></i> ${esc(player(id).name)}${G.guestLink(id)?.code ? ' <span class="linked" title="Gekoppeld: deze training gaat naar zijn eigen OKKIE.">🔗</span>' : ''}</span>
         ${i > 0 ? `<button class="icon-btn small" data-act="tp-up" data-arg="${i}" aria-label="Eerder gooien">↑</button>` : ''}
         ${ps.length > 1 ? `<button class="icon-btn small" data-act="tp-remove" data-arg="${i}" aria-label="Niet meedoen">✕</button>` : ''}</li>`).join('')}</ol>
-      ${ps.length < 4 ? `<div class="add-player">
-        <div class="chips">${others.map(p => `<button class="chip" data-act="tp-add" data-arg="${esc(p.id)}">+ ${esc(p.name)}</button>`).join('')}</div>
-        <form data-form="train-player" class="guest"><input name="name" maxlength="24" placeholder="Naam vriend of familie" aria-label="Naam nieuwe speler"><button class="btn secondary">+ Speler</button></form>
-        ${apiAvailable() ? `<button class="btn ghost small" data-act="guest-link-open" data-testid="guest-link-open">${icon('group', { size: 17 })}Speler met eigen OKKIE.? Vul zijn koppelcode in</button>` : ''}
-      </div>` : ''}
+      ${ps.length < 4 ? `<button class="btn secondary add-btn" data-act="add-player-open" data-arg="train" data-testid="add-player">+ Speler toevoegen</button>` : ''}
       <button class="btn primary big" data-act="start-score" data-testid="start-score">${ps.length > 1 ? `Start met ${ps.length} spelers` : 'Start scoretraining'}</button>
     </section>
     <section class="card">
@@ -461,6 +452,26 @@ function goalLine(ps, s) {
   if (!g) return '';
   return `<p class="goal-line" data-testid="goal"><span>Jouw doel: <b>${fmt(g.target, 1)}</b> gemiddeld${g.record ? ', je record verbeteren' : ''}</span>
     <small>Laatste keren ${fmt(g.recent, 1)} · record ${fmt(g.best, 1)}</small></p>`;
+}
+
+// Eén venster om een speler toe te voegen, bij trainen én bij een wedstrijd: iemand van deze telefoon, een nieuwe naam,
+// of (alleen hier, als het relevant is) een vriend met eigen OKKIE. via zijn koppelcode.
+function addPlayerModal(ctx = ui.addCtx) {
+  ui.addCtx = ctx;
+  const inList = ctx === 'match' ? ui.match.players.map(p => p.id) : setupPlayers();
+  if (inList.length >= 4) return closeModal();
+  const others = data.players.filter(p => !inList.includes(p.id));
+  const act = ctx === 'match' ? 'mp-add' : 'tp-add';
+  modal(`<h3>Speler toevoegen</h3>
+    ${others.length ? `<div class="chips add-known">${others.map(p => `<button class="chip" data-act="${act}" data-arg="${esc(p.id)}">+ ${esc(p.name)}</button>`).join('')}</div>` : ''}
+    <form data-form="${ctx === 'match' ? 'guest' : 'train-player'}" class="guest"><input name="name" maxlength="24" placeholder="${ctx === 'match' ? 'Naam tegenstander' : 'Naam vriend of familie'}" aria-label="Naam nieuwe speler"><button class="btn secondary">Toevoegen</button></form>
+    ${apiAvailable() ? `<button class="btn ghost small link-code" data-act="guest-link-open" data-testid="guest-link-open">${icon('group', { size: 17 })}Speler met eigen OKKIE.? Vul zijn koppelcode in</button>` : ''}
+    <div class="modal-actions"><button class="btn primary" data-act="modal-close">Klaar</button></div>`);
+}
+// Na toevoegen: venster dicht, lijst bijgewerkt. Nog iemand? Dan tik je opnieuw op Speler toevoegen.
+function playerAdded() {
+  closeModal();
+  render();
 }
 
 // ----- Toetsenbord -----
@@ -679,7 +690,6 @@ VIEWS.match = () => {
   const m = ui.match;
   if (!m.players.length) m.players = [{ id: data.activePlayerId, name: player().name }];
   const chip = (key, val, label) => `<button class="chip ${m[key] === val ? 'on' : ''}" data-act="match-set" data-arg="${key}:${val}">${label}</button>`;
-  const others = data.players.filter(p => !m.players.some(x => x.id === p.id));
   return `${header('Wedstrijd', 'home')}
   <main class="page">
     ${data.active.match ? `<div class="note">Er loopt nog een wedstrijd. <button class="link" data-act="resume-match">Hervatten</button></div>` : ''}
@@ -693,14 +703,10 @@ VIEWS.match = () => {
     </section>
     <section class="card">
       <h3>Spelers <small class="muted">(wie begint staat bovenaan)</small></h3>
-      <ol class="match-players">${m.players.map((p, i) => `<li><span>${esc(p.name)}${p.id ? '' : ' <small class="muted">gast</small>'}</span>
+      <ol class="match-players">${m.players.map((p, i) => `<li><span>${esc(p.name)}${p.id ? (G.guestLink(p.id)?.code ? ' <span class="linked" title="Gekoppeld: de uitslag gaat naar zijn eigen OKKIE.">🔗</span>' : '') : ' <small class="muted">gast</small>'}</span>
         ${i > 0 ? `<button class="icon-btn small" data-act="mp-up" data-arg="${i}" aria-label="Omhoog">↑</button>` : ''}
         ${m.players.length > 1 ? `<button class="icon-btn small" data-act="mp-remove" data-arg="${i}" aria-label="Verwijderen">✕</button>` : ''}</li>`).join('')}</ol>
-      ${m.players.length < 4 ? `<div class="add-player">
-        ${others.map(p => `<button class="chip" data-act="mp-add" data-arg="${esc(p.id)}">+ ${esc(p.name)}</button>`).join('')}
-        <form data-form="guest" class="guest"><input name="name" maxlength="24" placeholder="Naam tegenstander" aria-label="Naam tegenstander"><button class="btn secondary">+ Toevoegen</button></form>
-      </div>` : ''}
-      <p class="muted small">Tip: een tegenstander met een eigen profiel (Meer → Spelers) krijgt ook eigen statistieken.</p>
+      ${m.players.length < 4 ? `<button class="btn secondary add-btn" data-act="add-player-open" data-arg="match" data-testid="add-player">+ Speler toevoegen</button>` : ''}
     </section>
     <button class="btn primary big" data-act="start-match" data-testid="start-match">Start ${m.start} ${m.players.length > 1 ? '' : '(solo)'}</button>
   </main>`;
@@ -756,6 +762,7 @@ VIEWS['result-match'] = () => {
     <section class="result-hero win"><small>${m.players.length > 1 ? 'Winnaar' : 'Uitgegooid!'}</small><strong>${w !== null ? esc(m.players[w].name) : 'Gestopt'}</strong>
       <span>${m.players.length > 1 ? st.won.join(' – ') + ' in legs' : m.settings.start + ' uitgegooid'}</span></section>
     ${ui.result.newBadges?.length ? badgeBanner(ui.result.newBadges) : ''}
+    ${ui.result.sentTo?.length ? `<p class="note" data-testid="sent-to">De uitslag gaat naar de eigen OKKIE. van ${ui.result.sentTo.map(esc).join(' en ')}${navigator.onLine ? '' : ', zodra er internet is'}.</p>` : ''}
     ${matchTable(m, st)}
     <div class="row-actions"><button class="btn primary big" data-act="rematch">Revanche!</button><button class="btn ghost big" data-go="home">Home</button></div>
   </main>`;
@@ -946,7 +953,7 @@ VIEWS.history = () => {
     ...myMatches().map(m => ({ type: 'm', at: m.startedAt, m })),
   ].sort((a, b) => (a.at < b.at ? 1 : -1));
   let lastDay = '';
-  return `${header('Geschiedenis', 'home')}
+  return `${header('Geschiedenis', 'more')}
   <main class="page">
     ${!items.length ? '<section class="card empty"><p>Nog niets gespeeld. Je trainingen en wedstrijden verschijnen hier.</p></section>' : ''}
     <ul class="history">${items.map(it => {
@@ -964,7 +971,7 @@ VIEWS.history = () => {
       const m = it.m, st = L.matchState(m);
       const i = m.players.findIndex(p => p.id === data.activePlayerId);
       const res = m.players.length > 1 ? (st.winner === i ? 'Gewonnen' : st.winner === null ? 'Gestopt' : 'Verloren') : (st.winner !== null ? 'Uit!' : 'Gestopt');
-      return `${head}<li><button class="h-item" data-act="open-match" data-arg="${esc(m.id)}"><span class="h-icon">${icon('match')}</span><span class="h-main"><b>${m.settings.start} · ${m.players.map(p => esc(p.name)).join(' – ')}</b><small>${res} · ${st.won.join('–')}</small></span><strong>${fmt(st.totals[i].avg, 1)}</strong></button></li>`;
+      return `${head}<li><button class="h-item" data-act="open-match" data-arg="${esc(m.id)}"><span class="h-icon">${icon('match')}</span><span class="h-main"><b>${m.settings.start} · ${m.players.map(p => esc(p.name)).join(' – ')}</b><small>${res} · ${st.won.join('–')}${m.source ? ' · gespeeld op andere telefoon' : ''}</small></span><strong>${fmt(st.totals[i].avg, 1)}</strong></button></li>`;
     }).join('')}</ul>
   </main>`;
 };
@@ -985,7 +992,8 @@ function trainingDetail(t) {
 
 function matchDetail(m) {
   const st = L.matchState(m);
-  modal(`<h3>${m.settings.start} · ${m.players.map(p => esc(p.name)).join(' – ')}</h3><p class="muted">${dateTime(m.startedAt)} · ${m.settings.doubleOut ? 'double out' : 'straight out'}</p>
+  modal(`<h3>${m.settings.start} · ${m.players.map(p => esc(p.name)).join(' – ')}</h3><p class="muted">${m.summary ? 'Gespeeld op een andere telefoon · ' + esc(dateLabel(m.startedAt)) : dateTime(m.startedAt)} · ${m.settings.doubleOut ? 'double out' : 'straight out'}${m.stopped ? ' · gestopt' : ''}</p>
+    ${m.summary ? '<p class="muted small">Alleen jouw eigen cijfers en de uitslag zijn bekend; de beurten staan op de telefoon waarop is gespeeld.</p>' : ''}
     ${matchTable(m, st)}
     ${m.legs.map((leg, li) => {
       const rem = Array(m.players.length).fill(m.settings.start);
@@ -1012,65 +1020,41 @@ VIEWS.more = () => {
     </section>
     ${T.announce() ? moveCard() : ''}
     ${T.role() === 'new' ? `<section class="card" data-testid="fetch-more"><h3>Trainingen van het oude adres</h3><p class="muted">Speelde je eerder op martijndbesten.github.io/dartlog? Haal die trainingen hierheen. Er komt niets dubbel.</p><button class="btn secondary" data-act="transfer-receive">${icon('download', { size: 19 })}Trainingen ophalen</button></section>` : ''}
-    <section class="card" data-testid="invite-card">
-      <h3>Nodig een vriend uit</h3>
-      <p class="muted">Stuur OKKIE. naar een vriend, je oma of je dartclub. Dit is een gewone link naar okkiedarts.nl; er worden geen scores gedeeld.</p>
-      <button class="btn secondary" data-act="invite">${icon('invite', { size: 19 })}Nodig een vriend uit</button>
-    </section>
-    <nav class="card link-list" aria-label="Uitleg en hulp">
+    <nav class="card link-list" aria-label="Spelen en leren">
+      <button class="link-row" data-go="history"><span class="a-icon">${icon('history', { size: 20 })}</span><span><b>Geschiedenis</b><small>Trainingen en wedstrijden terugkijken of verwijderen</small></span>${icon('chevron', { size: 18 })}</button>
       <a class="link-row" href="./uitleg/"><span class="a-icon">${icon('book', { size: 20 })}</span><span><b>Hoe werkt OKKIE.?</b><small>Uitleg voor kinderen en beginners</small></span>${icon('chevron', { size: 18 })}</a>
       <button class="link-row" data-go="regels"><span class="a-icon">${icon('ruler', { size: 20 })}</span><span><b>Dartregels &amp; afmetingen</b><small>Bord ophangen, 501, dubbel uit, bust</small></span>${icon('chevron', { size: 18 })}</button>
+    </nav>
+    ${apiAvailable() ? `<section class="card" data-testid="other-phone">
+      <h3>Koppelcode maken</h3>
+      <p class="muted">Speel je mee op de telefoon van een vriend (training of 301/501)? Geef hem je code; je resultaat komt vanzelf bij je eigen statistieken.</p>
+      ${getAccount(data.activePlayerId) ? '<button class="btn secondary" data-act="guest-pass">Maak koppelcode</button>' : '<a class="btn secondary" href="./community/">Eerst delen aanzetten bij Darters ↗</a>'}
+      ${G.readGuest().queue.length ? `<p class="note" data-testid="guest-queue">${G.readGuest().queue.length === 1 ? '1 resultaat van een gast wacht' : G.readGuest().queue.length + ' resultaten van gasten wachten'} op internet om verstuurd te worden.${G.readGuest().queue.some(q => q.error) ? ' Eén of meer codes werken niet meer; vraag een nieuwe code en koppel opnieuw.' : ''}</p><button class="btn ghost small" data-act="guest-retry">Nu versturen</button>` : ''}
+    </section>` : ''}
+    <nav class="card link-list" aria-label="Delen en hulp">
+      <button class="link-row" data-act="invite" data-testid="invite-card"><span class="a-icon">${icon('invite', { size: 20 })}</span><span><b>Nodig een vriend uit</b><small>Een link naar okkiedarts.nl; er worden geen scores gedeeld</small></span>${icon('chevron', { size: 18 })}</button>
       <button class="link-row" data-go="hulp"><span class="a-icon">${icon('help', { size: 20 })}</span><span><b>Hulp &amp; feedback</b><small>Meld een probleem of stuur een idee</small></span>${icon('chevron', { size: 18 })}</button>
     </nav>
     <section class="card">
-      <h3>Geschiedenis</h3>
-      <p class="muted">Alle trainingen en wedstrijden terugkijken, corrigeren of verwijderen.</p>
-      <button class="btn secondary" data-go="history">${icon('history', { size: 19 })}Open geschiedenis</button>
-    </section>
-    <section class="card" data-testid="other-phone">
-      <h3>Darten op een andere telefoon</h3>
-      <p class="muted">Gooi je mee bij een vriend? Maak een koppelcode; je vriend vult hem in bij Trainen. Jouw training komt daarna bij je eigen statistieken. Werkt als je bij Darters delen hebt aangezet.</p>
-      ${getAccount(data.activePlayerId) ? '<button class="btn secondary" data-act="guest-pass">Maak koppelcode</button>' : '<a class="btn secondary" href="./community/">Eerst delen aanzetten bij Darters ↗</a>'}
-      ${G.readGuest().queue.length ? `<p class="note" data-testid="guest-queue">${G.readGuest().queue.length} training(en) van gasten wacht(en) op internet om verstuurd te worden.${G.readGuest().queue.some(q => q.error) ? ' Eén of meer codes werken niet meer; vraag een nieuwe code en koppel opnieuw.' : ''}</p><button class="btn ghost small" data-act="guest-retry">Nu versturen</button>` : ''}
-    </section>
-    <section class="card">
-      <h3>Darters</h3>
-      <p class="muted">Bekijk de cijfers van andere darters. Per speler zet je zelf met één schakelaar aan of jouw cijfers zichtbaar zijn; standaard staat dat uit. Losse pijlen blijven altijd op deze telefoon.</p>
-      <a class="btn secondary" href="./community/">${icon('trophy', { size: 19 })}Open Darters</a>
-    </section>
-    <section class="card" data-testid="other-app">
-      <h3>Scores uit een andere app</h3>
-      <p class="muted">Eerdere scoretrainingen (bijv. uit DartCounter) toevoegen aan <b>${esc(player().name)}</b>, zodat je ziet of je beter wordt.</p>
-      ${hasDartCounterSet(data, data.activePlayerId) ? `<p class="ok-line">${icon('check', { size: 18 })}${DARTCOUNTER_SET.label} zijn toegevoegd.</p>`
-        : `<button class="btn secondary" data-act="import-dc">${icon('import', { size: 19 })}${DARTCOUNTER_SET.label} toevoegen</button>`}
-      <h4>Zelf een score invullen</h4>
-      <form data-form="summary" class="summary-form">
-        <label>Pijlen<input type="number" name="darts" min="3" max="999" value="99" inputmode="numeric" required></label>
-        <label>Totaalscore<input type="number" name="points" min="0" max="59940" inputmode="numeric" required></label>
-        <label>Hoogste beurt <small class="muted">(mag leeg)</small><input type="number" name="high" min="0" max="180" inputmode="numeric"></label>
-        <label>Datum <small class="muted">(mag leeg)</small><input type="date" name="date" max="${new Date().toISOString().slice(0, 10)}"></label>
-        <button class="btn secondary">+ Score toevoegen</button>
-      </form>
-    </section>
-    <section class="card">
-      <h3>Back-up</h3>
-      <p class="muted">Je gegevens staan alleen op dit toestel (in de browser). Ze gaan niet automatisch naar een andere telefoon. Maak af en toe een back-up, zeker voordat je de browser opschoont.</p>
+      <h3>Back-up en overzetten</h3>
+      <p class="muted">Je gegevens staan alleen op dit toestel. Maak af en toe een back-up, zeker voordat je de browser opschoont.</p>
       <div class="row-actions"><button class="btn primary" data-act="export">${icon('download', { size: 19 })}Back-up downloaden</button><button class="btn secondary" data-act="backup-share">${icon('share', { size: 19 })}Bewaar via Delen / iCloud</button>
       <label class="btn secondary file">${icon('upload', { size: 19 })}Back-up terugzetten<input type="file" accept="application/json,.json" data-input="import" hidden></label></div>
       <h4>Naar een andere telefoon of app</h4>
       <p class="muted small">Met een overzetcode zet je alles over via kopiëren en plakken, bijvoorbeeld van Safari naar OKKIE. op je beginscherm. Er komt niets dubbel.</p>
       <div class="row-actions"><button class="btn secondary" data-act="transfer-code" data-testid="make-code">${icon('copy', { size: 19 })}Overzetcode maken</button><button class="btn secondary" data-act="transfer-receive" data-testid="enter-code">${icon('download', { size: 19 })}Code invoeren</button></div>
+      <button class="link-row compact" data-go="andere-app"><span><b>Scores uit een andere app</b><small>Bijv. DartCounter, of zelf een eindstand invullen</small></span>${icon('chevron', { size: 18 })}</button>
     </section>
     <section class="card" data-testid="install-help">
       <h3>Installeren op je telefoon</h3>
-      ${standalone ? `<p class="ok-line">${icon('check', { size: 18 })}OKKIE. draait als app op dit toestel.</p>` : ''}
+      ${standalone ? `<p class="ok-line">${icon('check', { size: 18 })}OKKIE. draait als app op dit toestel.</p>` : `
       ${ui.installEvent ? `<button class="btn primary" data-act="install">${icon('install', { size: 19 })}Installeer OKKIE.</button>` : ''}
       ${T.announce() ? `<p class="note">OKKIE. verhuist naar <b>app.okkiedarts.nl</b>. Zet liever die nieuwe app op je beginscherm, nadat je je trainingen hebt overgezet.</p>` : ''}
       <h4>Installeren op iPhone</h4>
-      <p>Open OKKIE in <b>Safari</b>, gebruik <b>Delen</b> en kies <b>'Zet op beginscherm'</b>.</p>
+      <p>Open <b>app.okkiedarts.nl</b> in <b>Safari</b>, gebruik <b>Delen</b> en kies <b>'Zet op beginscherm'</b>.</p>
       <h4>Installeren op Android</h4>
-      <p>Open OKKIE in <b>Chrome</b> en kies via het menu <b>⋮</b> <b>'App installeren'</b> of <b>'Toevoegen aan startscherm'</b>.</p>
-      <p class="muted small">Na installatie opent OKKIE als eigen app en werkt hij ook zonder internet. Je gegevens worden op je eigen apparaat bewaard en synchroniseren niet automatisch tussen apparaten; gebruik daarvoor de back-up hierboven.</p>
+      <p>Open <b>app.okkiedarts.nl</b> in <b>Chrome</b> en kies via het menu <b>⋮</b> <b>'App installeren'</b> of <b>'Toevoegen aan startscherm'</b>.</p>
+      <p class="muted small">Installeren hoeft niet: OKKIE. werkt ook gewoon in de browser. Op iPhone heeft de app op je beginscherm een eigen opslag; zet je bestaande trainingen dan over met een overzetcode (hierboven).</p>`}
     </section>
     <section class="card">
       <h3>Instellingen</h3>
@@ -1093,6 +1077,24 @@ VIEWS.hulp = () => {
   return `${header('Hulp & feedback', 'more')}
   <main class="page">${FB.feedbackPage(ui.fb, FB.techInfo({ version: APP_VERSION, installed: I.isStandalone() }))}</main>`;
 };
+
+VIEWS['andere-app'] = () => `${header('Andere app', 'more')}
+  <main class="page">
+    <section class="card" data-testid="other-app">
+      <h3>Scores uit een andere app</h3>
+      <p class="muted">Eerdere scoretrainingen (bijv. uit DartCounter) toevoegen aan <b>${esc(player().name)}</b>, zodat je ziet of je beter wordt.</p>
+      ${hasDartCounterSet(data, data.activePlayerId) ? `<p class="ok-line">${icon('check', { size: 18 })}${DARTCOUNTER_SET.label} zijn toegevoegd.</p>`
+        : `<button class="btn secondary" data-act="import-dc">${icon('import', { size: 19 })}${DARTCOUNTER_SET.label} toevoegen</button>`}
+      <h4>Zelf een score invullen</h4>
+      <form data-form="summary" class="summary-form">
+        <label>Pijlen<input type="number" name="darts" min="3" max="999" value="99" inputmode="numeric" required></label>
+        <label>Totaalscore<input type="number" name="points" min="0" max="59940" inputmode="numeric" required></label>
+        <label>Hoogste beurt <small class="muted">(mag leeg)</small><input type="number" name="high" min="0" max="180" inputmode="numeric"></label>
+        <label>Datum <small class="muted">(mag leeg)</small><input type="date" name="date" max="${new Date().toISOString().slice(0, 10)}"></label>
+        <button class="btn secondary">+ Score toevoegen</button>
+      </form>
+    </section>
+  </main>`;
 
 VIEWS.regels = () => `${header('Dartregels', 'more')}
   <main class="page rules">${rulesPage()}</main>`;
@@ -1245,6 +1247,8 @@ function startMatch() {
     legs: [{ starter: 0, turns: [] }],
     pending: [],
   };
+  // Gekoppelde spelers (koppelcode): hun code hoort nu bij deze wedstrijd.
+  G.claimGuests({ id: data.active.match.id, players: data.active.match.players.map(p => p.id).filter(Boolean) });
   ui.mod = 1;
   save();
   go('play-match');
@@ -1284,7 +1288,8 @@ function legWon(m, p, checkoutScore) {
     save();
     const me = data.activePlayerId;
     const newBadges = badgesBefore.has(me) ? [...earnedBadges(data, me)].filter(b => !badgesBefore.get(me).has(b)) : [];
-    ui.result = { id: m.id, newBadges };
+    const sentTo = guestMatchDone(data.matches[data.matches.length - 1]);
+    ui.result = { id: m.id, newBadges, sentTo };
     go('result-match');
     celebrate('GAME SHOT!', `${m.players[p].name} wint met ${checkoutScore} uit`, 'win');
     beep('win');
@@ -1296,6 +1301,13 @@ function legWon(m, p, checkoutScore) {
   render();
   celebrate('LEG!', `${m.players[p].name} gooit ${checkoutScore} uit · ${st.won.join('–')}`, 'win');
   beep('win');
+}
+
+// Wedstrijd bewaard (uitgespeeld of gestopt): uitslag van gekoppelde spelers naar hun eigen OKKIE. (wachtrij, ook offline).
+function guestMatchDone(saved) {
+  const names = saved ? G.queueGuestMatch(saved.id, saved) : [];
+  if (names.length) sendGuests();
+  return names;
 }
 
 function undoMatch() {
@@ -1321,7 +1333,10 @@ function stopMatch() {
       if (pending.length) currentLeg(clean).turns.push({ p: L.legState(currentLeg(clean), m.settings.start, m.players.length, m.settings.doubleOut).toThrow, darts: pending, at: now() });
       clean.legs = clean.legs.filter(l => l.turns.length);
       data.matches.push({ ...clean, finishedAt: now(), stopped: true });
-    }
+      save();
+      const names = guestMatchDone(data.matches[data.matches.length - 1]);
+      if (names.length) setTimeout(() => toast(`De uitslag gaat naar de eigen OKKIE. van ${names.join(' en ')}.`), 300);
+    } else G.releaseGuests(m.id);
     data.active.match = null;
     save();
     closeModal();
@@ -1583,7 +1598,7 @@ async function installStart() {
       <div class="row-actions" style="margin-top:8px"><button class="btn small primary" data-act="transfer-copy" data-testid="install-copy">${icon('copy', { size: 17 })}Kopieer overzetcode</button><button class="btn small secondary" data-act="backup-share">Back-up bewaren</button></div>
       <textarea class="transfer-code" readonly rows="2" hidden>${esc(ui.transferCode || '')}</textarea></li>` : '';
   const steps = p === 'ios' ? (I.iosBrowser() === 'firefox'
-      ? '<li>Open <b>okkiedarts.nl</b> in <b>Safari</b>. Firefox kan OKKIE. niet op je beginscherm zetten.</li>'
+      ? '<li>Open <b>app.okkiedarts.nl</b> in <b>Safari</b>. Firefox kan OKKIE. niet op je beginscherm zetten.</li>'
       : `<li>Tik op de <b>deelknop</b> ${icon('share', { size: 18 })} ${I.iosBrowser() === 'safari' ? '(onderaan of bovenaan; zie je hem niet, tik dan eerst op <b>•••</b>)' : '(rechtsboven in de adresbalk)'}.</li>
       <li>Kies <b>Zet op beginscherm</b>. Staat hij er niet tussen? Scroll in het menu naar beneden.</li>
       <li>Tik op <b>Voeg toe</b>.</li>`)
@@ -1609,7 +1624,7 @@ function switchPlayerModal() {
 
 const ACTIONS = {
   'guest-link-open': () => modal(`<h3>Speler met eigen OKKIE.</h3>
-    <p class="muted">Gooit een vriend mee die zelf OKKIE. heeft? Laat hem op zijn telefoon bij <b>Meer → Darten op een andere telefoon</b> een koppelcode maken. Zijn training gaat dan na afloop naar zijn eigen statistieken. Jouw scores blijven gewoon van jou.</p>
+    <p class="muted">Speelt er iemand mee die zelf OKKIE. heeft? Laat hem op zijn telefoon bij <b>Meer → Koppelcode maken</b> een code maken. Na afloop gaat zijn ${ui.addCtx === 'match' ? 'wedstrijduitslag' : 'training'} vanzelf naar zijn eigen statistieken. Jouw scores blijven gewoon van jou.</p>
     <form data-form="guest-link"><label class="inline">Koppelcode <input name="code" maxlength="9" autocomplete="off" autocapitalize="characters" placeholder="ABCD-EFGH" required></label>
     <label class="inline">Naam (alleen nodig zonder internet) <input name="name" maxlength="24"></label>
     <div class="modal-actions"><button type="button" class="btn ghost" data-act="modal-close">Annuleren</button><button class="btn primary">Koppelen</button></div></form>`),
@@ -1617,7 +1632,7 @@ const ACTIONS = {
     try {
       const r = await G.makeGuestCode(data.activePlayerId);
       modal(`<h3>Jouw koppelcode</h3><p class="guest-code" data-testid="guest-code">${esc(r.code)}</p>
-        <p class="muted">Laat je vriend deze code invullen bij <b>Trainen → Speler met eigen OKKIE.?</b>. De code is ${r.days} dagen geldig en werkt voor <b>één</b> training. Na afloop komt die training vanzelf bij jouw statistieken. De code geeft geen toegang tot je profiel.</p>
+        <p class="muted">Laat je vriend deze code invullen bij <b>Speler toevoegen → Speler met eigen OKKIE.?</b>, bij trainen of bij een 301/501-wedstrijd. De code is ${r.days} dagen geldig en werkt voor <b>één</b> training of wedstrijd. Na afloop komt jouw resultaat vanzelf bij je eigen statistieken. De code geeft geen toegang tot je profiel.</p>
         <div class="modal-actions"><button class="btn primary" data-act="modal-close">Klaar</button></div>`);
     } catch (e) { toast(e instanceof TypeError ? 'Geen internet. Een koppelcode maken lukt alleen online.' : e.message); }
   },
@@ -1692,7 +1707,8 @@ const ACTIONS = {
   },
   'setup-turns': v => { ui.setup.kind = 'score'; ui.setup.turns = Number(v); render(); },
   'start-score': startScore,
-  'tp-add': id => { const ps = setupPlayers(); if (player(id) && ps.length < 4 && !ps.includes(id)) ps.push(id); render(); },
+  'add-player-open': ctx => addPlayerModal(ctx === 'match' ? 'match' : 'train'),
+  'tp-add': id => { const ps = setupPlayers(); if (player(id) && ps.length < 4 && !ps.includes(id)) ps.push(id); playerAdded(); },
   'tp-remove': i => { setupPlayers().splice(Number(i), 1); render(); },
   'tp-up': i => { const a = setupPlayers(); const n = Number(i); [a[n - 1], a[n]] = [a[n], a[n - 1]]; render(); },
   'start-clock': startClock,
@@ -1737,13 +1753,14 @@ const ACTIONS = {
     ui.match[k] = k === 'doubleOut' ? val === 'true' : Number(val);
     render();
   },
-  'mp-add': id => { const p = player(id); if (p && ui.match.players.length < 4) ui.match.players.push({ id: p.id, name: p.name }); render(); },
+  'mp-add': id => { const p = player(id); if (p && ui.match.players.length < 4 && !ui.match.players.some(x => x.id === id)) ui.match.players.push({ id: p.id, name: p.name }); playerAdded(); },
   'mp-remove': i => { ui.match.players.splice(Number(i), 1); render(); },
   'mp-up': i => { const a = ui.match.players; const n = Number(i); [a[n - 1], a[n]] = [a[n], a[n - 1]]; render(); },
   'start-match': () => {
     if (data.active.match) return void confirmBox('Lopende wedstrijd', 'Er loopt nog een wedstrijd. Die wordt gestopt en bewaard als je een nieuwe start.', 'Nieuwe starten', () => {
       const m = data.active.match; const { pending, ...clean } = m; clean.legs = clean.legs.filter(l => l.turns.length);
-      if (clean.legs.length) data.matches.push({ ...clean, finishedAt: now(), stopped: true });
+      if (clean.legs.length) { data.matches.push({ ...clean, finishedAt: now(), stopped: true }); save(); guestMatchDone(data.matches[data.matches.length - 1]); }
+      else G.releaseGuests(m.id);
       data.active.match = null; closeModal(); startMatch();
     }, false);
     startMatch();
@@ -1895,10 +1912,10 @@ const FORMS = {
     let p = data.players.find(x => links[x.id] && links[x.id].nickname === nickname);
     if (!p) { p = S.newPlayer(nickname, data.players.length); data.players.push(p); save(); }
     G.linkGuest(p.id, code, nickname);
-    const ps = setupPlayers();
-    if (!ps.includes(p.id) && ps.length < 4) ps.push(p.id);
+    if (ui.addCtx === 'match') { if (!ui.match.players.some(x => x.id === p.id) && ui.match.players.length < 4) ui.match.players.push({ id: p.id, name: p.name }); }
+    else { const ps = setupPlayers(); if (!ps.includes(p.id) && ps.length < 4) ps.push(p.id); }
     closeModal(); render();
-    toast(`${nickname} is gekoppeld. Na de training gaat zijn score naar zijn eigen OKKIE.`);
+    toast(`${nickname} is gekoppeld. Na afloop gaat ${ui.addCtx === 'match' ? 'de uitslag' : 'de training'} naar zijn eigen OKKIE.`);
   },
   welcome: fd => {
     const name = S.cleanName(fd.get('name'));
@@ -1932,14 +1949,14 @@ const FORMS = {
     if (ps.includes(p.id)) return toast(`${p.name} doet al mee.`);
     if (ps.length >= 4) return toast('Maximaal 4 spelers.');
     ps.push(p.id);
-    render();
+    playerAdded();
   },
   guest: fd => {
     const name = S.cleanName(fd.get('name'));
     if (!name) return toast('Vul een naam in.');
     const prof = data.players.find(p => p.name.toLowerCase() === name.toLowerCase());
     if (ui.match.players.length < 4) ui.match.players.push(prof && !ui.match.players.some(x => x.id === prof.id) ? { id: prof.id, name: prof.name } : { id: null, name });
-    render();
+    playerAdded();
   },
   summary: fd => {
     const t = S.summaryTraining({ playerId: data.activePlayerId, points: fd.get('points'), darts: fd.get('darts'), high: fd.get('high'), date: fd.get('date') || null, source: 'Andere app' });
@@ -2085,7 +2102,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
 // Gasten: wachtrij versturen; eigen telefoon: trainingen van andere telefoons ophalen. Nooit blokkerend.
 function sendGuests(manual = false) {
   G.flushGuestQueue().then(r => {
-    if (r.sent.length) toast(`Training doorgestuurd naar ${[...new Set(r.sent)].join(', ')}.`);
+    if (r.sent.length) toast(`Resultaat doorgestuurd naar ${[...new Set(r.sent)].join(', ')}.`);
     else if (manual) toast(G.readGuest().queue.length ? 'Nog niet verstuurd. Probeer het later opnieuw.' : 'Alles is verstuurd.');
     if (ui.view === 'more') render();
   }).catch(() => {});
@@ -2094,7 +2111,7 @@ function syncOtherPhones() {
   sendGuests();
   resumePendingSync(data);   // wat bij afsluiten of offline nog niet verstuurd was
   G.pullInbox(data, save).then(n => {
-    if (n) { toast(n === 1 ? 'Een training van een andere telefoon is toegevoegd.' : `${n} trainingen van andere telefoons zijn toegevoegd.`); if (!PLAY_VIEWS.has(ui.view)) render(); }
+    if (n) { toast(n === 1 ? 'Een resultaat van een andere telefoon is toegevoegd.' : `${n} resultaten van andere telefoons zijn toegevoegd.`); if (!PLAY_VIEWS.has(ui.view)) render(); }
   }).catch(() => {});
 }
 syncOtherPhones();

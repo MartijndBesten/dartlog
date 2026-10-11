@@ -43,7 +43,10 @@ test('logo, iconen en linkkleuren zijn overal OKKIE., zonder horizontaal scrolle
 
 test('Nodig een vriend uit: WhatsApp-link met natuurlijke tekst en okkiedarts.nl, kopiëren werkt', async ({ page, context, browserName }, info) => {
   await onboard(page);
-  await page.click('[data-testid=invite-home]');
+  // Niet meer vast op Home (rustiger); wel onder Meer en af en toe na een mooi resultaat.
+  await expect(page.locator('[data-testid=invite-home]')).toHaveCount(0);
+  await page.click('.tabbar [data-go=more]');
+  await page.click('[data-testid=invite-card]');
   await expect(page.getByTestId('invite-text')).toContainText('Ik train mijn darts met OKKIE.');
   const href = await page.getByTestId('invite-whatsapp').getAttribute('href');
   expect(href.startsWith('https://wa.me/?text=')).toBe(true);
@@ -62,11 +65,8 @@ test('Nodig een vriend uit: WhatsApp-link met natuurlijke tekst en okkiedarts.nl
   } else {
     await page.click('[data-act=modal-close]');
   }
-  // Ook vanuit Meer, en duidelijk los van Mijn vrienden
-  await page.click('.tabbar [data-go=more]');
+  // Duidelijk los van Darters: er worden geen scores gedeeld
   await expect(page.getByTestId('invite-card')).toContainText('er worden geen scores gedeeld');
-  await page.getByTestId('invite-card').locator('[data-act=invite]').click();
-  await expect(page.getByTestId('invite-whatsapp')).toBeVisible();
 });
 
 test('Ander appje kiezen gebruikt het deelmenu van de telefoon', async ({ page }) => {
@@ -75,7 +75,8 @@ test('Ander appje kiezen gebruikt het deelmenu van de telefoon', async ({ page }
     navigator.share = async d => { window.__shared = d; };
   });
   await onboard(page);
-  await page.click('[data-testid=invite-home]');
+  await page.click('.tabbar [data-go=more]');
+  await page.click('[data-testid=invite-card]');
   await page.click('[data-act=invite-share]');
   const shared = await page.evaluate(() => window.__shared);
   expect(shared.url).toBe('https://okkiedarts.nl/');

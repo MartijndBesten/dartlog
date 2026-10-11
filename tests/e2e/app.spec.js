@@ -67,7 +67,7 @@ test('volledige scoretraining van 30 pijlen wordt berekend en bewaard', async ({
   await page.click('[data-act=modal-ok]');
   await expect(page.locator('.records-banner')).toContainText('Hoogste beurt: 180');
   await page.click('.tabbar [data-go=more]');
-  await page.click('text=Open geschiedenis');
+  await page.click('[data-go=history]');
   await expect(page.locator('.h-item')).toHaveCount(2);
 });
 
@@ -106,8 +106,9 @@ test('501 met twee spelers: bust, checkout-advies en winst', async ({ page }, in
   await onboard(page, 'Sem');
   await page.click('.action.match');
   await page.click('[data-act=match-set][data-arg="bestOf:1"]');
-  await page.fill('.guest input', 'Papa');
-  await page.click('.guest .btn');
+  await page.click('[data-testid=add-player]');
+  await page.fill('.modal .guest input', 'Papa');
+  await page.click('.modal .guest .btn');
   await page.click('[data-testid=start-match]');
   await expect(page.getByTestId('rest-0')).toHaveText('501');
   const turn = async codes => { for (const c of codes) await dart(page, c); };
@@ -244,6 +245,7 @@ test('samen trainen: 3 spelers gooien om de beurt 3 pijlen', async ({ page }, in
   await onboard(page, 'Senn');
   await page.click('.action.train');
   for (const name of ['Papa', 'Oma']) {
+    await page.click('[data-testid=add-player]');
     await page.fill('[data-form=train-player] input', name);
     await page.click('[data-form=train-player] .btn');
   }
@@ -285,6 +287,7 @@ test('samen trainen: 3 spelers gooien om de beurt 3 pijlen', async ({ page }, in
 test('DartCounter-scores toevoegen, datum invullen en meetellen', async ({ page }, info) => {
   await onboard(page, 'Senn');
   await page.click('.tabbar [data-go=more]');
+  await page.click('[data-go=andere-app]');
   await page.click('[data-act=import-dc]');
   await page.click('[data-act=modal-ok]');
   await expect(page.locator('[data-testid=other-app]')).toContainText('zijn toegevoegd');
@@ -294,7 +297,7 @@ test('DartCounter-scores toevoegen, datum invullen en meetellen', async ({ page 
   await expect(page.locator('.chart .pt')).toHaveCount(10);
   await page.screenshot({ path: `screenshots/e2e-${info.project.name}-dc-stats.png`, fullPage: true });
   await page.click('.tabbar [data-go=more]');
-  await page.click('text=Open geschiedenis');
+  await page.click('[data-go=history]');
   await expect(page.locator('.history .day')).toContainText('Datum onbekend');
   await page.locator('.h-item').first().click();
   await page.fill('[data-form=set-date] input', '2026-10-03');
@@ -302,6 +305,7 @@ test('DartCounter-scores toevoegen, datum invullen en meetellen', async ({ page 
   await expect(page.locator('.history .day').first()).toContainText('3 oktober 2026');
   // Handmatig een score invullen
   await page.click('.tabbar [data-go=more]');
+  await page.click('[data-go=andere-app]');
   await page.fill('[data-form=summary] [name=points]', '1300');
   await page.fill('[data-form=summary] [name=high]', '111');
   await page.click('[data-form=summary] .btn');
@@ -327,7 +331,7 @@ test('bestaande gegevens van de vorige versie blijven bewaard', async ({ page })
   await expect(page.getByTestId('live-total')).toHaveText('122');
   await page.click('[data-act=pause]');
   await page.click('.tabbar [data-go=more]');
-  await page.click('text=Open geschiedenis');
+  await page.click('[data-go=history]');
   await expect(page.locator('.h-item')).toHaveCount(1);
 });
 

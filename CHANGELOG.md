@@ -23,6 +23,17 @@
   ongemoeid; gezamenlijke wedstrijden blijven voor hen bewaard (zonder naam van de verwijderde speler).
 - **Delen uitzetten werkt op alle telefoons:** staat het profiel op een andere telefoon uit of daar teruggezet, dan toont
   deze telefoon het ook als uit. Lokale trainingen blijven altijd staan.
+- **Koppelcode ook bij 301/501:** bij Speler toevoegen een tegenstander met eigen OKKIE. koppelen. Na afloop gaat zijn
+  uitslag (legs, winnaar of gestopt) met zijn eigen wedstrijdcijfers (gemiddelde, hoogste beurt, beste finish, 100+/140+/180)
+  naar zijn eigen telefoon, als wedstrijd "gespeeld op andere telefoon". Eén code = één training of wedstrijd; opnieuw
+  versturen geeft nooit een dubbele; offline gaat het later alsnog. Telt nooit als training of bij Darters.
+- **Eenvoudiger:** speler toevoegen is bij trainen en wedstrijd één knop met een klein venster (de koppelcode zit daarin).
+  Home toont alleen nog de vier hoofdacties, je cijfers en grafiek (uitnodigen staat onder Meer; badges bij Statistieken).
+  Meer is ingedeeld: spelen en leren, koppelcode, delen en hulp, back-up en overzetten (met "Scores uit een andere app"),
+  installeren (in de geïnstalleerde app één regel) en instellingen. Darters: de lijst heet Ranglijst.
+- **Uitleg (ook op okkiedarts.nl/uitleg):** rustige app-preview in plaats van het getekende dartbord; geen emoji meer bij
+  de stappen. Website noemt dat OKKIE. donker en licht kan.
+- Installatieadvies: bij Firefox op iPhone verwijst het nu naar app.okkiedarts.nl.
 - Server: lege profielen worden pas 30 dagen na de laatste wijziging opgeruimd (niet 30 dagen na aanmaken), zodat
   statistieken wissen niet ongemerkt het profiel kost.
 

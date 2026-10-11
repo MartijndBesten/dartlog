@@ -149,3 +149,42 @@ test('jonger dan 16: koppelcode pas met toestemming voor een groep; standaard ui
   assert.equal((await call(off, '/v1/me/guest-pass', { method: 'POST', token: senn.token })).status, 404);
   assert.equal((await call(off, '/v1/guest/preview', { method: 'POST', body: { code: 'ABCD-EFGH' } })).status, 404);
 });
+
+// ---------- Koppelcode bij een 301/501-wedstrijd (1.6.0) ----------
+const mt = (id, extra = {}) => ({ id, date: today, start: 501, bestOf: 3, doubleOut: true, players: 2, me: 1, won: [1, 2], winner: 1, stopped: false,
+  darts: 120, points: 1210, high: 140, bestCheckout: 81, t100: 3, t140: 1, t180: 0, ...extra });
+const sendMatch = (env, code, match) => call(env, '/v1/guest/match', { method: 'POST', body: { code, match } });
+
+test('wedstrijd: uitslag komt bij de eigen speler, als wedstrijd (niet als training), nooit dubbel, code daarna verbruikt', async () => {
+  const { env, senn } = await setup();
+  const code = await pass(env, senn);
+  await ok(await sendMatch(env, code, mt('wedstrijd-0001')), 201);
+  await ok(await sendMatch(env, code, mt('wedstrijd-0001')), 200);   // opnieuw versturen (offline/netwerkfout): geen dubbele
+  assert.equal((await sendMatch(env, code, mt('wedstrijd-0002'))).status, 404, 'één code = één sessie');
+  assert.equal((await send(env, code, tr('training-0009'))).status, 404, 'ook niet daarna nog een training');
+  const box = await ok(await call(env, '/v1/me/inbox', { token: senn.token }));
+  assert.deepEqual(box.trainings, [], 'oudere apps (alleen `trainings`) zien de wedstrijd niet als training');
+  assert.equal(box.matches.length, 1);
+  const m = box.matches[0];
+  assert.equal(m.id, 'wedstrijd-0001');
+  assert.deepEqual([m.start, m.me, m.winner, m.won.join('-'), m.darts, m.points, m.high, m.bestCheckout, m.t100], [501, 1, 1, '1-2', 120, 1210, 140, 81, 3]);
+  assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM stats').get().n, 0, 'telt niet mee in gedeelde (Darters) cijfers');
+  await ok(await call(env, '/v1/me/inbox/ack', { method: 'POST', token: senn.token, body: { ids: ['wedstrijd-0001'] } }));
+  assert.equal((await ok(await call(env, '/v1/me/inbox', { token: senn.token }))).matches.length, 0);
+});
+
+test('wedstrijd: gestopt zonder winnaar mag; verzonnen of onmogelijke uitslagen niet', async () => {
+  const { env, senn } = await setup();
+  await ok(await sendMatch(env, await pass(env, senn), mt('wedstrijd-stop1', { won: [1, 0], winner: null, stopped: true, bestCheckout: 0, points: 300, darts: 30, me: 1, high: 100, t100: 1, t140: 0 })), 201);
+  const c = await pass(env, senn);
+  for (const bad of [
+    { winner: 0 },                                   // winnaar zonder genoeg legs
+    { winner: null, stopped: false },                // klaar maar geen winnaar
+    { won: [2, 2], winner: 1 },                      // twee winnaars
+    { points: 9999 },                                // meer punten dan kan
+    { bestCheckout: 171 },                           // geen bestaande finish
+    { t180: 1 },                                     // 180 zonder hoogste beurt 180
+    { players: 1, won: [2], me: 0, winner: 0 },      // solo hoort niet bij een koppelcode
+    { date: '2020-01-01' },
+  ]) assert.equal((await sendMatch(env, c, mt('wedstrijd-fout', bad))).status, 400, JSON.stringify(bad));
+});

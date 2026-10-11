@@ -108,6 +108,7 @@ test('dezelfde voornaam: geen tweede speler met precies dezelfde naam; spelers b
   expect(new Set(d.players.map(p => p.id)).size).toBe(2);
   // Bij samen trainen wordt een bestaande naam gekoppeld aan dezelfde speler, niet verdubbeld
   await page.click('.tabbar [data-go=train]');
+  await page.click('[data-testid=add-player]');
   await page.fill('[data-form=train-player] input', 'SEM B.');
   await page.click('[data-form=train-player] .btn');
   expect((await stored(page)).players).toHaveLength(2);

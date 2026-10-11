@@ -26,6 +26,7 @@ if (await sheet.waitFor({ state: 'visible', timeout: 2500 }).then(() => true, ()
   await p.getByRole('button', { name: 'Eerst proberen' }).click();
 } else check(new URL(url).hostname !== 'app.okkiedarts.nl', 'geen installatieadvies (hoort alleen op app.okkiedarts.nl)');
 await p.click('.action.train');
+await p.click('[data-testid=add-player]');
 await p.fill('[data-form=train-player] input', 'Gast');
 await p.click('[data-form=train-player] .btn');
 await p.click('[data-testid=start-score]');
