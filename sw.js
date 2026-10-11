@@ -45,7 +45,9 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(VERSION).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // cache: 'reload' = rechtstreeks van de server, niet uit de browsercache. GitHub Pages geeft bestanden
+  // max-age=600; zonder dit kon een nieuwe versie tot 10 minuten een oude app.js naast nieuwe modules opslaan.
+  event.waitUntil(caches.open(VERSION).then(c => c.addAll(ASSETS.map(url => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', event => {
@@ -61,8 +63,11 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  // Bestanden altijd bij de server nagaan (no-cache: hervalideren, meestal een snelle 304), om dezelfde reden.
+  // Een navigatie zelf blijft ongewijzigd: die mag niet opnieuw worden opgebouwd (redirect-regels).
+  const fresh = req.mode === 'navigate' ? req : new Request(req, { cache: 'no-cache' });
   event.respondWith(
-    fetch(req).then(res => {
+    fetch(fresh).then(res => {
       if (res.ok) {
         const copy = res.clone();
         // Bewaar de bezochte pagina onder zijn eigen URL. Een uitlegpagina mag nooit
