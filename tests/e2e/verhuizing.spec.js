@@ -45,7 +45,8 @@ test('automatisch: alles komt inhoudelijk gelijk over, ook lopende training en o
   await expect(oldP.locator('#modal')).toContainText('2 spelers, 12 trainingen, 1 wedstrijd en een lopende training');
   const [newP] = await Promise.all([ctx.waitForEvent('page'), oldP.getByTestId('transfer-auto').click()]);
   newP.on('pageerror', e => errors.push(e.message));
-  await expect(oldP.getByTestId('transfer-sent')).toContainText('gecontroleerd', { timeout: 20000 });
+  await expect(oldP.getByTestId('transfer-sent')).toHaveText('Overgezet en gecontroleerd', { timeout: 20000 });
+  await expect(oldP.getByTestId('transfer-sent')).toHaveAttribute('data-status', 'identiek');
   // Nieuwe app: zelfde inhoud (elke pijl), opent op de lopende training, adres zonder #overzetten
   await expect.poll(async () => { const d = await stored(newP); return d && content(d); }).toBe(content(before));
   await expect(newP.getByTestId('transfer-result')).toHaveText('Overgezet en gecontroleerd');
@@ -64,7 +65,7 @@ test('automatisch: alles komt inhoudelijk gelijk over, ook lopende training en o
   await newP.close();
   await oldP.getByRole('button', { name: 'Nog eens overzetten' }).click();
   const [newP2] = await Promise.all([ctx.waitForEvent('page'), oldP.getByTestId('transfer-auto').click()]);
-  await expect(oldP.getByTestId('transfer-sent')).toBeVisible({ timeout: 20000 });
+  await expect(oldP.getByTestId('transfer-sent')).toHaveAttribute('data-status', 'identiek', { timeout: 20000 });
   const twice = await stored(newP2);
   expect(twice.trainings).toHaveLength(12);
   expect(twice.players).toHaveLength(2);
@@ -103,6 +104,9 @@ test('overzetcode (zoals vanuit een geïnstalleerde iPhone-app): nieuwe app al i
   await expect(newP.locator('#modal')).toContainText('In deze code: 2 spelers, 12 trainingen, 1 wedstrijd en een lopende training');
   await newP.getByTestId('transfer-apply').click();
   await expect(newP.getByTestId('transfer-result')).toHaveText('Overgezet en gecontroleerd');
+  // Online profielsleutel gaat standaard niet mee in een code; dat wordt gemeld
+  await expect(newP.getByTestId('transfer-omitted')).toBeVisible();
+  expect(await newP.evaluate(() => localStorage.getItem('okkie.community.v1'))).toBeNull();
   // Twee keer "Senn": niet stilzwijgend samengevoegd, wel aangeboden
   await expect(newP.getByTestId('same-name')).toContainText('twee spelers met de naam Senn');
   let d = await stored(newP);
@@ -123,8 +127,10 @@ test('overzetcode (zoals vanuit een geïnstalleerde iPhone-app): nieuwe app al i
   await newP.fill('[data-testid=transfer-input]', code);
   await newP.getByRole('button', { name: 'Controleren' }).click();
   await newP.getByTestId('transfer-apply').click();
-  await expect(newP.getByTestId('transfer-result')).toBeVisible();
+  // Bij samenvoegen bleef de overgezette Senn (p1) staan: dezelfde code is daarna nog steeds identiek, niets dubbel
+  await expect(newP.getByTestId('transfer-result')).toHaveAttribute('data-status', 'identiek');
   expect((await stored(newP)).trainings).toHaveLength(13);
+  expect((await stored(newP)).players).toHaveLength(2);
   await ctx.close();
 });
 
@@ -177,5 +183,106 @@ test('zolang de verhuizing niet is aangekondigd, ziet het oude adres er precies 
   await expect(oldP.getByTestId('move-card')).toHaveCount(0);
   // De algemene overzetcode (Safari ↔ beginscherm) blijft wel beschikbaar
   await expect(oldP.getByTestId('make-code')).toBeVisible();
+  await ctx.close();
+});
+
+test('zelfde training, andere inhoud: oud en nieuw melden een probleem, nergens "gecontroleerd", niets overschreven', async ({ browser }, info) => {
+  const ctx = await phone(browser, info);
+  const oldP = await ctx.newPage();
+  await oldP.goto(OLD + '/');
+  await oldP.click('[data-act=pause]');
+  await oldP.getByRole('button', { name: 'Zet mijn trainingen over' }).click();
+  const [newP] = await Promise.all([ctx.waitForEvent('page'), oldP.getByTestId('transfer-auto').click()]);
+  await expect(oldP.getByTestId('transfer-sent')).toHaveAttribute('data-status', 'identiek', { timeout: 20000 });
+  // In de nieuwe app is training t1 (zelfde ID) anders geworden, bijvoorbeeld door een fout of een oude kopie
+  await newP.evaluate(() => { const d = JSON.parse(localStorage.getItem('oche.data')); d.trainings.find(t => t.id === 't1').turns[0].darts = ['T20', 'T20', 'T20']; localStorage.setItem('oche.data', JSON.stringify(d)); });
+  await newP.close();
+  await oldP.goto(OLD + '/');
+  await oldP.click('[data-act=pause]');
+  await oldP.getByRole('button', { name: 'Nog eens overzetten' }).click();
+  const [newP2] = await Promise.all([ctx.waitForEvent('page'), oldP.getByTestId('transfer-auto').click()]);
+  await expect(oldP.getByTestId('transfer-sent')).toHaveAttribute('data-status', 'probleem', { timeout: 20000 });
+  await expect(oldP.getByTestId('transfer-sent')).toHaveText('Niet alles is goed overgekomen');
+  await expect(oldP.locator('#modal')).not.toContainText('gecontroleerd');
+  await expect(newP2.getByTestId('transfer-result')).toHaveAttribute('data-status', 'probleem');
+  await expect(newP2.getByTestId('transfer-conflicts')).toContainText('training');
+  expect((await stored(newP2)).trainings.find(t => t.id === 't1').turns[0].darts).toEqual(['T20', 'T20', 'T20']);
+  // oude app: alles nog precies zoals het was
+  expect((await stored(oldP)).trainings.find(t => t.id === 't1').turns[0].darts).toEqual(['S20', 'S1', 'T19']);
+  await ctx.close();
+});
+
+test('online profiel bewust meenemen in de code: alleen als je het aanvinkt', async ({ browser }, info) => {
+  test.skip(info.project.name !== 'iphone', 'één keer is genoeg');
+  const ctx = await phone(browser, info);
+  const oldP = await ctx.newPage();
+  await oldP.goto(OLD + '/');
+  await oldP.click('[data-act=pause]');
+  await oldP.click('.tabbar [data-go=more]');
+  await oldP.getByTestId('make-code').click();
+  const plain = await oldP.getByTestId('transfer-code').inputValue();
+  await oldP.getByTestId('transfer-secrets').check();
+  await expect.poll(() => oldP.getByTestId('transfer-code').inputValue()).not.toBe(plain);
+  const withProfile = await oldP.getByTestId('transfer-code').inputValue();
+  const newP = await ctx.newPage();
+  await newP.goto(NEW + '/');
+  await newP.getByTestId('fetch-card').getByRole('button', { name: 'Trainingen ophalen' }).click();
+  await newP.fill('[data-testid=transfer-input]', withProfile);
+  await newP.getByRole('button', { name: 'Controleren' }).click();
+  await newP.getByTestId('transfer-apply').click();
+  await expect(newP.getByTestId('transfer-result')).toHaveAttribute('data-status', 'identiek');
+  await expect(newP.getByTestId('transfer-omitted')).toHaveCount(0);
+  expect(await newP.evaluate(() => JSON.parse(localStorage.getItem('okkie.community.v1')).accounts.p1.token)).toBe('geheim-p1');
+  await ctx.close();
+});
+
+// Overgenomen uit het eerdere lokale ontwerp (feature/app-okkiedarts): zonder klembordtoestemming
+// kun je de code nog steeds zelf selecteren en plakken.
+test('zonder klembordtoegang: code zelf selecteren en in het vak plakken werkt ook', async ({ browser }, info) => {
+  test.skip(info.project.name !== 'iphone', 'één keer is genoeg');
+  const ctx = await phone(browser, info, { clipboard: false });
+  await ctx.addInitScript(() => { Object.defineProperty(navigator, 'clipboard', { value: { writeText: () => new Promise(() => {}), readText: () => Promise.reject(new Error('geen toestemming')) } }); });
+  const oldP = await ctx.newPage();
+  await oldP.goto(OLD + '/');
+  await oldP.click('[data-act=pause]');
+  await oldP.getByRole('button', { name: 'Zet mijn trainingen over' }).click();
+  await oldP.getByRole('button', { name: 'Met een overzetcode' }).click();
+  await oldP.getByRole('button', { name: 'Kopieer de code' }).click();
+  await expect(oldP.locator('#toast')).toContainText('geselecteerd', { timeout: 5000 });
+  const code = await oldP.getByTestId('transfer-code').inputValue();
+  const newP = await ctx.newPage();
+  await newP.goto(NEW + '/');
+  await newP.getByTestId('fetch-card').getByRole('button', { name: 'Trainingen ophalen' }).click();
+  await newP.click('[data-act=transfer-paste]');
+  await expect(newP.locator('#toast')).toContainText('Plak');
+  await newP.fill('[data-testid=transfer-input]', code.slice(0, 40));
+  await newP.getByRole('button', { name: 'Controleren' }).click();
+  await expect(newP.locator('#toast')).toContainText('onvolledig of beschadigd');
+  await newP.fill('[data-testid=transfer-input]', code);
+  await newP.getByRole('button', { name: 'Controleren' }).click();
+  await expect(newP.locator('#modal')).toContainText('In deze code: 2 spelers, 12 trainingen');
+  await ctx.close();
+});
+
+// Overgenomen uit het eerdere lokale ontwerp: alleen precies het oude adres mag gegevens sturen.
+test('een vreemd venster of los geopende #overzetten kan geen gegevens injecteren', async ({ browser }, info) => {
+  test.skip(info.project.name !== 'desktop', 'één keer is genoeg');
+  const ctx = await phone(browser, info);
+  const newP = await ctx.newPage();
+  const errors = []; newP.on('pageerror', e => errors.push(e.message));
+  await newP.goto(NEW + '/#overzetten');
+  await expect(newP.locator('.welcome')).toBeVisible();
+  const bad = { type: 'okkie-transfer', nonce: 'x', pkg: { app: 'okkie', data: { version: 2, players: [{ id: 'x', name: 'Hacker' }], trainings: [], matches: [] } } };
+  await newP.evaluate(m => window.postMessage(m, '*'), bad);
+  // ook een venster van een ander adres dat de nieuwe app opent, wordt genegeerd
+  const evil = await ctx.newPage();
+  await evil.goto('http://localhost:4174/');   // de website: ander adres dan het oude app-adres
+  const [popup] = await Promise.all([ctx.waitForEvent('page'), evil.evaluate(u => { window.__w = window.open(u, '_blank'); }, NEW + '/#overzetten')]);
+  await popup.waitForLoadState();
+  await evil.evaluate(m => { for (let i = 0; i < 5; i++) setTimeout(() => window.__w.postMessage(m, '*'), i * 300); }, bad);
+  await popup.waitForTimeout(2000);
+  expect(await stored(newP)).toBeNull();
+  expect(await stored(popup)).toBeNull();
+  expect(errors).toEqual([]);
   await ctx.close();
 });

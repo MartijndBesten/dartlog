@@ -27,7 +27,7 @@ function mem(init = {}) {
 test('overzetcode: alles komt exact terug, met vingerafdruk, ook lopende training, instellingen en extra sleutels', async () => {
   const d = sample();
   const extras = { 'okkie.community.v1': JSON.stringify({ version: 1, accounts: { p1: { token: 'x' } } }) };
-  const code = await T.pack(d, extras);
+  const code = await T.pack(d, extras, { secrets: true });
   assert.ok(code.startsWith(T.PREFIX));
   assert.ok(code.length < JSON.stringify(d).length / 2, 'gecomprimeerd');
   const r = await T.unpack(' \n' + code.match(/.{1,60}/g).join('\n') + '\n ');   // ook met regelafbrekingen (plakken uit een appje)
@@ -66,7 +66,8 @@ test('lege nieuwe app: alles wordt overgenomen en de controle klopt per speler',
   assert.deepEqual(T.summary(data), { players: 2, trainings: 42, matches: 1, active: true });
   assert.equal(data.active.training.pending[0], 'T20');
   assert.equal(report.ok, true);
-  assert.equal(report.sameContent, true);
+  assert.equal(report.status, 'identiek');
+  assert.equal(report.identical, 45);   // 2 spelers + 42 trainingen + 1 wedstrijd
   assert.equal(report.active, 'overgenomen');
   const senn = report.players.find(p => p.id === 'p1');
   assert.equal(senn.trainings, 21);   // 20 scoretrainingen + rond de klok
@@ -83,7 +84,7 @@ test('twee keer overzetten of al begonnen in de nieuwe app: geen dubbele, niets 
   assert.deepEqual(T.summary(twice.data), { players: 3, trainings: 43, matches: 1, active: true });
   assert.equal(twice.data.activePlayerId, 'p9', 'eigen keuze in de nieuwe app blijft');
   assert.equal(twice.report.ok, true);
-  assert.equal(twice.report.sameContent, true);
+  assert.equal(twice.report.status, 'identiek');
 });
 
 test('lopende training wordt niet overgenomen als hij hier al loopt of al is afgerond (geen dubbele telling)', async () => {
@@ -143,23 +144,145 @@ test('rollen: oud en nieuw adres; aankondiging staat standaard uit', () => {
   assert.equal(T.announce(), false);
 });
 
-test('nog eens overzetten na hernoemen in de nieuwe app: alles is er, de nieuwe naam blijft, geen foutmelding', async () => {
-  const opened = await T.openPackage(await T.makePackage(sample()));
-  const first = (await T.receive(emptyData(), opened)).data;
-  first.players.find(p => p.id === 'p1').name = 'Senn de Jong';
-  const again = await T.receive(first, opened);
-  assert.equal(again.report.ok, true);
-  assert.equal(again.report.sameContent, false);
-  assert.deepEqual(again.report.different, ['players:p1']);
-  assert.equal(again.data.players.find(p => p.id === 'p1').name, 'Senn de Jong');
-  assert.equal(again.data.trainings.length, 42);
+// ---------- Indeling van de controle: identiek, bewust anders, conflict, ontbreekt, lopende training ----------
+const openSample = async (d = sample()) => T.openPackage(await T.makePackage(d));
+
+test('drie keer achter elkaar overzetten: steeds identiek, nooit dubbel', async () => {
+  const opened = await openSample();
+  let d = emptyData();
+  for (let i = 0; i < 3; i++) {
+    const r = await T.receive(d, opened);
+    d = r.data;
+    assert.equal(r.report.status, 'identiek', 'ronde ' + (i + 1));
+    assert.deepEqual(T.summary(d), { players: 2, trainings: 42, matches: 1, active: true });
+  }
 });
 
-test('ontbrekende training na samenvoegen wordt als fout gemeld', () => {
+test('zelfde training-ID met andere pijlen: conflict, geen "gecontroleerd", hier blijft de eigen versie', async () => {
+  const opened = await openSample();
+  const here = (await T.receive(emptyData(), opened)).data;
+  here.trainings.find(t => t.id === 't4').turns[0].darts = ['T20', 'T20', 'T20'];
+  const r = await T.receive(here, opened);
+  assert.equal(r.report.status, 'probleem');
+  assert.equal(r.report.ok, false);
+  assert.deepEqual(r.report.conflicts.map(c => c.id), ['t4']);
+  assert.ok(r.report.conflicts[0].fields.includes('turns'));
+  assert.equal(r.report.players.find(p => p.id === 'p1').same, false);
+  assert.deepEqual(r.data.trainings.find(t => t.id === 't4').turns[0].darts, ['T20', 'T20', 'T20'], 'niets overschreven');
+});
+
+test('zelfde wedstrijd-ID met andere beurten: conflict', async () => {
+  const opened = await openSample();
+  const here = (await T.receive(emptyData(), opened)).data;
+  here.matches[0].legs[0].turns[0].darts = ['S1', 'S1', 'S1'];
+  const r = await T.receive(here, opened);
+  assert.equal(r.report.status, 'probleem');
+  assert.deepEqual(r.report.conflicts.map(c => c.kind + ':' + c.id), ['matches:m1']);
+});
+
+test('zelfde ID, ander soort training of andere speler: altijd conflict, ook als aantallen kloppen', async () => {
+  const opened = await openSample();
+  const here = (await T.receive(emptyData(), opened)).data;
+  const t = here.trainings.find(x => x.id === 't2');
+  t.limitTurns = 11;                          // telt even veel pijlen, maar is een andere training
+  const r = await T.receive(here, opened);
+  assert.equal(r.report.status, 'probleem');
+  assert.deepEqual(r.report.conflicts.map(c => c.id), ['t2']);
+});
+
+test('hernoemd in de nieuwe app (ook in de wedstrijd): bewust anders, alles is er, geen fout', async () => {
+  const opened = await openSample();
+  const here = (await T.receive(emptyData(), opened)).data;
+  here.players.find(p => p.id === 'p1').name = 'Senn de Jong';
+  here.matches.forEach(m => m.players.forEach(mp => { if (mp.id === 'p1') mp.name = 'Senn de Jong'; }));   // zoals de app bij hernoemen doet
+  const r = await T.receive(here, opened);
+  assert.equal(r.report.status, 'aangepast');
+  assert.equal(r.report.ok, true);
+  assert.deepEqual(r.report.adjusted.map(a => a.kind + ':' + a.id).sort(), ['matches:m1', 'players:p1']);
+  assert.match(r.report.adjusted.find(a => a.kind === 'players').why, /Senn de Jong/);
+  assert.equal(r.data.players.find(p => p.id === 'p1').name, 'Senn de Jong');
+});
+
+test('datum ingevuld bij een score uit een andere app: bewust anders', async () => {
+  const opened = await openSample();
+  const here = (await T.receive(emptyData(), opened)).data;
+  const dc = here.trainings.find(t => t.id === 'dc1');
+  dc.startedAt = at(3, 12); delete dc.dateUnknown;
+  const r = await T.receive(here, opened);
+  assert.equal(r.report.status, 'aangepast');
+  assert.deepEqual(r.report.adjusted.map(a => a.id), ['dc1']);
+});
+
+test('bewust verwijderd in de nieuwe app: komt niet terug bij opnieuw overzetten', async () => {
+  const opened = await openSample();
+  const here = (await T.receive(emptyData(), opened)).data;
+  here.trainings = here.trainings.filter(t => t.id !== 't7');
+  T.rememberRemoved(here, 'trainings', ['t7']);
+  const r = await T.receive(here, opened);
+  assert.equal(r.data.trainings.some(t => t.id === 't7'), false);
+  assert.equal(r.report.status, 'aangepast');
+  assert.equal(r.report.adjusted[0].why, 'hier bewust verwijderd');
+  assert.equal(r.report.players.every(p => p.same), true);
+});
+
+test('zonder vastgelegde verwijdering is een ontbrekende training een probleem', () => {
   const inc = sample();
   const merged = structuredClone(inc);
   merged.trainings = merged.trainings.filter(t => t.id !== 't5');
   const r = T.verifyTransfer(inc, merged);
-  assert.equal(r.ok, false);
-  assert.deepEqual(r.missing, ['trainings:t5']);
+  assert.equal(r.status, 'probleem');
+  assert.deepEqual(r.missing.map(m => m.id), ['t5']);
+});
+
+test('samengevoegde speler: opnieuw overzetten brengt hem niet terug en telt niet dubbel', async () => {
+  const nieuw = { ...emptyData(), activePlayerId: 'x1', players: [{ id: 'x1', name: 'Senn', color: '#fff', createdAt: at(9) }],
+    trainings: [{ id: 'n1', playerId: 'x1', kind: 'score', limitTurns: 10, startedAt: at(9), finishedAt: at(9), turns: turns(10) }] };
+  const opened = await openSample();
+  const first = (await T.receive(nieuw, opened)).data;
+  const merged = T.mergePlayers(first, 'x1', 'p1').data;    // "deze" Senn blijft, de overgezette gaat erin op
+  assert.deepEqual(merged.playerAliases, { p1: 'x1' });
+  const again = await T.receive(merged, opened);
+  assert.equal(again.data.players.length, 2, 'p1 komt niet terug');
+  assert.equal(again.data.trainings.length, 43, 'geen training dubbel');
+  assert.equal(again.data.trainings.filter(t => t.playerId === 'x1').length, 22);
+  assert.equal(again.report.status, 'aangepast');
+  assert.ok(again.report.adjusted.some(a => a.why === 'samengevoegd met Senn'));
+  assert.equal(again.report.players.find(p => p.id === 'x1').same, true);
+});
+
+test('lopende training: hier loopt al een andere = aandacht; hier al afgerond = bewust, nooit dubbel', async () => {
+  const src = sample();
+  const opened = await openSample(src);
+  const base = (await T.receive(emptyData(), opened)).data;
+  // 1. hier loopt al een andere training
+  const busy = structuredClone(base);
+  busy.active.training = { ...src.active.training, id: 'eigen' };
+  let r = await T.receive(busy, opened);
+  assert.equal(r.report.status, 'aandacht');
+  assert.equal(r.report.active, 'niet overgenomen');
+  assert.equal(r.data.active.training.id, 'eigen');
+  // 2. hier al afgerond na de eerste overdracht
+  const done = structuredClone(base);
+  const { pending, ...rest } = done.active.training;
+  done.trainings.push({ ...rest, finishedAt: at(8, 20) });
+  done.active.training = null;
+  r = await T.receive(done, opened);
+  assert.equal(r.report.active, 'al afgerond');
+  assert.equal(r.report.status, 'aangepast');
+  assert.equal(r.data.active.training, null);
+  assert.equal(r.data.trainings.filter(t => t.id === 'a1').length, 1);
+});
+
+test('overzetcode bevat standaard geen online profielsleutels of koppelcodes; het venster wel', async () => {
+  const extras = { 'okkie.community.v1': '{"version":1,"accounts":{"p1":{"token":"geheim"}}}', 'okkie.guest.v1': '{"links":{"p2":{"code":"ABCDEFGH"}},"queue":[]}', 'okkie.vrienden.v1': '{"x":1}' };
+  const code = await T.pack(sample(), extras);
+  const r = await T.unpack(code);
+  assert.deepEqual(Object.keys(r.extras), ['okkie.vrienden.v1']);
+  assert.deepEqual(r.omitted.sort(), ['okkie.community.v1', 'okkie.guest.v1']);
+  assert.ok(!code.includes('geheim'));
+  const viaWindow = await T.makePackage(sample(), extras);
+  assert.ok(viaWindow.extras['okkie.community.v1'].includes('geheim'));
+  const withSecrets = await T.unpack(await T.pack(sample(), extras, { secrets: true }));
+  assert.deepEqual(withSecrets.omitted, []);
+  assert.ok(withSecrets.extras['okkie.community.v1']);
 });

@@ -27,10 +27,25 @@ Waarborgen:
 - Samenvoegen op **ID**: twee keer overzetten geeft nooit dubbele spelers, trainingen of wedstrijden.
 - Een lopende training of wedstrijd gaat mee, behalve als er in de nieuwe app al een loopt of als hij daar al is
   afgerond (anders telt hij dubbel). Het verslag zegt dat dan.
-- **Controle op inhoud, niet alleen aantallen**: vingerafdruk (SHA-256) van alle spelers, trainingen (elke pijl) en
-  wedstrijden, plus per speler trainingen, pijlen, punten en gemiddelde. Een afgebroken of veranderde code wordt geweigerd.
-- Online profielen (Community/Mijn vrienden), gastkoppelingen en back-upherinneringen gaan mee, maar overschrijven
-  nooit iets wat in de nieuwe app al staat.
+- **Controle per record, niet alleen aantallen.** Elke ontvangen speler, training (elke pijl) en wedstrijd wordt
+  vergeleken met wat er na het samenvoegen staat, plus per speler trainingen, pijlen, punten en gemiddelde.
+  Uitkomst (`verifyTransfer().status`):
+
+  | Status | Betekenis | Melding |
+  |---|---|---|
+  | `identiek` | Alles precies gelijk | "Overgezet en gecontroleerd" (alleen dan) |
+  | `aangepast` | Alles is er; iets is in deze app bewust anders: hernoemd, kleur, datum ingevuld bij een score uit een andere app, samengevoegde speler of bewust verwijderd. Die versie blijft. | "Overgezet, met bewuste verschillen" + lijst |
+  | `aandacht` | Alles is er, maar de lopende training is niet overgenomen (hier loopt al een andere) | "Overgezet, behalve de lopende training" + wat te doen |
+  | `probleem` | Iets ontbreekt, of zelfde ID met andere inhoud zonder verklaring (andere pijlen, ander soort training, andere wedstrijdbeurten), of een speler telt anders | "Niet alles is goed overgekomen"; de oude app markeert niets als overgezet |
+
+  Bij een conflict wordt niets overschreven: de nieuwe app houdt zijn eigen versie, de oude app heeft alles nog.
+- Bewust verwijderen en samenvoegen wordt onthouden (`removed`, `playerAliases` in de gegevens), zodat opnieuw
+  overzetten niets terugbrengt en dat niet als fout telt.
+- Een afgebroken of veranderde code wordt geweigerd (vingerafdruk van het pakket).
+- **Online profielsleutels** (Community/Mijn vrienden) en koppelcodes van gasten gaan via het automatische venster
+  mee (blijft op het toestel, alleen tussen precies het oude en nieuwe adres). In een **overzetcode alleen als je
+  "Ook mijn online profiel meenemen" aanvinkt**: een code kan per ongeluk in een appje of notitie belanden. Na
+  plakken via de knop wordt het klembord leeggemaakt. Niets overschrijft wat in de nieuwe app al staat.
 - Twee spelers met dezelfde naam worden **niet** stilzwijgend samengevoegd. Het verslag vraagt het; samenvoegen kan
   alleen als ze nooit samen gooiden en niet allebei een online profiel hebben.
 - Installatieadvies alleen op app.okkiedarts.nl, alleen voor nieuwe gebruikers, nooit in de geïnstalleerde app.
