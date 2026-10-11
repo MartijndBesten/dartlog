@@ -37,7 +37,15 @@ for (const a of assets) {
   const file = a.endsWith('/') ? a + 'index.html' : a;
   if (!existsSync(join(dest, file))) throw new Error('Serviceworker verwacht ontbrekend bestand: ' + a);
 }
+// Testfase (OKKIE_APP_STAGE=test): niet in zoekmachines, zolang de verhuizing niet is aangekondigd en de
+// app nog niet op echte toestellen is getest. Verder byte-gelijk aan de app op het oude adres.
+const STAGE = process.env.OKKIE_APP_STAGE || 'live';
+if (STAGE === 'test') {
+  const index = join(dest, 'index.html');
+  writeFileSync(index, readFileSync(index, 'utf8').replace('<meta charset="utf-8">', '<meta charset="utf-8">\n  <meta name="robots" content="noindex, nofollow">'));
+  writeFileSync(join(dest, 'robots.txt'), 'User-agent: *\nDisallow: /\n');
+}
 writeFileSync(join(dest, 'CNAME'), APP_DOMAIN + '\n');
 writeFileSync(join(dest, '.nojekyll'), '');
 writeFileSync(join(dest, 'README.md'), `# ${APP_DOMAIN}\n\nDe OKKIE.-dartapp op het nieuwe adres. Gegenereerd uit MartijndBesten/dartlog met \`node tools/build-app-site.mjs\`.\nNiet hier met de hand wijzigen. Zie VERHUIZING.md in dartlog.\n`);
-console.log(`OKKIE.-app voor ${APP_DOMAIN} opgebouwd in dist-app/. Publicatie is NIET uitgevoerd.`);
+console.log(`OKKIE.-app voor ${APP_DOMAIN} (${STAGE === 'test' ? 'testfase, niet vindbaar' : 'live'}) opgebouwd in dist-app/. Publicatie is NIET uitgevoerd.`);

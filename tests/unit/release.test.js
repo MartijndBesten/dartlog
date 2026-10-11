@@ -218,3 +218,15 @@ test('app-build voor app.okkiedarts.nl: alleen de app, met CNAME, en de verhuizi
   const { INSTALL_ORIGINS } = await import(new URL('../../js/install.js', import.meta.url));
   assert.deepEqual(INSTALL_ORIGINS, ['https://app.okkiedarts.nl']);
 });
+
+test('app-build in testfase: niet vindbaar voor zoekmachines, verder dezelfde app', () => {
+  execFileSync(process.execPath, [join(root, 'tools/build-app-site.mjs')], { cwd: root, stdio: 'pipe', env: { ...process.env, OKKIE_APP_STAGE: 'test' } });
+  const dist = join(root, 'dist-app');
+  const index = readFileSync(join(dist, 'index.html'), 'utf8');
+  assert.match(index, /<meta name="robots" content="noindex, nofollow">/);
+  assert.equal(index.replace('\n  <meta name="robots" content="noindex, nofollow">', ''), read('index.html'));
+  assert.equal(readFileSync(join(dist, 'robots.txt'), 'utf8'), 'User-agent: *\nDisallow: /\n');
+  for (const f of ['sw.js', 'js/app.js', 'js/transfer.js']) assert.equal(readFileSync(join(dist, f), 'utf8'), read(f), f);
+  // weer terug naar de gewone build, zodat andere tests niet van de testfase afhangen
+  execFileSync(process.execPath, [join(root, 'tools/build-app-site.mjs')], { cwd: root, stdio: 'pipe' });
+});
