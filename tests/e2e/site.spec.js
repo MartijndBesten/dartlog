@@ -129,7 +129,7 @@ test('homepage en uitleg werken zonder JavaScript', async ({ browser }, info) =>
   await expect(page.locator('.contact-mail')).toHaveAttribute('href', 'mailto:info@denckh.nl');
   await expect(page.locator('[data-copy]')).toBeHidden();
   await page.goto(SITE + '/privacy/');
-  await expect(page.locator('main h2')).toHaveCount(12); // 'In het kort' + punt 1 t/m 11
+  await expect(page.locator('main h2')).toHaveCount(11); // 'In het kort' + punt 1 t/m 10
   await context.close();
 });
 
