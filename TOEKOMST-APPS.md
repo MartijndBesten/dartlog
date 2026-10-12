@@ -26,7 +26,6 @@ Ids zijn UUID's (`crypto.randomUUID`), tijden ISO-8601 in UTC: geen botsingen bi
 - **iPhone vraagt een wrapper** (bijv. Capacitor) met eigen opslag: overzetten via code/back-up is dan nodig. Spraak
   (`speechSynthesis`), delen (`navigator.share`) en trillen werken daar via de webview of een plugin.
 - **Geen extra persoonsgegevens**: de app werkt zonder account; houd dat zo, tenzij er een bewust besluit komt.
-- **Geen aankopen in de app** (besluit eigenaar, 1.6.3). Steunen kan alleen vrijwillig via okkiedarts.nl/steun/ (betaallink
-  van Mollie); de app heeft daar alleen een link naar onder Meer. In een appwinkelversie gelden de regels van Apple en
-  Google voor betalingen en bijdragen buiten de winkel: controleer die dan opnieuw en laat de link zo nodig weg.
+- **Geen aankopen in de app en geen steun- of betaalfunctie** (besluit eigenaar, 1.6.3): OKKIE. blijft helemaal gratis.
+  Komt er ooit toch een betaalweg, dan gelden in een appwinkelversie de regels van Apple en Google.
 - Versie verhogen op drie plekken (sw.js, js/app.js, package.json); de test `release.test.js` bewaakt dat.
