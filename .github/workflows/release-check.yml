@@ -51,17 +51,23 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - name: Live versie (origin/main) apart uitpakken
+      - name: Vorige versie (laatste commit met een andere VERSION in sw.js) apart uitpakken
         id: live
         run: |
-          # Op main zelf is deze commit al de live versie: dan valt er niets bij te werken (de echte controle
-          # draaide vóór publicatie op de releasebranch). Overslaan, anders vergelijkt hij de versie met zichzelf.
-          if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ]; then
-            echo "Dit is de live versie zelf; updatecontrole overgeslagen."
+          # Altijd vergelijken met de vorige versie: de laatste commit in de geschiedenis waarin sw.js een andere
+          # VERSION had. Zo meet de controle ook iets als main al is bijgewerkt (vergelijken met zichzelf zei niets).
+          NEW=$(grep -o "const VERSION = '[^']*'" sw.js)
+          OLD=""
+          for c in $(git log --format=%H HEAD -- sw.js); do
+            if [ "$(git show "$c:sw.js" | grep -o "const VERSION = '[^']*'")" != "$NEW" ]; then OLD=$c; break; fi
+          done
+          if [ -z "$OLD" ]; then
+            echo "Geen vorige versie gevonden; updatecontrole overgeslagen."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git worktree add ../okkie-live origin/main
+          echo "Vorige versie: $(git log --oneline -1 "$OLD")"
+          git worktree add ../okkie-live "$OLD"
           grep -o "const VERSION = '[^']*'" ../okkie-live/sw.js sw.js
       - if: steps.live.outputs.skip != 'true'
         run: npm ci --no-audit --no-fund

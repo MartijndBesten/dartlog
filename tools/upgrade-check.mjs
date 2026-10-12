@@ -41,11 +41,14 @@ for (const n of ['5', '5', '5', '1']) await tap(`.nums [data-arg="${n}"]`);
 await page.evaluate(() => navigator.serviceWorker.ready);
 check((await page.evaluate(() => caches.keys())).includes(oldCache), 'oude versie draait (' + oldCache + ')');
 
-// 2. Nieuwe versie op hetzelfde adres
-server.kill();
-await wait(300);
+// 2. Nieuwe versie op hetzelfde adres. Wachten tot de oude server echt weg is en de nieuwe de nieuwe versie geeft:
+// anders praat de browser nog met de oude server en meet de controle alleen de oude cache.
+server.kill('SIGKILL');
+for (let i = 0; i < 40; i++) { try { await page.request.get(url + 'sw.js', { timeout: 500 }); await wait(250); } catch { break; } }
 server = serve(resolve('.'));
-await wait(800);
+let fresh = false;
+for (let i = 0; i < 40 && !fresh; i++) { try { fresh = (await (await page.request.get(url + 'sw.js', { timeout: 500 })).text()).includes(`'${newCache}'`); } catch { /* nog niet op */ } if (!fresh) await wait(250); }
+check(fresh, 'nieuwe versie wordt geserveerd (' + newCache + ')');
 await page.reload();
 // wachten tot de nieuwe serviceworker is geïnstalleerd en actief
 for (let i = 0; i < 40 && !(await page.evaluate(() => caches.keys())).includes(newCache); i++) await wait(250);
