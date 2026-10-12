@@ -135,8 +135,8 @@ test('homepage en uitleg werken zonder JavaScript', async ({ browser }, info) =>
 
 test('alle links op website en uitleg wijzen naar de juiste omgeving', async ({ page, request }, info) => {
   test.skip(info.project.name !== 'desktop', 'links zijn per toestel gelijk');
-  const allowedExternal = [APP, APP + 'community/', 'https://denckh.nl/', 'https://autoriteitpersoonsgegevens.nl/'];
-  for (const path of ['/', '/uitleg/', '/privacy/', '/contact/', '/steun/']) {
+  const allowedExternal = [APP, APP + 'community/', 'https://denckh.nl/', 'https://autoriteitpersoonsgegevens.nl/', 'https://dartswdf.com/rules', 'https://www.thedra.co.uk/dra-rulebook'];
+  for (const path of ['/', '/uitleg/', '/privacy/', '/contact/', '/steun/', '/dartregels/']) {
     await page.goto(SITE + path);
     const hrefs = await page.locator('a[href], link[href], script[src]').evaluateAll(els =>
       els.map(e => e.getAttribute('href') ?? e.getAttribute('src')));
@@ -173,7 +173,7 @@ test('kleine telefoon (320 px): geen horizontale scroll, knoppen groot genoeg', 
   test.skip(info.project.name === 'desktop', 'alleen telefoons');
   const context = await browser.newContext({ ...device(info.project.use), viewport: { width: 320, height: 568 } });
   const page = await context.newPage();
-  for (const path of ['/', '/uitleg/', '/privacy/', '/contact/', '/steun/']) {
+  for (const path of ['/', '/uitleg/', '/privacy/', '/contact/', '/steun/', '/dartregels/']) {
     await page.goto(SITE + path);
     await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(300);
@@ -245,5 +245,22 @@ test('Steun OKKIE.: vrijwillig, via voettekst en vragen te vinden, betaalknop na
   await expect(page.locator('#steun')).toHaveText('6. Als je OKKIE. steunt');
   await page.locator('footer a', { hasText: 'Steun OKKIE.' }).click();
   await expect(page).toHaveURL(SITE + '/steun/');
+  expect(errors).toEqual([]);
+});
+
+test('dartregels: vanuit de vraag op de homepage naar de pagina met tekening en maten', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto(SITE + '/');
+  const q = page.locator('details', { hasText: 'Hoe hang ik een dartbord op?' });
+  await q.locator('summary').click();
+  await q.getByRole('link', { name: 'Dartregels & afmetingen' }).click();
+  await expect(page).toHaveURL(SITE + '/dartregels/');
+  await expect(page.locator('h1')).toHaveText('Zo hang je een dartbord op.');
+  await expect(page.locator('svg.rules-drawing')).toBeVisible();
+  const box = await page.locator('svg.rules-drawing').boundingBox();
+  expect(box.width).toBeGreaterThan(260);
+  await expect(page.locator('.rules-measures')).toContainText('2,934 m');
+  await expect(page.locator('main')).toContainText('Dubbel uitgooien');
+  await expect(page.locator('footer a', { hasText: 'Dartregels' })).toHaveAttribute('aria-current', 'page');
   expect(errors).toEqual([]);
 });

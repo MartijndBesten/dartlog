@@ -11,6 +11,9 @@
 - **Darters:** de dubbele profielen van Evy en Lynn zijn uit de lijst gehaald (verborgen, niets gewist; de profielen
   met de meeste trainingen blijven zichtbaar). Lynn staat er zonder achternaam. Een naam die online is aangepast,
   neemt de app nu over bij het openen van Darters, zodat “Opslaan” de oude naam niet terugzet.
+- **Dartregels & afmetingen op de website:** okkiedarts.nl/dartregels/ met dezelfde tekening en tekst als in de app
+  (de bouwstap haalt ze uit js/rules.js, zodat website en app gelijk blijven). Gelinkt vanuit de navigatie, de vraag
+  “Hoe hang ik een dartbord op?”, de voettekst en vanuit de app (handig om door te sturen).
 - **Controle:** de updatecontrole wordt op main zelf overgeslagen (daar vergeleek hij de live versie met zichzelf en
   gaf hij vals alarm); vóór publicatie draait hij zoals altijd op de releasebranch.
 

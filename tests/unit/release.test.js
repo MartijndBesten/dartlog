@@ -6,6 +6,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { rulesPage } from '../../js/rules.js';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const read = file => readFileSync(join(root, file), 'utf8');
@@ -13,11 +14,13 @@ const APP = 'https://app.okkiedarts.nl/';
 // Enige toegestane externe bestemmingen vanaf okkiedarts.nl.
 const EXTERNAL = [APP, APP + 'community/', 'https://denckh.nl/', 'https://okkiedarts.nl/privacy/', 'https://okkiedarts.nl/contact/',
   // canonieke adressen van de pagina's zelf
-  'https://okkiedarts.nl/', 'https://okkiedarts.nl/uitleg/', 'https://okkiedarts.nl/steun/',
+  'https://okkiedarts.nl/', 'https://okkiedarts.nl/uitleg/', 'https://okkiedarts.nl/steun/', 'https://okkiedarts.nl/dartregels/',
+  // bronnen van de dartregels (js/rules.js)
+  'https://dartswdf.com/rules', 'https://www.thedra.co.uk/dra-rulebook',
   'https://autoriteitpersoonsgegevens.nl/', 'mailto:info@denckh.nl', 'mailto:info@denckh.nl?subject=OKKIE.', 'mailto:info@denckh.nl?subject=Steun%20OKKIE.'];
 // Steun OKKIE.: alleen een betaallink van Mollie (herbruikbaar, bedrag naar keuze), nooit iets anders.
 const MOLLIE = /^https:\/\/payment-links\.mollie\.com\/payment\/[A-Za-z0-9]+\/?$/;
-const PAGES = ['index.html', 'uitleg/index.html', 'privacy/index.html', 'contact/index.html', 'steun/index.html'];
+const PAGES = ['index.html', 'uitleg/index.html', 'privacy/index.html', 'contact/index.html', 'steun/index.html', 'dartregels/index.html'];
 
 test('versie is overal gelijk: sw.js, app en package.json', () => {
   const pkg = JSON.parse(read('package.json')).version;
@@ -61,7 +64,7 @@ test('website-build: alleen website en uitleg, geen tweede app, links naar de ju
   const dist = join(root, 'dist');
   const files = readdirSync(dist, { recursive: true }).map(f => String(f).replaceAll('\\', '/'));
   for (const f of ['index.html', 'site.css', 'site.js', 'favicon-32.png', '_headers', 'robots.txt', 'sitemap.xml',
-    'privacy/index.html', 'contact/index.html', 'steun/index.html', 'uitleg/index.html', 'uitleg/uitleg.css', 'uitleg/uitleg.js', 'uitleg/score-oefening.js']) {
+    'privacy/index.html', 'contact/index.html', 'steun/index.html', 'dartregels/index.html', 'uitleg/index.html', 'uitleg/uitleg.css', 'uitleg/uitleg.js', 'uitleg/score-oefening.js']) {
     assert.ok(files.includes(f), `ontbreekt: ${f}`);
   }
   for (const f of files) {
@@ -281,4 +284,20 @@ test('Steun OKKIE.: echte Mollie-betaallink op de website, in de app alleen een 
   assert.match(app, /export const STEUN_URL = 'https:\/\/okkiedarts\.nl\/steun\/';/);
   assert.match(app, /geen reclame en geen aankopen in de app/);
   for (const f of readdirSync(join(root, 'js'))) assert.doesNotMatch(read('js/' + f), /mollie|PaymentRequest|in-app-?purchase/i, 'js/' + f + ': geen betalen in de app');
+});
+
+test('dartregels op de website: letterlijk dezelfde tekst en tekening als in de app, overal gelinkt', () => {
+  execFileSync(process.execPath, [join(root, 'tools/build-public-site.mjs')], { cwd: root, stdio: 'pipe' });
+  const html = readFileSync(join(root, 'dist/dartregels/index.html'), 'utf8');
+  assert.doesNotMatch(html, /<!--RULES-->/, 'plek voor de regels is ingevuld');
+  assert.ok(html.includes(rulesPage()), 'website gebruikt de tekst en tekening van js/rules.js');
+  assert.match(html, /<svg class="rules-drawing"/);
+  for (const t of ['1,73 m', '2,37 m', '2,934 m', 'Dubbel uitgooien', 'Bust', 'dartswdf.com/rules']) assert.ok(html.includes(t), t);
+  assert.match(html, /href="https:\/\/app\.okkiedarts\.nl\/"/, 'linkt naar de app');
+  const landing = readFileSync(join(root, 'dist/index.html'), 'utf8');
+  assert.match(landing, /<nav aria-label="Navigatie">[\s\S]*href="\/dartregels\/"/, 'in de navigatie');
+  assert.match(landing, /Hoe hang ik een dartbord op\?[^]*?href="\/dartregels\/"/, 'vanuit de vraag');
+  for (const page of PAGES.filter(p => p !== 'uitleg/index.html')) assert.match(readFileSync(join(root, 'dist', page), 'utf8'), /href="\/dartregels\/"/, page + ': link naar dartregels');
+  assert.match(readFileSync(join(root, 'dist/sitemap.xml'), 'utf8'), /okkiedarts\.nl\/dartregels\//);
+  assert.match(read('js/app.js'), /okkiedarts\.nl\/dartregels\//, 'de app verwijst naar de website');
 });

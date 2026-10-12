@@ -1099,7 +1099,8 @@ VIEWS['andere-app'] = () => `${header('Andere app', 'more')}
   </main>`;
 
 VIEWS.regels = () => `${header('Dartregels', 'more')}
-  <main class="page rules">${rulesPage()}</main>`;
+  <main class="page rules">${rulesPage()}
+  <p class="muted small rules-source">Deze uitleg staat ook op <a href="https://okkiedarts.nl/dartregels/" target="_blank" rel="noopener">okkiedarts.nl/dartregels</a>: handig om door te sturen.</p></main>`;
 
 function toggle(key, label) {
   return `<label class="setting"><span>${label}</span><input type="checkbox" class="switch" data-input="setting" data-arg="${key}" ${data.settings[key] ? 'checked' : ''}></label>`;
