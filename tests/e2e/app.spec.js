@@ -156,6 +156,16 @@ test('statistieken, trefferkaart en spelers gescheiden', async ({ page }, info) 
   await expect(page.locator('.tile.hl strong')).toHaveText('81,00');
   await expect(page.locator('.board path[data-seg=T20]')).toHaveAttribute('data-n', '10');
   await expect(page.locator('.chart')).toHaveCount(1);
+  // Meest geraakt volgt het filter van de trefferkaart
+  const top = page.getByTestId('top-hits');
+  await expect(top.locator('span').first()).toHaveText('2020×');
+  await page.click('[data-act=stats-set][data-arg="heatMode:T"]');
+  await expect(top.locator('span')).toHaveText(['T2010×']);
+  await page.click('[data-act=stats-set][data-arg="heatMode:S"]');
+  await expect(top.locator('span')).toHaveText(['110×', '2010×']);
+  await page.click('[data-act=stats-set][data-arg="heatMode:D"]');
+  await expect(top).toHaveText('Nog geen dubbels geraakt.');
+  await page.click('[data-act=stats-set][data-arg="heatMode:all"]');
   await page.screenshot({ path: `screenshots/e2e-${info.project.name}-stats.png`, fullPage: true });
   // Tweede speler heeft eigen (lege) statistieken
   await page.click('[data-act=switch-player]');

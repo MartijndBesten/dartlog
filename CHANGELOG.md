@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.4 — Meest geraakt per soort treffer
+
+- **Statistieken → Trefferkaart:** "Meest geraakt" volgt nu het gekozen filter. Bij **Enkel** zie je 20, 5, 1…,
+  bij **Dubbel** D16, D20, Bull…, bij **Triple** T20, T19…; bij **Alles** blijft het totaal per getal. Geen treffers
+  van dat soort? Dan staat er "Nog geen triples geraakt." (of dubbels).
+
 ## 1.6.3 — Gratis en reclamevrij, dartregels op de website, Darters opgeschoond
 
 - **OKKIE. blijft helemaal gratis** (besluit eigenaar): geen steun- of betaalfunctie, niet op de website en niet in de

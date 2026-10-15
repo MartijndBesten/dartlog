@@ -201,6 +201,19 @@ test('trefferverdeling', () => {
   assert.equal(d.total, 6, 'onbekend vak telt niet mee');
 });
 
+test('meest geraakt volgt het filter: alles, enkel, dubbel, triple', () => {
+  const d = L.hitDistribution([
+    { darts: ['T20', 'T20', 'S20'] }, { darts: ['S5', 'S5', 'S5'] }, { darts: ['T19', 'D16', 'D16'] },
+    { darts: ['SB', 'DB', 'DB'] }, { darts: ['S1', 'M', 'D20'] },
+  ]);
+  assert.deepEqual(L.topHits(d, 'all'), [['20', 4], ['5', 3], ['Bull', 3], ['16', 2], ['1', 1], ['19', 1]]);
+  assert.deepEqual(L.topHits(d, 'S'), [['5', 3], ['1', 1], ['20', 1], ['25', 1]]);
+  assert.deepEqual(L.topHits(d, 'D'), [['D16', 2], ['Bull', 2], ['D20', 1]], 'gelijk aantal: laagste getal eerst, bull achteraan');
+  assert.deepEqual(L.topHits(d, 'T'), [['T20', 2], ['T19', 1]]);
+  assert.deepEqual(L.topHits(L.hitDistribution([{ darts: ['S1', 'S2', 'S3'] }]), 'T'), [], 'geen triples: lege lijst');
+  assert.equal(L.topHits(d, 'all', 2).length, 2, 'maximaal het gevraagde aantal');
+});
+
 test('gewogen gemiddelde per periode (niet het gemiddelde van gemiddelden)', () => {
   const a = { id: 'a', startedAt: '2026-10-01T10:00:00Z', turns: [{ darts: ['T20', 'T20', 'T20'] }] }; // 180 in 3
   const b = { id: 'b', startedAt: '2026-10-01T18:00:00Z', turns: Array.from({ length: 9 }, () => ({ darts: ['M', 'M', 'M'] })) }; // 0 in 27
