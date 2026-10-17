@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.7.1 — Meer aanmoedigingen en grapjes van de stem
+
+- **Gesproken aanmoedigingen: nieuwe stand "Veel, met grapjes"** (standaard zodra de stem aan staat). Je hoort vaker
+  iets, zonder dat het bij elke beurt praat:
+  - bij de start ("Daar gaan we!", "Game on!"), halverwege en bij je laatste beurt;
+  - bij elke 100+ en 140+, met afwisselende zinnen;
+  - als je lekker op dreef bent ("Je zit in de flow!"), bij een comeback, en een duwtje na een paar mindere beurten;
+  - grapjes: nul punten ("Het bord hangt hier, hoor!"), 20-5-1 ("Bed and breakfast!"), drie keer één, drie in
+    hetzelfde vak, de bull ("Twee keer de bull! Ben jij een cowboy?");
+  - rond de klok: halverwege, "Nu nog de bull!", drie raak in één beurt;
+  - 301/501: finish-calls ("Nog 32. Dubbel 16!"), het gekkenhuis (nog 2), de big fish (nog 170), bust ("Rekenen is
+    ook een sport.") en uitgooien;
+  - na de training je gemiddelde, en of het beter was dan vorige keer.
+- **"Alleen hoogtepunten"** houdt het zoals in 1.7.0: records, je eerste 100+, elke 180 en mooie finishes. Kiezen in
+  Meer → Instellingen.
+- Kindvriendelijk, plagen hooguit lief, en nog steeds zonder namen in de gesproken tekst.
+
 ## 1.7.0 — Zelf instelbare statistieken en de beste beurt van elke training
 
 - **Na elke scoretraining:** alle beurten op volgorde in een grafiek, de hoogste beurt met beurtnummer en de drie
