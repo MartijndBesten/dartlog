@@ -252,3 +252,27 @@ test('dartregels: vanuit de vraag op de homepage naar de pagina met tekening en 
   await expect(page.locator('footer a', { hasText: 'Dartregels' })).toHaveAttribute('aria-current', 'page');
   expect(errors).toEqual([]);
 });
+
+test('homepage: statistieken, uitdagingen en de stem; tik op een beurt in de voorbeeldgrafiek', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto(SITE + '/');
+  await expect(page).toHaveTitle('OKKIE. — gratis dart-app vol statistieken en uitdagingen');
+  await expect(page.locator('.hero-content .lead-strong')).toHaveText('De gratis dart-app vol statistieken en uitdagingen.');
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', /vol statistieken en uitdagingen/);
+  for (const id of ['statistieken', 'uitdagingen', 'stem']) await expect(page.locator('#' + id + ' h2')).toBeVisible();
+  const chart = page.locator('[data-chart]');
+  await chart.scrollIntoViewIfNeeded();
+  await expect(chart.locator('.cc-bars button')).toHaveCount(10);
+  await expect(chart.locator('.cc-bars button.best')).toHaveCount(2);
+  await expect(chart.locator('[data-chart-detail]')).toHaveText('Hoogste beurt: 140 · beurt 4 en 6 · T20 T20 20');
+  await chart.locator('.cc-bars button').nth(4).click();
+  await expect(chart.locator('[data-chart-detail]')).toHaveText('Beurt 5: 26 · 20 5 1');
+  await expect(chart.locator('.cc-bars button').nth(4)).toHaveAttribute('aria-pressed', 'true');
+  await chart.locator('.cc-bars button').nth(4).press('ArrowRight');
+  await expect(chart.locator('[data-chart-detail]')).toHaveText('Beurt 6: 140 · T20 T20 20 · hoogste beurt');
+  await expect(page.locator('#uitdagingen .badge-count')).toHaveText('6/39');
+  await expect(page.locator('#uitdagingen .feature-list')).toContainText('39 badges');
+  await expect(page.locator('#stem .voice-bubbles li')).toHaveCount(6);
+  await expect(page.locator('#vragen summary', { hasText: 'Welke statistieken' })).toHaveCount(1);
+  expect(errors).toEqual([]);
+});

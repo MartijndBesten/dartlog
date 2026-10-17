@@ -72,6 +72,27 @@
     reduce.addEventListener?.('change', () => { if (reduce.matches) { timers.forEach(clearTimeout); cancelAnimationFrame(frame); finalState(); } });
   }
 
+  // ---- Voorbeeldgrafiek: tik op een beurt voor de drie pijlen, net als in de app ----
+  const chart = document.querySelector('[data-chart]');
+  if (chart) {
+    const detail = chart.querySelector('[data-chart-detail]');
+    const bars = [...chart.querySelectorAll('.cc-bars button')];
+    const pick = b => {
+      bars.forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+      const head = document.createElement('b');
+      head.textContent = `Beurt ${b.dataset.n}: ${b.dataset.score}`;
+      detail.replaceChildren(head, ` · ${b.dataset.darts}${b.classList.contains('best') ? ' · hoogste beurt' : ''}`);
+    };
+    bars.forEach((b, i) => {
+      b.setAttribute('aria-pressed', 'false');
+      b.addEventListener('click', () => pick(b));
+      b.addEventListener('keydown', e => {
+        const j = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : -1;
+        if (bars[j]) { e.preventDefault(); bars[j].focus(); pick(bars[j]); }
+      });
+    });
+  }
+
   // ---- Contact: e-mailadres kopiëren, met bevestiging ----
   document.querySelectorAll('[data-copy]').forEach(btn => btn.addEventListener('click', async () => {
     const status = btn.closest('.contact-card')?.querySelector('.copy-status');

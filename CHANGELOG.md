@@ -16,6 +16,10 @@
 - **"Alleen hoogtepunten"** houdt het zoals in 1.7.0: records, je eerste 100+, elke 180 en mooie finishes. Kiezen in
   Meer → Instellingen.
 - Kindvriendelijk, plagen hooguit lief, en nog steeds zonder namen in de gesproken tekst.
+- **Website okkiedarts.nl:** OKKIE. als de gratis dart-app vol statistieken en uitdagingen. Nieuwe blokken
+  Statistieken (met een voorbeeldgrafiek waarin je op een beurt tikt), Uitdagingen (39 badges, dagen op rij, doel,
+  vriend uitdagen, koppelcode) en de stem, plus drie nieuwe veelgestelde vragen en een nieuwe titel en beschrijving
+  voor zoekmachines en WhatsApp.
 
 ## 1.7.0 — Zelf instelbare statistieken en de beste beurt van elke training
 
