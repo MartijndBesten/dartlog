@@ -18,6 +18,16 @@
 - **Samen trainen:** per speler de hoogste beurt met beurtnummer, en de grafiek per beurt per speler te kiezen.
 - **Geschiedenis:** elke scoretraining toont dezelfde grafiek en markeert de hoogste beurt in de lijst.
 - Nieuwe badges na een training staan in een inklapbaar blok, zodat het scherm rustig blijft.
+- **Dagen op rij klopt nu:** elke dag waarop je gooide telt mee: trainingen, rond de klok, 301/501-wedstrijden en
+  wedstrijden of trainingen op de telefoon van een vriend (koppelcode). Eerder telden alleen trainingen, waardoor een
+  dag met alleen een wedstrijd de reeks brak. Het thuisscherm en de badges gebruiken nu dezelfde dagen. Resultaten via
+  de koppelcode krijgen de datum van de eigen dag (lokale tijd) in plaats van de UTC-datum, dus een potje na middernacht
+  valt niet meer op de vorige dag. Trainingen uit een andere app zonder datum tellen niet mee.
+- **20 nieuwe badges (nu 39):** Drieling, Shanghai, Vijf keer 100+, Hattrick, Op koers, Geen mis, Honderd trainingen,
+  Lange adem, Twee weken, Vaste gast, Honderd keer 100+, T20-jager, Dubbelverzamelaar, Klokwerk, Uitgegooid!, Winnaar,
+  Big Fish, Stierenvechter, Samen sterk en Uitwedstrijd. Ze worden berekend uit wat je al gooide, dus wie al lang
+  speelt, heeft er na de update meteen een aantal. Statistieken → Badges toont eerst wat je hebt; de rest staat
+  ingeklapt onder *Nog te verdienen*.
 
 ## 1.6.4 — Meest geraakt per soort treffer
 

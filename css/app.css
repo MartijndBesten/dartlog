@@ -518,7 +518,9 @@ body.playing { background: var(--bg); }
 .badge b { font-size: .76rem; line-height: 1.2; overflow-wrap: anywhere; }
 .badge small { font-size: .64rem; color: var(--muted); line-height: 1.25; }
 .badge-icon { font-size: 1.5rem; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--gold) 16%, transparent); flex: none; }
-.badge.locked { opacity: .5; }
+.badge.locked, .badges-todo .badge { opacity: .5; }
+.badges-todo { margin-top: 12px; }
+.badges-todo > summary { font-size: .9rem; }
 .badge.locked .badge-icon, .badge-icon.locked { filter: grayscale(1); background: var(--surface); }
 @media (min-width: 560px) { .badges { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); } }
 

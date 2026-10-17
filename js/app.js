@@ -6,7 +6,7 @@ import * as G from './guest-sync.js';
 import * as Backup from './backup-alert.js';
 import { boardSVG, heatLegend } from './board.js';
 import { lineChart, bindChart } from './chart.js';
-import { BADGES, earnedBadges } from './achievements.js';
+import { BADGES, earnedBadges, activityDates } from './achievements.js';
 import { logoSVG, TAGLINE } from './brand.js';
 import { icon } from './icons.js';
 import * as T from './transfer.js';
@@ -120,7 +120,8 @@ function overview(playerId = data.activePlayerId) {
     high,
     best,
     tons, t140, t180,
-    streak: L.dayStreak(all.filter(t => !t.dateUnknown).map(t => t.startedAt)),
+    // Gooien telt, ook een wedstrijd of op de telefoon van een vriend (zelfde dagen als de badges).
+    streak: L.dayStreak(activityDates(data, playerId)),
   };
 }
 
@@ -724,6 +725,8 @@ function shareData() {
     challenge: `Ik gooide ${fmt(tot.avg, 2)} gemiddeld op ${tot.darts} pijlen in OKKIE. Kun jij dat verslaan? 🎯 ${INVITE_URL}` };
 }
 
+const badgeTile = b => `<div class="badge" title="${esc(b.desc)}"><span class="badge-icon">${b.icon}</span><b>${esc(b.name)}</b><small>${esc(b.desc)}</small></div>`;
+
 function badgeBanner(ids) {
   return `<div class="badge-banner">${ids.map(id => { const b = BADGES.find(x => x.id === id); return `<div><span class="badge-icon">${b.icon}</span><div><small>Badge verdiend!</small><b>${esc(b.name)}</b></div></div>`; }).join('')}</div>`;
 }
@@ -919,7 +922,8 @@ VIEWS.stats = () => {
     </section>` : ''}
     ${on('badges') ? `<section class="card">
       <div class="card-head"><h3>Badges</h3><span class="badge-count">${earned.size}/${BADGES.length}</span></div>
-      <div class="badges">${BADGES.map(b => `<div class="badge ${earned.has(b.id) ? '' : 'locked'}" title="${esc(b.desc)}"><span class="badge-icon">${b.icon}</span><b>${esc(b.name)}</b><small>${esc(b.desc)}</small></div>`).join('')}</div>
+      ${earned.size ? `<div class="badges" data-testid="badges-earned">${BADGES.filter(b => earned.has(b.id)).map(badgeTile).join('')}</div>` : '<p class="muted small">Nog geen badges. Rond je eerste training af.</p>'}
+      ${earned.size < BADGES.length ? `<details class="more badges-todo"><summary>Nog te verdienen (${BADGES.length - earned.size})</summary><div class="badges" data-testid="badges-locked">${BADGES.filter(b => !earned.has(b.id)).map(badgeTile).join('')}</div></details>` : ''}
     </section>` : ''}
     ${on('matches') ? `<section class="card">
       <h3>Wedstrijden</h3>

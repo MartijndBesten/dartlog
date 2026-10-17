@@ -282,3 +282,28 @@ test('statistieken: vergelijking met de vorige training van dezelfde soort (30 m
   await expect(page.getByTestId('stat-compare')).toContainText('Laatste training (30 pijlen): 45,00 · de vorige van 30 pijlen: 60,00');
   await expect(page.getByTestId('stat-compare').locator('.delta.inline')).toHaveText('▼ −15,00');
 });
+
+test('dagen op rij: een dag met alleen een wedstrijd breekt de reeks niet; badges eerst verdiend, de rest ingeklapt', async ({ page }) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); d.setHours(12, 0, 0, 0); return (n ? d : new Date(Date.now() - 60000)).toISOString(); };
+  const training = n => ({ id: 'tr-' + n, playerId: P1.id, kind: 'score', limitTurns: 10, startedAt: daysAgo(n), finishedAt: daysAgo(n),
+    turns: fill(10).map(d => ({ at: daysAgo(n), darts: d })) });
+  const match = n => ({ id: 'm-' + n, startedAt: daysAgo(n), finishedAt: daysAgo(n), settings: { start: 501, bestOf: 1, doubleOut: true },
+    players: [{ id: P1.id, name: P1.name }, { id: P2.id, name: P2.name }],
+    legs: [{ starter: 0, turns: [turn(['T20', 'T20', 'T20'], 0), turn(['S1', 'S1', 'S1'], 1), turn(['T20', 'T20', 'T20'], 0), turn(['S1', 'S1', 'S1'], 1), turn(['T20', 'T19', 'D12'], 0)] }] });
+  // Vandaag en drie dagen terug getraind, gisteren en eergisteren alleen een wedstrijd: 4 dagen op rij.
+  await seed(page, { players: [P1, P2], trainings: [training(3), training(0)], matches: [match(2), match(1)] });
+  await page.goto('/');
+  await expect(page.locator('.streak')).toHaveText(/4 dagen op rij/);
+  await page.click('.tabbar [data-go=stats]');
+  const card = page.locator('section.card', { has: page.locator('h3', { hasText: 'Badges' }) });
+  await expect(card.locator('.badge-count')).toHaveText(/^\d+\/39$/);
+  const earned = card.getByTestId('badges-earned');
+  for (const name of ['Eerste pijlen', 'Lekker bezig', 'Uitgegooid!', 'Eerste zege', 'Grote finish', 'Hattrick', 'Drieling']) await expect(earned).toContainText(name);
+  const todo = card.locator('details.badges-todo');
+  await expect(todo).not.toHaveAttribute('open', '');
+  await expect(card.getByTestId('badges-locked')).toBeHidden();
+  await todo.locator('summary').click();
+  await expect(card.getByTestId('badges-locked')).toContainText('Big Fish');
+  expect(errors).toEqual([]);
+});

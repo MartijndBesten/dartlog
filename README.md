@@ -22,7 +22,7 @@ Ontwikkeld door **Denckh.**
 - **Wedstrijd 301/501**: 1–4 spelers, 1 leg of best of 3/5/7/9, double-out of straight-out, bust-regels, uitgooi-advies, stoppen en later hervatten. Een tegenstander met eigen OKKIE. koppel je met zijn koppelcode (Speler toevoegen); zijn uitslag en wedstrijdcijfers gaan na afloop naar zijn eigen telefoon, ook als je offline speelde.
 - **Statistieken**: gemiddelde per 3 pijlen (altijd gewogen over alle pijlen), beste/slechtste training, 100+/140+/180, grafiek per training/dag/week/maand met trendlijn, "laatste 10" vergelijken, filter op 30/60/99/vrij.
 - **Trefferkaart**: dartbord dat laat zien welke vakken je het vaakst raakt (enkel/dubbel/triple).
-- **Records en badges**: persoonlijke records en 20 badges om te verdienen, met een korte viering bij 100+, 140+ en 180 (ONE HUNDRED AND EIGHTY!).
+- **Records en badges**: persoonlijke records en 39 badges om te verdienen, met een korte viering bij 100+, 140+ en 180 (ONE HUNDRED AND EIGHTY!).
 - **Persoonlijk doel**: bij Trainen een doel net boven je recente niveau (of je record), alleen vergeleken met jezelf.
 - **Gesproken aanmoedigingen** (standaard uit): de stem van de telefoon bij een record, je eerste 100+/140+/180, een finish van 100+ en een duidelijk betere training; Engelse call bij 180.
 - **Delen**: OKKIE. aanraden (link naar okkiedarts.nl), een scorekaart van je training (zonder naam) en "Daag een vriend uit".
