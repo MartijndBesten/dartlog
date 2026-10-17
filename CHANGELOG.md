@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.7.4 — Een training weggooien
+
+- **Stoppen geeft nu drie keuzes:** *Bewaren* (zoals voorheen: uitslag, records, badges en Darters), *Weggooien* en
+  *Verder trainen*. Bij Weggooien vraagt de app eerst of je zeker weet dat de gegooide pijlen verloren gaan. Daarna
+  verdwijnt alleen deze onafgemaakte training: geen uitslag, geen gemiddelde, geen records of badges, niets naar
+  Darters of vrienden (koppelcodes komen vrij). Eerdere trainingen en spelers blijven staan; je komt terug op Home.
+- Werkt bij 30/60/99 pijlen, vrij trainen, rond de klok en samen trainen. Een gepauzeerde training stop je ook vanaf
+  Home (knop *Stoppen* naast *Verder*).
+
 ## 1.7.3 — Darters: iets meer per darter
 
 - **Per darter extra te zien** (alleen als die speler delen aan heeft): dagen op rij en aantal badges in de lijst, en in
