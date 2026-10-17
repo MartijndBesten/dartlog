@@ -8,6 +8,8 @@ Dit document beschrijft de doelarchitectuur, wat al klaar is, en de exacte stapp
 > `okkie-api` op workers.dev (staging: `okkie-community-api`), met D1 `okkie-community` (migraties 0001–0003).
 > De Cloudflare-zone okkiedarts.nl is **niet** actief (nameservers staan bij STRATO, DNSSEC aan); daarom geen
 > api.okkiedarts.nl en geen beheer.okkiedarts.nl. Beheer is dicht (geen Access-secrets). Zie VRIENDEN.md.
+> Sinds 1.7.2 staat het gebruik van de app (anonieme dagteller, `src/usage.js`) ook in de besloten inbox van Hulp & feedback
+> (`/v1/feedback/inbox`, geheime sleutel FEEDBACK_KEY); het Access-dashboard toont hetzelfde zodra Access is ingesteld.
 
 ## 1. Architectuur
 

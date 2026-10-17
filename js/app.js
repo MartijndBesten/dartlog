@@ -1166,7 +1166,7 @@ VIEWS.more = () => {
     </section>
     <section class="card about">
       ${logoSVG({ height: 34 })}
-      <p class="muted small">Versie ${APP_VERSION}. OKKIE komt van "oche" (spreek uit: okkie), de werplijn waar je achter staat bij darts. Geen account, geen reclame en geen aankopen in de app. Geen tracking: alleen een anonieme dagteller (één seintje per dag, zonder ID; zie okkiedarts.nl/privacy).</p>
+      <p class="muted small">Versie ${APP_VERSION}. OKKIE komt van "oche" (spreek uit: okkie), de werplijn waar je achter staat bij darts. Geen account, geen reclame en geen aankopen in de app. Geen advertentie- of analysediensten van andere bedrijven; wel een eigen, anonieme dagteller (één seintje per dag, zonder ID). Zie okkiedarts.nl/privacy.</p>
       <p class="maker-line"><a class="maker" href="https://denckh.nl/" target="_blank" rel="noopener" aria-label="Ontwikkeld door Denckh (naar denckh.nl)"><span class="maker-role">Ontwikkeld door</span><img class="on-dark" src="./icons/denckh-logo-signature-light.svg" alt="Denckh" width="92" height="28"><img class="on-light" src="./icons/denckh-logo-signature.svg" alt="Denckh" width="92" height="28"></a></p>
     </section>
   </main>`;

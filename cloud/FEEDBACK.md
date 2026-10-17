@@ -43,3 +43,9 @@ Nog niet actief. De Worker kan pas mailen als er een verzendweg is die niets kos
    mailboxwachtwoord als secret (`SMTP_USER`, `SMTP_PASS`). Vereist dat Denckh. dat wachtwoord als secret instelt.
 
 Tot die tijd is de inbox de plek om meldingen te lezen. Mailen naar info@denckh.nl blijft daarnaast gewoon mogelijk.
+
+## Gebruik van de app (sinds 1.7.2)
+
+Bovenaan de inbox staat het gebruik van de app uit de anonieme dagteller (`src/usage.js`, tabel `usage_days`): meldingen per dag,
+nieuwe toestellen, laatste 7 en 30 dagen, per versie en een grafiek over 30 dagen. Zelfde sleutel (`/v1/feedback/admin/usage`).
+Meldingen zijn geen unieke personen en geen installaties; dat staat ook op de pagina zelf.

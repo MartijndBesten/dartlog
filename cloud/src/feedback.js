@@ -4,6 +4,8 @@
 // is de inbox de plek waar meldingen binnenkomen.
 // Bescherming tegen misbruik: alleen vanaf de app-adressen (CORS/Origin, in worker.js), honeypotveld, minimale
 // invultijd, per minuut (RL_REGISTER) en per dag (gehasht IP met datum) beperkt, vaste maximale groottes.
+import { usageOverview } from './usage.js';
+
 export const FEEDBACK_LIMITS = { message: 2000, contact: 120, screenshot: 700_000, perDay: 10, keepDays: 180, minMs: 2000 };
 
 const clean = (v, max) => typeof v === 'string' ? v.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').trim().slice(0, max) : '';
@@ -74,6 +76,8 @@ export async function handleFeedbackAdmin(request, env, path, h) {
   }
   if (!path.startsWith('/v1/feedback/admin/')) return null;
   if (!await keyOk(request, env, h)) return h.fail('Geen toegang.', 403, headers);
+  // Gebruik van de app (anonieme dagteller, usage.js): zelfde sleutel als de inbox.
+  if (request.method === 'GET' && path === '/v1/feedback/admin/usage') return h.json({ usage: await usageOverview(env) }, 200, headers);
   if (request.method === 'GET' && path === '/v1/feedback/admin/list') {
     const rows = await env.DB.prepare('SELECT id, created_at AS createdAt, kind, message, contact, meta, handled, screenshot IS NOT NULL AS hasShot FROM feedback ORDER BY created_at DESC LIMIT 200').all();
     return h.json({ items: (rows.results || []).map(r => ({ ...r, meta: r.meta ? JSON.parse(r.meta) : null, handled: !!r.handled, hasShot: !!r.hasShot })) }, 200, headers);
@@ -113,13 +117,51 @@ main{max-width:760px;margin:auto;padding:20px 16px 60px}h1{font-size:22px;margin
 .tag.probleem{background:var(--r);color:#fff}.msg{white-space:pre-wrap;margin:10px 0;font-size:16px}pre{white-space:pre-wrap;font-size:12px;color:var(--m);margin:6px 0 0}
 button{font:inherit;border:1px solid var(--l);background:#14291e;color:var(--t);border-radius:9px;padding:7px 12px;cursor:pointer;margin:8px 8px 0 0}
 img{max-width:100%;border-radius:10px;margin-top:10px;border:1px solid var(--l)}
-</style></head><body><main><h1>OKKIE. · meldingen</h1><p class="muted" id="st">Laden…</p><div id="list"></div></main>
+h2{font-size:18px;margin:26px 0 8px}.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.card{background:var(--s);border:1px solid var(--l);border-radius:14px;padding:12px;min-width:0}
+.card strong{display:block;font-size:30px;line-height:1.1;margin:4px 0}.card small{display:block;color:var(--m);font-size:12px;line-height:1.3}
+.bars{display:flex;align-items:flex-end;gap:3px;height:150px;margin:12px 0 4px;padding:0 2px}.bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0}
+.bar i{display:block;width:100%;background:var(--a);border-radius:3px 3px 0 0;min-height:2px}.bar.z i{background:var(--l)}.bar b{font-size:10px;line-height:1.4}.bar small{font-size:9px;color:var(--m)}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}td,th{text-align:left;padding:6px 4px;border-top:1px solid var(--l)}th{color:var(--m);font-weight:600;border-top:0}td:not(:first-child),th:not(:first-child){text-align:right}
+.notes{font-size:12px;color:var(--m);padding-left:18px;margin:8px 0 0}.notes li{margin:3px 0}
+</style></head><body><main><h1>OKKIE. · beheer</h1><p class="muted" id="st">Laden…</p>
+<section id="usage" hidden><h2>Gebruik van de app <span class="muted" style="font-weight:400;font-size:13px">anonieme dagteller</span></h2>
+<div class="cards">
+<div class="card"><small>Meldingen vandaag (UTC)</small><strong id="u-today">–</strong><small id="u-today-sub">toestellen die vandaag meldden, max. 1 per toestel</small></div>
+<div class="card"><small>Nieuwe toestellen sinds de teller</small><strong id="u-devices">–</strong><small id="u-devices-sub">–</small></div>
+<div class="card"><small>Meldingen laatste 7 dagen</small><strong id="u-week">–</strong><small id="u-week-sub">–</small></div>
+<div class="card"><small>Meldingen laatste 30 dagen</small><strong id="u-month">–</strong><small id="u-month-sub">–</small></div>
+</div>
+<h2>Meldingen per dag <span class="muted" style="font-weight:400;font-size:13px">laatste 30 dagen · tussen haakjes nieuwe toestellen</span></h2>
+<div class="bars" id="u-days"></div>
+<h2>Per appversie</h2>
+<table><thead><tr><th>Versie</th><th>7 dagen</th><th>30 dagen</th><th>Nieuw (30 d)</th></tr></thead><tbody id="u-versions"></tbody></table>
+<ul class="notes" id="u-notes"></ul>
+<p class="muted" id="u-status"></p></section>
+<h2>Meldingen uit Hulp &amp; feedback</h2><div id="list"></div></main>
 <script>
 const st=document.getElementById('st'),list=document.getElementById('list');
 const k=(location.hash.match(/key=([^&]+)/)||[])[1]||sessionStorage.getItem('okkie-fb');
 if(k){sessionStorage.setItem('okkie-fb',k);history.replaceState(null,'',location.pathname);}
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 const api=(p,o={})=>fetch(p,{...o,headers:{Authorization:'Bearer '+k,'Content-Type':'application/json'}}).then(r=>r.ok?r.json():Promise.reject(r.status));
+const f=n=>new Intl.NumberFormat('nl-NL').format(Number(n||0)),$=id=>document.getElementById(id);
+async function usage(){
+  if(!k)return;
+  try{const {usage:u}=await api('/v1/feedback/admin/usage');
+    $('usage').hidden=false;
+    $('u-today').textContent=f(u.today.opens);$('u-today-sub').textContent='toestellen die vandaag meldden (max. 1 per toestel) · '+f(u.today.newDevices)+' nieuw';
+    $('u-devices').textContent=f(u.totals.devices);$('u-devices-sub').textContent=(u.totals.since?'sinds '+u.totals.since+' · ':'')+f(u.totals.opens)+' meldingen in totaal · geen installaties, geen unieke personen';
+    $('u-week').textContent=f(u.week.opens);$('u-week-sub').textContent='gemiddeld '+(u.week.opens/7).toFixed(1).replace('.',',')+' per dag · '+f(u.week.newDevices)+' nieuwe toestellen';
+    $('u-month').textContent=f(u.month.opens);$('u-month-sub').textContent='gemiddeld '+(u.month.opens/30).toFixed(1).replace('.',',')+' per dag · '+f(u.month.newDevices)+' nieuwe toestellen';
+    const byDay=Object.fromEntries((u.days||[]).map(d=>[d.day,d]));const max=Math.max(1,...(u.days||[]).map(d=>Number(d.opens)||0));
+    $('u-days').innerHTML='';
+    for(let i=29;i>=0;i--){const dt=new Date(Date.now()-i*864e5).toISOString().slice(0,10);const d=byDay[dt]||{opens:0,newDevices:0};
+      $('u-days').insertAdjacentHTML('beforeend','<div class="bar'+(d.opens?'':' z')+'" title="'+dt+': '+d.opens+' meldingen, '+d.newDevices+' nieuw"><i style="height:'+Math.max(2,Math.round((Number(d.opens)||0)/max*100))+'%"></i><b>'+(d.opens?f(d.opens)+(d.newDevices?' ('+d.newDevices+')':''):'')+'</b><small>'+dt.slice(8)+'</small></div>');}
+    const w=Object.fromEntries((u.versions7||[]).map(v=>[v.version,v.opens]));
+    $('u-versions').innerHTML=(u.versions30||[]).map(v=>'<tr><td>'+esc(v.version)+'</td><td>'+f(w[v.version])+'</td><td>'+f(v.opens)+'</td><td>'+f(v.newDevices)+'</td></tr>').join('')||'<tr><td colspan="4" class="muted">Nog geen meldingen.</td></tr>';
+    $('u-notes').innerHTML=(u.notes||[]).map(n=>'<li>'+esc(n)+'</li>').join('');
+  }catch(e){$('u-status').textContent=e===403?'':'Gebruik laden mislukt ('+e+').';}
+}
 async function load(){
   if(!k){st.textContent='Open de inbox met de geheime link.';return;}
   try{const {items}=await api('/v1/feedback/admin/list');
@@ -134,5 +176,5 @@ list.addEventListener('click',async e=>{const it=e.target.closest('.item');if(!i
   if(e.target.matches('[data-done]')){await api('/v1/feedback/admin/handled',{method:'POST',body:JSON.stringify({id,handled:!it.classList.contains('done')})});load();}
   if(e.target.matches('[data-del]')&&confirm('Deze melding definitief verwijderen?')){await api('/v1/feedback/admin/delete',{method:'POST',body:JSON.stringify({id})});load();}
 });
-load();
+load();usage();
 </script></body></html>`;

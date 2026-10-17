@@ -30,15 +30,17 @@
   <p class="subtitle">Alleen anonieme aantallen uit de vrijwillige community. Geen nicknames, individuele resultaten, e-mailadressen of ruwe trainingen.</p>
   <div id="status" class="status" role="status">Gegevens ophalen…</div>
   <section class="grid" aria-label="App-gebruik">
-    <div class="card stat"><small>Toestellen met de app</small><strong id="devices">–</strong><small id="devices-since">Sinds de dagteller (1.7.2)</small></div>
-    <div class="card stat"><small>Vandaag geopend</small><strong id="today">–</strong><small>Toestellen, één telling per dag</small></div>
-    <div class="card stat"><small>Deze week geopend</small><strong id="week">–</strong><small id="week-new">Laatste 7 dagen</small></div>
-    <div class="card stat"><small>Versies deze week</small><strong id="versions">–</strong><small>Meest gebruikte eerst</small></div>
+    <div class="card stat"><small>Meldingen vandaag (UTC)</small><strong id="today">–</strong><small id="today-new">Toestellen die vandaag meldden, max. 1 per toestel</small></div>
+    <div class="card stat"><small>Meldingen laatste 7 dagen</small><strong id="week">–</strong><small id="week-new">–</small></div>
+    <div class="card stat"><small>Meldingen laatste 30 dagen</small><strong id="month">–</strong><small id="month-new">–</small></div>
+    <div class="card stat"><small>Nieuwe toestellen sinds de teller</small><strong id="devices">–</strong><small id="devices-since">Geen installaties, geen unieke personen</small></div>
   </section>
   <section class="card" style="margin-bottom:15px">
-    <h2>App geopend per dag <span class="tag">laatste 30 dagen</span></h2>
+    <h2>Meldingen per dag <span class="tag">laatste 30 dagen · (nieuwe toestellen)</span></h2>
     <div id="days" class="bars"><p>Gegevens ophalen…</p></div>
-    <p class="small">Anonieme dagteller: elk toestel meldt hooguit één keer per dag dat de app is geopend, met alleen het versienummer. Geen ID, geen IP-adres. Wie de app een dag niet opent, telt die dag niet mee; offline gebruik telt pas als het toestel weer online is.</p>
+    <h2 style="margin-top:22px">Per appversie <span class="tag">7 en 30 dagen</span></h2>
+    <div id="versions" class="small">–</div>
+    <ul id="usage-notes" class="small" style="margin:14px 0 0 18px;color:var(--muted)"></ul>
   </section>
   <section class="grid" aria-label="Kerncijfers Darters">
     <div class="card stat"><small>Geregistreerde profielen</small><strong id="profiles">–</strong><small>Ook verborgen profielen</small></div>
@@ -86,12 +88,15 @@
       text('active',fmt(data.totals.recentlySyncedProfiles));
       text('trainings',fmt(data.totals.sharedTrainings));
       const u = data.usage || {};
-      text('devices',fmt(u.totals?.devices));
-      if (u.totals?.since) text('devices-since','Nieuwe toestellen sinds '+u.totals.since);
-      text('today',fmt(u.today));
-      text('week',fmt(u.week?.opens));
-      text('week-new',fmt(u.week?.newDevices)+' nieuw in de laatste 7 dagen');
-      text('versions',(u.versions||[]).map(v=>v.version+' ('+fmt(v.opens)+')').join(' · ')||'–');
+      text('today',fmt(u.today?.opens)); text('today-new','Toestellen die vandaag meldden, max. 1 per toestel · '+fmt(u.today?.newDevices)+' nieuw');
+      text('week',fmt(u.week?.opens)); text('week-new','Gemiddeld '+((u.week?.opens||0)/7).toFixed(1).replace('.',',')+' per dag · '+fmt(u.week?.newDevices)+' nieuwe toestellen');
+      text('month',fmt(u.month?.opens)); text('month-new','Gemiddeld '+((u.month?.opens||0)/30).toFixed(1).replace('.',',')+' per dag · '+fmt(u.month?.newDevices)+' nieuwe toestellen');
+      text('devices',fmt(u.totals?.devices)); text('devices-since',(u.totals?.since?'Sinds '+u.totals.since+' · ':'')+'geen installaties, geen unieke personen');
+      const w7 = Object.fromEntries((u.versions7||[]).map(v=>[v.version,v.opens]));
+      const vt = $('versions'); vt.replaceChildren();
+      if (!(u.versions30||[]).length) vt.textContent = 'Nog geen meldingen.';
+      for (const v of (u.versions30||[])) { const row = document.createElement('div'); row.className='barrow'; const a=document.createElement('span'); a.textContent=v.version; const c=document.createElement('div'); c.className='bar'; const i=document.createElement('i'); i.style.width=Math.max(0,Math.min(100,(Number(v.opens)||0)/Math.max(1,...(u.versions30||[]).map(x=>Number(x.opens)||0))*100))+'%'; c.append(i); const s=document.createElement('strong'); s.textContent=fmt(w7[v.version])+' / '+fmt(v.opens); row.append(a,c,s); vt.append(row); }
+      const notes = $('usage-notes'); notes.replaceChildren(); for (const n of (u.notes||[])) { const li=document.createElement('li'); li.textContent=n; notes.append(li); }
       const dayTarget = $('days');
       dayTarget.replaceChildren();
       const days = u.days || [];
@@ -103,7 +108,7 @@
         const container = document.createElement('div'); container.className='bar';
         const bar = document.createElement('i'); bar.style.width=Math.max(0,Math.min(100,(Number(d.opens)||0)/dmax*100))+'%';
         container.append(bar);
-        const count = document.createElement('strong'); count.textContent=fmt(d.opens)+(Number(d.newDevices)?' (+'+fmt(d.newDevices)+')':'');
+        const count = document.createElement('strong'); count.textContent=fmt(d.opens)+(Number(d.newDevices)?' ('+fmt(d.newDevices)+')':'');
         item.append(label,container,count);dayTarget.append(item);
       }
       const rows = (data.weekly || []).slice().reverse();

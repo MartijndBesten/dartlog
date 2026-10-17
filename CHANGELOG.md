@@ -1,12 +1,17 @@
 # Changelog
 
-## 1.7.2 — Anonieme dagteller
+## 1.7.2 — Beperkte eigen gebruiksstatistieken (anonieme dagteller)
 
-- **Dagteller:** de app meldt hooguit één keer per dag aan onze eigen server dat hij is geopend, met alleen het
-  versienummer en of dit toestel voor het eerst meldt. Geen ID, geen cookie, geen IP-adres, geen naam of scores; de
-  server bewaart alleen aantallen per dag en versie. Zo zien we eindelijk hoeveel toestellen OKKIE. gebruiken.
-  Offline gebeurt er niets, en de app wacht er nooit op. Uitgelegd in de privacyverklaring op okkiedarts.nl.
-- **Beheer:** het privébeheer toont toestellen, openingen per dag en versies.
+- **Dagteller** (besluit eigenaar: wel eigen gebruiksmeting, geen externe analysediensten): de app meldt hooguit één
+  keer per dag aan onze eigen server dat hij is geopend, met alleen het versienummer en of dit toestel voor het eerst
+  meldt. Geen ID, geen cookie, geen naam of scores; de server bewaart alleen aantallen per dag en versie (het IP-adres
+  wordt, zoals bij elk serververzoek, alleen kort verwerkt voor de minuutlimiet). Offline gebeurt er niets en de app
+  wacht er nooit op.
+- **Beheer:** de besloten inbox (zelfde geheime link als Hulp & feedback) en het Access-dashboard tonen meldingen per
+  dag, nieuwe toestellen, 7 en 30 dagen, per versie en een grafiek over 30 dagen, met uitleg wat de cijfers wel en
+  niet zijn (geen unieke personen, geen installaties).
+- **Teksten:** privacyverklaring en Over-tekst zeggen niet meer "geen tracking", maar benoemen de beperkte eigen
+  gebruiksstatistieken en de verwerking van het IP-adres bij serververzoeken.
 
 ## 1.7.1 — Meer aanmoedigingen en grapjes van de stem
 
