@@ -64,7 +64,10 @@ test('homepage: blokken schuiven in en zijn na scrollen allemaal zichtbaar', asy
   await page.waitForLoadState('load');
   expect(await page.evaluate(() => [...document.querySelectorAll('.reveal, .stagger')]
     .filter(b => b.getBoundingClientRect().top > innerHeight && !b.classList.contains('in')).length)).toBeGreaterThan(0);
-  for (let y = 0; y < 12; y++) { await page.mouse.wheel(0, 700); await page.waitForTimeout(120); }
+  // Scrollen tot helemaal onderaan (de pagina is sinds de blokken Statistieken, Uitdagingen en Stem veel langer).
+  for (let y = 0; y < 40 && await page.evaluate(() => scrollY + innerHeight < document.documentElement.scrollHeight - 2); y++) {
+    await page.mouse.wheel(0, 700); await page.waitForTimeout(120);
+  }
   await expect.poll(() => page.evaluate(REVEALED), { timeout: 4000 }).toBe(0);
   // Een sprong via een menulink laat ook de overgeslagen blokken zien.
   await page.goto(SITE + '/?sprong#installeren');
