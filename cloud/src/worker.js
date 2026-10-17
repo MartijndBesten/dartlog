@@ -4,6 +4,7 @@ import { handleGuest } from './guest.js';
 import { handleGroups, groupsOpen, minorsOpen, MINORS_CLOSED, inviteValid, releaseMemberships, minorMayStore, weekKey, LIMITS } from './groups.js';
 import { handleDarters, dartersOpen, publicConsentOk } from './darters.js';
 import { handleFeedback, handleFeedbackAdmin, cleanupFeedback } from './feedback.js';
+import { handleUsage, usageOverview } from './usage.js';
 
 // Cloudflare Worker + D1 API voor OKKIE. Community.
 // De database bewaart uitsluitend een nickname, account-credentials (gehasht) en geaggregeerde statistieken.
@@ -159,6 +160,9 @@ export default {
       // Hulp & feedback uit de app (feedback.js): eigen limieten en groottes.
       const feedback = await handleFeedback(request, env, path, H, cors);
       if (feedback) return feedback;
+      // Anonieme dagteller (usage.js): één seintje per toestel per dag, alleen aantallen.
+      const usage = await handleUsage(request, env, path, H, cors);
+      if (usage) return usage;
       // Privébeheer uitsluitend op het afzonderlijke beheerdomein. De Worker
       // verifieert de Access-JWT zelf: de Cloudflare Access-gateway alleen is niet genoeg.
       if (path === '/beheer' || path === '/v1/admin/overview') {
@@ -187,7 +191,7 @@ export default {
           "COALESCE(SUM(darts),0) AS darts FROM stats WHERE period LIKE 'week:%' " +
           "GROUP BY period ORDER BY period DESC LIMIT 12"
         ).all();
-        return json({ totals: totals || {}, weekly: weekly.results || [], notice:
+        return json({ totals: totals || {}, weekly: weekly.results || [], usage: await usageOverview(env), notice:
           'Dit omvat uitsluitend vrijwillige communityaccounts en gedeelde trainingen; geen exacte telling van app-installaties.' }, 200,
           { 'Cache-Control':'no-store, private', 'X-Content-Type-Options':'nosniff' });
       }

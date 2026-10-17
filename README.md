@@ -25,6 +25,7 @@ Ontwikkeld door **Denckh.**
 - **Records en badges**: persoonlijke records en 39 badges om te verdienen, met een korte viering bij 100+, 140+ en 180 (ONE HUNDRED AND EIGHTY!).
 - **Persoonlijk doel**: bij Trainen een doel net boven je recente niveau (of je record), alleen vergeleken met jezelf.
 - **Gesproken aanmoedigingen** (standaard uit): een enthousiaste stem (de stem van de telefoon, iets sneller en hoger). Stand "Veel, met grapjes" (standaard): start, halverwege, laatste beurt, elke 100+/140+, flow en comeback, grapjes (nul punten, 20-5-1, bull), rond-de-klok-voortgang, finish-calls, bust en uitgooien bij 301/501, en je gemiddelde na de training. Stand "Alleen hoogtepunten": records, je eerste 100+/140+/180, finish van 100+ en een duidelijk betere training. Engelse call bij elke 180.
+- **Anonieme dagteller** (sinds 1.7.2): één seintje per toestel per dag naar de eigen server met alleen het versienummer; de server telt per dag en versie (`js/usage-ping.js`, `cloud/src/usage.js`, tabel `usage_days`). Geen ID, geen IP-opslag.
 - **Delen**: OKKIE. aanraden (link naar okkiedarts.nl), een scorekaart van je training (zonder naam) en "Daag een vriend uit".
 - **Dartregels & afmetingen**: maattekening (1,73 / 2,37 / 2,934 m) en de regels van 501, gecontroleerd met WDF en DRA.
 - **Hulp & feedback**: probleem of idee insturen met schermafbeelding, naar een besloten inbox (cloud/FEEDBACK.md).

@@ -29,7 +29,18 @@
   <h1>Zo groeit OKKIE.</h1>
   <p class="subtitle">Alleen anonieme aantallen uit de vrijwillige community. Geen nicknames, individuele resultaten, e-mailadressen of ruwe trainingen.</p>
   <div id="status" class="status" role="status">Gegevens ophalen…</div>
-  <section class="grid" aria-label="Kerncijfers">
+  <section class="grid" aria-label="App-gebruik">
+    <div class="card stat"><small>Toestellen met de app</small><strong id="devices">–</strong><small id="devices-since">Sinds de dagteller (1.7.2)</small></div>
+    <div class="card stat"><small>Vandaag geopend</small><strong id="today">–</strong><small>Toestellen, één telling per dag</small></div>
+    <div class="card stat"><small>Deze week geopend</small><strong id="week">–</strong><small id="week-new">Laatste 7 dagen</small></div>
+    <div class="card stat"><small>Versies deze week</small><strong id="versions">–</strong><small>Meest gebruikte eerst</small></div>
+  </section>
+  <section class="card" style="margin-bottom:15px">
+    <h2>App geopend per dag <span class="tag">laatste 30 dagen</span></h2>
+    <div id="days" class="bars"><p>Gegevens ophalen…</p></div>
+    <p class="small">Anonieme dagteller: elk toestel meldt hooguit één keer per dag dat de app is geopend, met alleen het versienummer. Geen ID, geen IP-adres. Wie de app een dag niet opent, telt die dag niet mee; offline gebruik telt pas als het toestel weer online is.</p>
+  </section>
+  <section class="grid" aria-label="Kerncijfers Darters">
     <div class="card stat"><small>Geregistreerde profielen</small><strong id="profiles">–</strong><small>Ook verborgen profielen</small></div>
     <div class="card stat"><small>Openbare profielen</small><strong id="public">–</strong><small>Vrijwillig zichtbaar</small></div>
     <div class="card stat"><small>Recent bijgewerkt</small><strong id="active">–</strong><small>Profielen met upload in 7 dagen</small></div>
@@ -46,9 +57,10 @@
       <p><strong>Profielen</strong> zijn online aangemaakte communityaccounts. Eén speler kan op meerdere toestellen voorkomen als hij zich opnieuw registreert.</p>
       <p><strong>Recent bijgewerkt</strong> telt accounts die afgelopen zeven dagen statistieken hebben doorgestuurd. Dat is niet precies hetzelfde als dagelijks actieve gebruikers.</p>
       <p><strong>Gedeelde trainingen</strong> zijn afgeronde, geregistreerde scoretrainingen die zijn meegestuurd. Mensen die de app alleen lokaal gebruiken tellen niet mee.</p>
-      <h2 style="margin-top:27px">Websitebezoekers</h2>
-      <p>Unieke bezoekers en paginabezoeken kun je afzonderlijk bekijken via privacyvriendelijke <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer">Cloudflare Web Analytics ↗</a>, zodra die voor het domein is geconfigureerd.</p>
-      <p class="small">Het aantal werkelijk geïnstalleerde iPhone-PWA's is niet rechtstreeks bekend.</p>
+      <h2 style="margin-top:27px">Toestellen en openingen</h2>
+      <p><strong>Toestellen met de app</strong> is het aantal toestellen dat sinds 1.7.2 voor het eerst meldde. Wie de app opnieuw installeert of de browsergegevens wist, telt opnieuw.</p>
+      <p><strong>Geopend per dag</strong> is het aantal toestellen dat de app die dag opende (hooguit één telling per toestel per dag). Tussen haakjes: nieuwe toestellen.</p>
+      <p class="small">Websitebezoekers worden niet gemeten.</p>
     </section>
   </div>
   <p class="note">Dit dashboard is uitsluitend bereikbaar na Cloudflare Access en een extra servercontrole van jouw beheerderstoegang. Als de toegangsinstellingen ontbreken, laat de server nooit cijfers zien.</p>
@@ -73,6 +85,27 @@
       text('public',fmt(data.totals.publicProfiles));
       text('active',fmt(data.totals.recentlySyncedProfiles));
       text('trainings',fmt(data.totals.sharedTrainings));
+      const u = data.usage || {};
+      text('devices',fmt(u.totals?.devices));
+      if (u.totals?.since) text('devices-since','Nieuwe toestellen sinds '+u.totals.since);
+      text('today',fmt(u.today));
+      text('week',fmt(u.week?.opens));
+      text('week-new',fmt(u.week?.newDevices)+' nieuw in de laatste 7 dagen');
+      text('versions',(u.versions||[]).map(v=>v.version+' ('+fmt(v.opens)+')').join(' · ')||'–');
+      const dayTarget = $('days');
+      dayTarget.replaceChildren();
+      const days = u.days || [];
+      if (!days.length) { const p = document.createElement('p'); p.textContent = 'Nog geen tellingen.'; dayTarget.append(p); }
+      const dmax = Math.max(1,...days.map(d=>Number(d.opens)||0));
+      for (const d of days) {
+        const item = document.createElement('div'); item.className='barrow';
+        const label = document.createElement('span'); label.textContent=String(d.day||'').slice(5);
+        const container = document.createElement('div'); container.className='bar';
+        const bar = document.createElement('i'); bar.style.width=Math.max(0,Math.min(100,(Number(d.opens)||0)/dmax*100))+'%';
+        container.append(bar);
+        const count = document.createElement('strong'); count.textContent=fmt(d.opens)+(Number(d.newDevices)?' (+'+fmt(d.newDevices)+')':'');
+        item.append(label,container,count);dayTarget.append(item);
+      }
       const rows = (data.weekly || []).slice().reverse();
       const max = Math.max(1,...rows.map(r=>Number(r.trainings)||0));
       const target = $('weekly');

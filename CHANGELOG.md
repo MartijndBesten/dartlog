@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.2 — Anonieme dagteller
+
+- **Dagteller:** de app meldt hooguit één keer per dag aan onze eigen server dat hij is geopend, met alleen het
+  versienummer en of dit toestel voor het eerst meldt. Geen ID, geen cookie, geen IP-adres, geen naam of scores; de
+  server bewaart alleen aantallen per dag en versie. Zo zien we eindelijk hoeveel toestellen OKKIE. gebruiken.
+  Offline gebeurt er niets, en de app wacht er nooit op. Uitgelegd in de privacyverklaring op okkiedarts.nl.
+- **Beheer:** het privébeheer toont toestellen, openingen per dag en versies.
+
 ## 1.7.1 — Meer aanmoedigingen en grapjes van de stem
 
 - **Gesproken aanmoedigingen: nieuwe stand "Veel, met grapjes"** (standaard zodra de stem aan staat). Je hoort vaker
