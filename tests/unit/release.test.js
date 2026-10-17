@@ -286,3 +286,17 @@ test('dartregels op de website: letterlijk dezelfde tekst en tekening als in de 
   assert.match(readFileSync(join(root, 'dist/sitemap.xml'), 'utf8'), /okkiedarts\.nl\/dartregels\//);
   assert.match(read('js/app.js'), /okkiedarts\.nl\/dartregels\//, 'de app verwijst naar de website');
 });
+
+test('offline: elke module die de app laadt, staat in de lijst van de serviceworker', () => {
+  const sw = read('sw.js');
+  const assets = new Set([...sw.match(/const ASSETS = \[([\s\S]*?)\];/)[1].matchAll(/'([^']+)'/g)].map(m => m[1]));
+  const seen = new Set(), todo = ['js/app.js'];
+  while (todo.length) {
+    const f = todo.pop();
+    if (seen.has(f)) continue;
+    seen.add(f);
+    for (const m of read(f).matchAll(/^import[^'"]*['"](\.{1,2}\/[^'"]+)['"]/gm)) todo.push(join(f, '..', m[1]).replaceAll('\\', '/'));
+  }
+  assert.ok(seen.has('js/stat-prefs.js') && seen.has('js/turn-chart.js'));
+  for (const f of seen) assert.ok(assets.has('./' + f), `niet offline beschikbaar: ${f}`);
+});

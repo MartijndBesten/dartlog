@@ -13,6 +13,7 @@ Deze notitie legt vast wat er al klaarligt, zodat een overstap later zonder data
 | Verwijderde items | `rememberRemoved` (in `data`) | Overzetten of samenvoegen haalt gewiste trainingen/spelers niet terug. |
 | Online profiel (Darters) | profielcode + herstelcode (`okkie.community.v1`) | Accountcontinuïteit zonder e-mail of wachtwoord: met de herstelcode zet je het profiel op elk toestel terug. |
 | Spelregels en statistiek | `js/logic.js`, `js/motivation.js` | Zonder DOM, met unittests; 1-op-1 herbruikbaar. |
+| Weergave van statistieken | `data.settings.statView` (`js/stat-prefs.js`), per speler `{ one: [...], many: [...] }` | Alleen aanwezig als iemand iets aanpaste; ontbreekt = standaardweergave. Hoort bij de instellingen (in de back-up), niet bij spelers of trainingen, dus overzetten en samenvoegen veranderen er niets door. |
 
 Ids zijn UUID's (`crypto.randomUUID`), tijden ISO-8601 in UTC: geen botsingen bij samenvoegen tussen toestellen.
 

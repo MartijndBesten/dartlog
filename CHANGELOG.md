@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.7.0 — Zelf instelbare statistieken en de beste beurt van elke training
+
+- **Na elke scoretraining:** alle beurten op volgorde in een grafiek, de hoogste beurt met beurtnummer en de drie
+  pijlen, en bij een gedeelde hoogste score worden alle betreffende beurten gemarkeerd. Tik op een beurt (of gebruik de
+  pijltjestoetsen) voor de score en de pijlen. Een gestippelde lijn toont je gemiddelde per beurt. Werkt bij 30, 60, 99,
+  een eigen aantal en vrij trainen; bij veel beurten scrolt alleen de grafiek zijwaarts. "Alle beurten op een rij" toont
+  dezelfde beurten als lijst.
+- **Onvolledige beurt** (eerder gestopt met 1 of 2 pijlen): gestippeld, en telt niet als hoogste of laagste beurt.
+  Trainingen uit een andere app (alleen de eindstand) krijgen geen verzonnen beurten.
+- **Pas mijn statistieken aan:** per speler met vinkjes kiezen wat je ziet, apart voor *Na een training* en *Al je
+  trainingen*: gemiddelde, hoogste en laagste beurt, score per beurt, totaal punten, pijlen, 100+/140+/180, beste en
+  slechtste training, vergelijking met je vorige training, ontwikkeling, records, en ook trefferkaart, badges en
+  wedstrijden. Elk vinkje werkt meteen; **Standaardweergave herstellen** zet alles terug. Standaard staat alleen het
+  belangrijkste aan.
+- Bewaard op deze telefoon in de bestaande instellingen (ook in je back-up); spelers en trainingen veranderen niet.
+- **Samen trainen:** per speler de hoogste beurt met beurtnummer, en de grafiek per beurt per speler te kiezen.
+- **Geschiedenis:** elke scoretraining toont dezelfde grafiek en markeert de hoogste beurt in de lijst.
+- Nieuwe badges na een training staan in een inklapbaar blok, zodat het scherm rustig blijft.
+
 ## 1.6.4 — Meest geraakt per soort treffer
 
 - **Statistieken → Trefferkaart:** "Meest geraakt" volgt nu het gekozen filter. Bij **Enkel** zie je 20, 5, 1…,

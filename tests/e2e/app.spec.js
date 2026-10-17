@@ -402,8 +402,11 @@ test('uitslag: vergelijking met vorige training met hetzelfde aantal pijlen', as
   await page.click('[data-testid=start-score]');
   for (let i = 0; i < 60; i++) await dart(page, 'S5');
   await expect(page.getByTestId('compare')).toHaveCount(0);
-  await expect(page.locator('details.more')).toHaveCount(1);
-  await expect(page.locator('details.more')).not.toHaveAttribute('open', '');
+  // Rustig scherm: standaard alleen het belangrijkste (1.7.0: zelf in te stellen); eventuele nieuwe badges ingeklapt.
+  await expect(page.getByTestId('best-turn')).toBeVisible();
+  await expect(page.getByTestId('turn-chart')).toBeVisible();
+  await expect(page.getByTestId('result-tiles')).toHaveCount(0);
+  await expect(page.locator('details.more[open]')).toHaveCount(0);
   await page.screenshot({ path: `screenshots/e2e-${info.project.name}-uitslag-v2.png`, fullPage: true });
 });
 

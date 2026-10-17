@@ -233,3 +233,39 @@ test('periodes en reeksen', () => {
   assert.equal(L.dayStreak([d(3)], today), 0);
   assert.equal(L.longestStreak([d(0), d(1), d(2), d(5), d(6), d(7), d(8)]), 4);
 });
+
+test('beurten per training: volgorde, pijlen, onvolledige laatste beurt en import zonder pijlen', () => {
+  const t = { turns: [{ darts: ['T20', 'S20', 'S20'] }, { darts: ['S5', 'M', 'S1'] }, { darts: ['T20', 'T20'] }] };
+  const s = L.turnSeries(t);
+  assert.deepEqual(s.map(x => [x.n, x.score, x.complete]), [[1, 100, true], [2, 6, true], [3, 120, false]]);
+  assert.deepEqual(s[0].darts, ['T20', 'S20', 'S20']);
+  s[0].darts.push('X');
+  assert.equal(t.turns[0].darts.length, 3, 'de training zelf verandert niet');
+  assert.deepEqual(L.turnSeries({ summary: { points: 600, darts: 30, high: 140 }, turns: [] }), [], 'eindstand uit een andere app: geen verzonnen beurten');
+  assert.deepEqual(L.turnSeries({}), []);
+});
+
+test('hoogste en laagste beurt: alleen volledige beurten, gedeelde plekken allemaal', () => {
+  const series = L.turnSeries({ turns: [
+    { darts: ['T20', 'T20', 'S20'] }, { darts: ['S1', 'S1', 'S1'] }, { darts: ['T20', 'T19', 'S20'] },
+    { darts: ['T20', 'T20', 'S20'] }, { darts: ['S1', 'S1', 'S1'] }, { darts: ['T20', 'T20'] },
+  ] });
+  assert.deepEqual(L.extremeTurns(series, 'high'), { score: 140, turns: [1, 4] }, 'onvolledige 120 telt niet; gelijke 140 beide');
+  assert.deepEqual(L.extremeTurns(series, 'low'), { score: 3, turns: [2, 5] });
+  assert.equal(L.extremeTurns(L.turnSeries({ turns: [{ darts: ['T20', 'T20'] }] })), null, 'geen volledige beurt: geen hoogste beurt');
+  assert.equal(L.extremeTurns([]), null);
+});
+
+test('hoogste en laagste beurt kloppen met trainingTotals, ook bij afwijkende lengtes', () => {
+  const codes = ['T20', 'S20', 'S1', 'D16', 'M', 'T19', 'SB', 'DB', 'S5', 'T5'];
+  let seed = 7;
+  const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  for (const turnsCount of [1, 7, 10, 20, 33, 61]) {
+    const turns = Array.from({ length: turnsCount }, (_, i) => ({ darts: Array.from({ length: i === turnsCount - 1 && turnsCount % 2 ? 2 : 3 }, () => codes[Math.floor(rnd() * codes.length)]) }));
+    const tot = L.trainingTotals({ turns }), series = L.turnSeries({ turns });
+    assert.equal(series.length, turnsCount);
+    assert.equal(series.reduce((a, s) => a + s.score, 0), tot.points);
+    assert.equal(L.extremeTurns(series, 'high')?.score ?? null, tot.high, 'hoogste bij ' + turnsCount);
+    assert.equal(L.extremeTurns(series, 'low')?.score ?? null, tot.low, 'laagste bij ' + turnsCount);
+  }
+});
