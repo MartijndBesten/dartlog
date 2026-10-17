@@ -206,7 +206,7 @@ function voiceTurn(playerId, score, prevInSession) {
   const line = SP.turnLine(score, Math.max(savedHigh(playerId), prevInSession || 0));
   if (!line) return;
   if (line.call180) SP.call180();
-  if (line.text) SP.say(line.text);
+  if (line.text) SP.say(line.text, { follow: !!line.call180 });
 }
 const VOICE_KEY = 'okkie.voice.v1';
 function voiceTraining(r, t) {
@@ -1148,7 +1148,7 @@ VIEWS.more = () => {
       <h3>Instellingen</h3>
       ${toggle('sound', 'Geluidjes')}${toggle('vibrate', 'Trillen bij tikken')}
       ${SP.speechSupported() ? `${toggle('speech', 'Gesproken aanmoedigingen')}
-        <p class="muted small setting-note">Een stem bij een persoonlijk record, je eerste 100+ of 180 en een mooie finish; niet bij elke beurt. Gebruikt de stem van je telefoon. Hoor je niets op een iPhone? Zet de stil-schakelaar aan de zijkant uit en het volume omhoog.${data.settings.speech ? ' <button class="link" data-act="speech-test">Laat horen</button>' : ''}</p>`
+        <p class="muted small setting-note">Een enthousiaste stem bij een persoonlijk record, je eerste 100+, elke 180 en een mooie finish; niet bij elke beurt. Gebruikt de stem van je telefoon. Hoor je niets op een iPhone? Zet de stil-schakelaar aan de zijkant uit en het volume omhoog.${data.settings.speech ? ' <button class="link" data-act="speech-test">Laat horen</button>' : ''}</p>`
         : '<p class="muted small setting-note">Gesproken aanmoedigingen werken niet in deze browser.</p>'}
       <div class="setting"><span>Thema</span><div class="chips small"><button class="chip ${data.settings.theme === 'dark' ? 'on' : ''}" data-act="theme" data-arg="dark">Donker</button><button class="chip ${data.settings.theme === 'light' ? 'on' : ''}" data-act="theme" data-arg="light">Licht</button></div></div>
     </section>
@@ -1781,7 +1781,7 @@ const ACTIONS = {
     }
     window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener');
   },
-  'speech-test': () => { SP.call180(); SP.say('Zo klinkt OKKIE. bij een honderdtachtig.'); },
+  'speech-test': () => { SP.call180(); SP.say('Zo klinkt OKKIE. bij een honderdtachtig! Kom op!', { follow: true }); },
   'fb-shot-remove': () => { ui.fb.screenshot = null; render(); },
   'fb-again': () => { ui.fb = { kind: ui.fb.kind, message: '', contact: '', screenshot: null, busy: false, error: '', sent: null, startedAt: Date.now() }; render(); },
   'switch-player': switchPlayerModal,
@@ -2136,7 +2136,7 @@ document.addEventListener('change', e => {
   if (el.dataset.input === 'setting') {
     data.settings[el.dataset.arg] = el.checked; save();
     // Direct na de tik iets zeggen: zo hoor je dat het werkt (en mag de iPhone daarna ook spreken).
-    if (el.dataset.arg === 'speech') { if (el.checked) SP.say('Gesproken aanmoedigingen staan aan.'); render(); }
+    if (el.dataset.arg === 'speech') { if (el.checked) SP.say('Aanmoedigingen staan aan! Kom op, gooien!'); render(); }
   }
   if (el.dataset.input === 'stat-pref') {
     if (SV.setStat(data.settings, ui.prefPlayer, el.dataset.scope, el.dataset.arg, el.checked)) { save(); render(); }

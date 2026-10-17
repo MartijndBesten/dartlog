@@ -28,6 +28,10 @@
   Big Fish, Stierenvechter, Samen sterk en Uitwedstrijd. Ze worden berekend uit wat je al gooide, dus wie al lang
   speelt, heeft er na de update meteen een aantal. Statistieken → Badges toont eerst wat je hebt; de rest staat
   ingeklapt onder *Nog te verdienen*.
+- **Enthousiastere stem** (Gesproken aanmoedigingen): sneller en hoger dan de gewone voorleesstem, uitroepen als
+  "Boem!", "Wauw!" en "Yes!", en afwisselende zinnen zodat het niet als een bandje klinkt. De 180-call bouwt op
+  ("One hundred… and eighty!") en eindigt hoog; bij elke 180 volgt een korte juich. Nog steeds alleen bij bijzondere
+  momenten, niet bij elke beurt. De juich direct na de 180-call valt op een iPhone niet meer weg.
 
 ## 1.6.4 — Meest geraakt per soort treffer
 

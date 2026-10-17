@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { goalFor, improvedClearly, comparable, highestTurn } from '../../js/motivation.js';
-import { turnLine, trainingLine, checkoutLine, pickVoice } from '../../js/speech.js';
+import { turnLine, trainingLine, checkoutLine, pickVoice, CHEER } from '../../js/speech.js';
 
 // Training van 30 pijlen met een vast gemiddelde (10 beurten, elke beurt `per3` punten via enkele vakken).
 let n = 0;
@@ -45,13 +45,23 @@ test('duidelijke verbetering: minstens 10% en 3 punten boven de laatste 5', () =
 });
 
 test('beurt: 180-call altijd; eerste 100+/140+/180 alleen de eerste keer; gewone beurten stil', () => {
-  assert.deepEqual(turnLine(180, 140), { call180: true, text: 'Je eerste honderdtachtig. Geweldig!' });
-  assert.deepEqual(turnLine(180, 180), { call180: true, text: null });
-  assert.equal(turnLine(100, 60).text, 'Je eerste honderd plus! Mooi zo.');
-  assert.equal(turnLine(140, 120).text, 'Je eerste honderdveertig plus!');
-  assert.equal(turnLine(121, 120).text, 'Nieuwe hoogste beurt: 121!');
+  assert.deepEqual(turnLine(180, 140), { call180: true, text: 'Ja! Je eerste honderdtachtig! Ongelooflijk!' });
+  assert.equal(turnLine(180, 180).call180, true);
+  assert.match(turnLine(180, 180, () => 0).text, /!$/, 'herhaalde 180: korte juich na de call');
+  assert.match(turnLine(100, 60).text, /^(Yes|Daar is ie)! Je eerste honderd plus! .+!$/);
+  assert.match(turnLine(140, 120).text, /^(Wauw|Boem)! Je eerste honderdveertig plus! .+!$/);
+  assert.match(turnLine(121, 120).text, /121!/);
   assert.equal(turnLine(100, 120), null);
   assert.equal(turnLine(85, 40), null);
+});
+
+test('stem: enthousiast (sneller en hoger), afwisselend, en elke zin eindigt met een uitroepteken', () => {
+  assert.ok(CHEER.rate > 1 && CHEER.rate <= 1.2 && CHEER.pitch > 1 && CHEER.pitch <= 1.3);
+  const first = turnLine(100, 60, () => 0).text, last = turnLine(100, 60, () => 0.999).text;
+  assert.notEqual(first, last, 'twee varianten');
+  const lines = [turnLine(140, 60, () => 0.5), turnLine(150, 145, () => 0.5), trainingLine({ goalReached: true }, () => 0.9), trainingLine({ improved: true }, () => 0.1),
+    trainingLine({ records: [{ label: 'Beste 30 pijlen', spoken: '54,2 gemiddeld' }] }, () => 0.5), checkoutLine(121, 'D8', () => 0.7), checkoutLine(50, 'DB', () => 0.2)];
+  for (const l of lines) assert.match(l.text, /!$/, l.text);
 });
 
 test('na de training: record gaat voor, dan doel, dan verbetering; anders stil', () => {
@@ -61,7 +71,7 @@ test('na de training: record gaat voor, dan doel, dan verbetering; anders stil',
   assert.equal(trainingLine({}), null);
   assert.equal(checkoutLine(40, 'D20'), null);
   assert.match(checkoutLine(121, 'D8').text, /121 uit/);
-  assert.match(checkoutLine(50, 'DB').text, /bull/);
+  assert.match(checkoutLine(50, 'DB').text, /bull/i);
 });
 
 test('hoogste beurt ooit telt trainingen en wedstrijden; stem: Nederlands, liefst verbeterd en op het toestel', () => {
