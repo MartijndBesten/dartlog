@@ -286,3 +286,26 @@ test('nickname-regels en snapshotvalidatie (bestaande interne checks)', () => {
   assert.equal(internals.snapshotOkay(snap('all', 600)), true);
   assert.equal(internals.snapshotOkay(snap('all', 600, 31)), false, 'pijlen altijd veelvoud van 3');
 });
+
+test('1.7.3: dagen op rij, badges, ontwikkeling en favoriete vak: streng gecontroleerd, in lijst en profiel', async () => {
+  const env = baseEnv();
+  const a = await register(env, 'Senn');
+  const extra = { streak: 4, badges: 12, delta10: 3.25, favorite: 'T20' };
+  let r = await call(env, '/v1/me/snapshots', { method: 'PUT', token: a.token, body: { snapshots: [snap('all', 1800, 60, extra), snap(thisWeek, 900)] } });
+  assert.equal(r.status, 200, await r.text());
+  const week = await (await call(env, '/v1/leaderboard?period=week')).json();
+  assert.equal(week.ranking[0].streak, 4, 'weeklijst toont de reeks uit het totaal');
+  assert.equal(week.ranking[0].badges, 12);
+  assert.equal(week.ranking[0].favorite, 'T20');
+  const profile = await (await call(env, '/v1/players/' + a.account.handle)).json();
+  assert.deepEqual([profile.totals.streak, profile.totals.badges, profile.totals.delta10, profile.totals.favorite], [4, 12, 3.25, 'T20']);
+  for (const bad of [{ streak: -1 }, { streak: 1.5 }, { badges: 100 }, { delta10: 500 }, { delta10: 'x' }, { favorite: 'T20;DROP' }, { favorite: 'T25' }, { favorite: 'x'.repeat(30) }]) {
+    r = await call(env, '/v1/me/snapshots', { method: 'PUT', token: a.token, body: { snapshots: [snap('all', 1800, 60, { ...extra, ...bad })] } });
+    assert.equal(r.status, 400, JSON.stringify(bad));
+  }
+  // Oudere app zonder de nieuwe velden: gewoon geldig, dan een streepje (null).
+  r = await call(env, '/v1/me/snapshots', { method: 'PUT', token: a.token, body: { snapshots: [snap('all', 1800, 60)] } });
+  assert.equal(r.status, 200);
+  const t = (await (await call(env, '/v1/players/' + a.account.handle)).json()).totals;
+  assert.deepEqual([t.streak, t.badges, t.delta10, t.favorite], [null, null, null, null]);
+});

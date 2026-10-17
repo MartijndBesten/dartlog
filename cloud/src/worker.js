@@ -29,6 +29,8 @@ const json = (data, status = 200, cors = {}, cache = 'no-store') =>
 const fail = (message, status, cors) => json({ error: message }, status, cors);
 const utf8 = new TextEncoder();
 const HANDLE = /^[a-z0-9]{12}$/;
+// Favoriete vak zoals de app het noemt: 20, T20, D16, Bull (50) of 25.
+const FAVORITE = /^(T?(1[0-9]|20|[1-9])|D(1[0-9]|20|[1-9])|Bull|25)$/;
 
 function allowedOrigins(env) {
   return (env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -70,6 +72,12 @@ function snapshotOkay(x) {
     if (x[k] === undefined) continue;
     if (x[k] !== null && (!Number.isSafeInteger(x[k]) || x[k] < 0 || x[k] > darts * 60 || x.darts < darts)) return false;
   }
+  // 1.7.3: dagen op rij, badges, ontwikkeling en favoriete vak. Ontbreken mag (oudere apps); anders streng.
+  const opt = (k, ok) => x[k] === undefined || x[k] === null || ok(x[k]);
+  if (!opt('streak', v => Number.isSafeInteger(v) && v >= 0 && v <= 10000)) return false;
+  if (!opt('badges', v => Number.isSafeInteger(v) && v >= 0 && v <= 99)) return false;
+  if (!opt('delta10', v => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= 180)) return false;
+  if (!opt('favorite', v => typeof v === 'string' && FAVORITE.test(v))) return false;
   return true;
 }
 async function bodyJson(request) {
@@ -259,7 +267,9 @@ export default {
         const key = currentPeriod(kind);
         const rows = await env.DB.prepare(
           'SELECT m.id, m.handle, m.nickname, s.darts, s.points, s.sessions, s.highest_turn AS highestTurn, ' +
-          's.best30, s.best60, s.best99, s.challenge30, s.hits100, s.hits140, s.hits180 FROM stats s JOIN members m ON m.id = s.member_id ' +
+          's.best30, s.best60, s.best99, s.challenge30, s.hits100, s.hits140, s.hits180, ' +
+          // 1.7.3: dagen op rij, badges en favoriete vak komen uit het totaal, ook in de week- en maandlijst.
+          "a.streak, a.badges, a.favorite FROM stats s JOIN members m ON m.id = s.member_id LEFT JOIN stats a ON a.member_id = m.id AND a.period = 'all' " +
           // Darters: voor elke periode gerangschikt op gemiddelde per 3 pijlen (minimaal 30 pijlen).
           'WHERE m.visible = 1 AND s.period = ? AND s.darts >= 30 ORDER BY (s.points * 1.0 / s.darts) DESC, s.sessions DESC, m.handle ASC LIMIT 200'
         ).bind(key).all();
@@ -271,7 +281,7 @@ export default {
         if (!HANDLE.test(handle || '')) return fail('Profiel niet gevonden.', 404, cors);
         const member = await env.DB.prepare('SELECT id, handle, nickname FROM members WHERE handle = ? AND visible = 1').bind(handle).first();
         if (!member) return fail('Profiel niet gevonden of afgeschermd.', 404, cors);
-        const all = await env.DB.prepare('SELECT darts, points, sessions, highest_turn AS highestTurn, best30, best60, best99, hits100, hits140, hits180 FROM stats WHERE member_id = ? AND period = ?').bind(member.id, 'all').first();
+        const all = await env.DB.prepare('SELECT darts, points, sessions, highest_turn AS highestTurn, best30, best60, best99, hits100, hits140, hits180, streak, badges, delta10, favorite FROM stats WHERE member_id = ? AND period = ?').bind(member.id, 'all').first();
         const trend = await env.DB.prepare("SELECT period, darts, points, sessions, challenge30 FROM stats WHERE member_id = ? AND period LIKE 'week:%' ORDER BY period DESC LIMIT 12").bind(member.id).all();
         return json({ player: publicMember(member), totals: all || null, trend: trend.results || [] }, 200, cors, 'no-store');
       }
@@ -334,9 +344,10 @@ export default {
           const statements = [env.DB.prepare('DELETE FROM stats WHERE member_id = ?').bind(member.id)];
           for (const s of keep) {
             statements.push(env.DB.prepare(
-              'INSERT INTO stats (member_id,period,darts,points,sessions,highest_turn,hits100,hits140,hits180,best30,best60,best99,challenge30,updated_at) ' +
-              "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))"
-            ).bind(member.id,s.period,s.darts,s.points,s.sessions,s.highestTurn,s.hits100,s.hits140,s.hits180,s.best30,s.best60 ?? null,s.best99 ?? null,s.challenge30));
+              'INSERT INTO stats (member_id,period,darts,points,sessions,highest_turn,hits100,hits140,hits180,best30,best60,best99,challenge30,streak,badges,delta10,favorite,updated_at) ' +
+              "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))"
+            ).bind(member.id,s.period,s.darts,s.points,s.sessions,s.highestTurn,s.hits100,s.hits140,s.hits180,s.best30,s.best60 ?? null,s.best99 ?? null,s.challenge30,
+              s.streak ?? null,s.badges ?? null,s.delta10 ?? null,s.favorite ?? null));
           }
           statements.push(env.DB.prepare("UPDATE members SET updated_at = datetime('now') WHERE id = ?").bind(member.id));
           await env.DB.batch(statements);

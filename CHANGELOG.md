@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.3 — Darters: iets meer per darter
+
+- **Per darter extra te zien** (alleen als die speler delen aan heeft): dagen op rij en aantal badges in de lijst, en in
+  het profiel ook de ontwikkeling (gemiddelde van de laatste 10 trainingen tegenover de 10 daarvoor) en het favoriete
+  vak (meest geraakt, bijvoorbeeld T20). Net als de andere cijfers zijn het samenvattingen: geen losse pijlen, geen
+  tijdstippen, geen wedstrijden. Oudere apps sturen de nieuwe cijfers niet; dan staat er een streepje.
+- De teksten in de app (Darters), op de website en in de privacyverklaring noemen precies wat je deelt.
+
 ## 1.7.2 — Beperkte eigen gebruiksstatistieken (anonieme dagteller)
 
 - **Dagteller** (besluit eigenaar: wel eigen gebruiksmeting, geen externe analysediensten): de app meldt hooguit één

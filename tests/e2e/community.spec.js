@@ -67,6 +67,7 @@ test('Darters: kijken zonder account, delen aan en uit, twee spelers op één te
   await expect(A.page.locator('#account')).toContainText('Delen staat aan');
   await expect(A.page.locator('#rankings')).toContainText('Bram' + sfx);
   await expect(A.page.locator('#rankings')).toContainText('100,00');      // 100 per beurt
+  await expect(A.page.locator('#rankings')).toContainText('badges');      // 1.7.3: badges en dagen op rij uit het totaal
   await expect(A.page.locator('#rankings')).not.toContainText('Noor' + sfx); // andere speler op dezelfde telefoon deelt niet
   // Noor (jonger dan 16): eerst een ouder
   await A.page.locator('[data-toggle=pb]').check();
