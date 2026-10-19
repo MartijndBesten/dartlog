@@ -1,5 +1,13 @@
 # Changelog
 
+## Website okkiedarts.nl — bezoekersteller zonder cookies (20 oktober 2026, geen nieuwe appversie)
+
+- **Alleen de website** (okkiedarts.nl): `tools/build-public-site.mjs` zet op elke pagina de cookieloze teller van het
+  Denckh-marketingdashboard (`dd-marketing`, data-brand `okkie`). Telt per dag pagina (zonder querystring), herkomsthost
+  en utm_source. De app (app.okkiedarts.nl, ook uitleg/ in de app) krijgt de teller niet; de bronpagina's blijven zonder.
+- Privacyverklaring: nieuwe alinea *Bezoekersteller* (punt 3) en een regel in *In het kort*; Cloudflare-hosting aangevuld.
+- Test: teller precies één keer op elke websitepagina, nooit in de bron of in de app-build.
+
 ## 1.7.4 — Een training weggooien
 
 - **Stoppen geeft nu drie keuzes:** *Bewaren* (zoals voorheen: uitslag, records, badges en Darters), *Weggooien* en
