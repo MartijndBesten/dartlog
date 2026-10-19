@@ -54,11 +54,11 @@ cpSync(join(root,'uitleg'),join(dest,'uitleg'),{recursive:true});
 const tutorialFile = join(dest,'uitleg','index.html');
 writeFileSync(tutorialFile,rootIcons(readFileSync(tutorialFile,'utf8')));
 
-// Cookieloze bezoekersteller van het Denckh-marketingdashboard (Worker dd-marketing, repo marketing-dashboard).
+// Cookieloze bezoekersteller van het Denckh-marketingdashboard (Worker dd-marketing via https://dashboard.denckh.nl, repo marketing-dashboard).
 // Alleen op de website okkiedarts.nl: daarom hier in de build en niet in de bronpagina's. uitleg/ hoort ook bij
 // de app (tools/build-app-site.mjs); die en de rest van de app krijgen de teller dus nooit.
 // Stuurt alleen pad (zonder querystring), herkomsthost en utm_source; geen cookies, geen persoonsgegevens.
-const COUNTER = '<script defer src="https://dd-marketing.zaalverhuur-sion.workers.dev/s.js" data-brand="okkie"></script>';
+const COUNTER = '<script defer src="https://dashboard.denckh.nl/s.js" data-brand="okkie"></script>';
 for(const page of ['index.html','dartregels/index.html','privacy/index.html','contact/index.html','uitleg/index.html']) {
   const file = join(dest,page), html = readFileSync(file,'utf8');
   if(!html.includes('</head>')) throw new Error('Geen </head> in '+page);
