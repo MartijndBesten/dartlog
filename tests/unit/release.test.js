@@ -19,8 +19,8 @@ const EXTERNAL = [APP, APP + 'community/', 'https://denckh.nl/', 'https://okkied
   'https://dartswdf.com/rules', 'https://www.thedra.co.uk/dra-rulebook',
   'https://autoriteitpersoonsgegevens.nl/', 'mailto:info@denckh.nl', 'mailto:info@denckh.nl?subject=OKKIE.',
   // cookieloze bezoekersteller van Denckh (alleen op de website, nooit in de app)
-  'https://dd-marketing.zaalverhuur-sion.workers.dev/s.js'];
-const COUNTER = '<script defer src="https://dd-marketing.zaalverhuur-sion.workers.dev/s.js" data-brand="okkie"></script>';
+  'https://dashboard.denckh.nl/s.js'];
+const COUNTER = '<script defer src="https://dashboard.denckh.nl/s.js" data-brand="okkie"></script>';
 const PAGES = ['index.html', 'uitleg/index.html', 'privacy/index.html', 'contact/index.html', 'dartregels/index.html'];
 
 test('versie is overal gelijk: sw.js, app en package.json', () => {
@@ -313,12 +313,12 @@ test('bezoekersteller: precies één keer op elke websitepagina, nooit in de app
   }
   // Bronpagina's (ook uitleg/, die in de app zit) blijven zonder teller.
   for (const f of ['index.html', 'uitleg/index.html', 'community/index.html', 'vrienden/index.html', 'ontdek/index.html', 'ontdek/privacy/index.html']) {
-    assert.doesNotMatch(read(f), /dd-marketing/, `${f}: geen teller in de bron`);
+    assert.doesNotMatch(read(f), /dd-marketing|dashboard\.denckh\.nl\/s\.js/, `${f}: geen teller in de bron`);
   }
   execFileSync(process.execPath, [join(root, 'tools/build-app-site.mjs')], { cwd: root, stdio: 'pipe' });
   const app = join(root, 'dist-app');
   for (const f of readdirSync(app, { recursive: true }).map(String).filter(f => /.(html|js)$/.test(f))) {
-    assert.doesNotMatch(readFileSync(join(app, f), 'utf8'), /dd-marketing/, `app ${f}: geen teller`);
+    assert.doesNotMatch(readFileSync(join(app, f), 'utf8'), /dd-marketing|dashboard\.denckh\.nl\/s\.js/, `app ${f}: geen teller`);
   }
   const privacy = readFileSync(join(root, 'dist/privacy/index.html'), 'utf8');
   assert.match(privacy, /id="bezoekersteller"/);
