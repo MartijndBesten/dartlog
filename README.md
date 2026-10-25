@@ -16,7 +16,7 @@ Ontwikkeld door **Denckh.**
 ## Functies
 
 - **Scoretraining**: 30, 60 of 99 pijlen, vrij trainen of een eigen aantal beurten. Per pijl invoeren met grote knoppen (DOUBLE/TRIPLE + 1–20, 25, BULL, MIS) of typen (`T20 5 D10`).
-- **Samen trainen**: 1 tot 4 spelers (vrienden, familie) gooien om de beurt 3 pijlen; OKKIE springt automatisch naar de volgende naam, toont een ranglijst en bewaart voor iedereen een eigen training.
+- **Samen trainen**: 1 tot 8 spelers (vrienden, familie) gooien om de beurt 3 pijlen; OKKIE springt automatisch naar de volgende naam, toont een ranglijst en bewaart voor iedereen een eigen training.
 - **Scores uit een andere app**: de 10 DartCounter-scoretrainingen met één tik toevoegen, of zelf een eindstand invullen (pijlen, totaal, hoogste beurt, datum). Deze tellen mee in gemiddelden en records, niet in de trefferkaart.
 - **Rond de klok**: 1 t/m 20 en de bull, in zo min mogelijk pijlen.
 - **Wedstrijd 301/501**: 1–4 spelers, 1 leg of best of 3/5/7/9, double-out of straight-out, bust-regels, uitgooi-advies, stoppen en later hervatten. Een tegenstander met eigen OKKIE. koppel je met zijn koppelcode (Speler toevoegen); zijn uitslag en wedstrijdcijfers gaan na afloop naar zijn eigen telefoon, ook als je offline speelde.

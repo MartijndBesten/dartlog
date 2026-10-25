@@ -8,6 +8,16 @@
 - Privacyverklaring: nieuwe alinea *Bezoekersteller* (punt 3) en een regel in *In het kort*; Cloudflare-hosting aangevuld.
 - Test: teller precies één keer op elke websitepagina, nooit in de bron of in de app-build.
 
+## 1.7.5 — Samen trainen met 8 spelers
+
+- **Samen trainen: nu maximaal 8 spelers** (was 4). Om de beurt 3 pijlen, zoals voorheen; ranglijst en per speler een
+  eigen training. Bij 5 tot 8 spelers staat de spelersstrip in twee rijen (naam en totaal; het gemiddelde van wie aan
+  de beurt is staat groot op het scorebord). Past ook op een klein scherm (iPhone SE) zonder scrollen.
+- Ranglijst na afloop: plaats 4 tot en met 8 als cijfer.
+- Twee extra spelerskleuren (oranje, lichtgrijs), zodat 8 nieuwe spelers elk een eigen kleur krijgen. Bestaande
+  spelers houden hun kleur.
+- **Wedstrijd 301/501 blijft 1–4 spelers.** Rond de klok blijft voor één speler.
+
 ## 1.7.4 — Een training weggooien
 
 - **Stoppen geeft nu drie keuzes:** *Bewaren* (zoals voorheen: uitslag, records, badges en Darters), *Weggooien* en
