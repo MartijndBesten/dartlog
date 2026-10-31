@@ -1,14 +1,19 @@
 # OKKIE. Community API — Cloudflare Worker + D1.
-# Twee omgevingen:
-#   (standaard)       staging/preview op *.workers.dev, eigen D1 "okkie-community-staging", geen beheer
-#   --env production  Worker "okkie-api" op workers.dev, D1 "okkie-community". api.okkiedarts.nl kan pas als de
-#                     Cloudflare-zone okkiedarts.nl actief is (nameservers); dat is bewust niet gedaan (DNSSEC bij STRATO).
+# Twee omgevingen (stand 24-10-2026, gecontroleerd met `wrangler versions view`):
+#   (standaard)       STAGING: Worker "okkie-api-staging" (tot 24-10 heette die "okkie-community-api"), eigen D1
+#                     "okkie-community-staging". Geen app of website roept staging aan; alleen voor proefdeploys.
+#   --env production  PRODUCTIE: Worker "okkie-api" (https://okkie-api.<account-subdomein>.workers.dev, zie
+#                     community/config.js PROD_API), D1 "okkie-community" = de echte gebruikersgegevens.
+#                     api.okkiedarts.nl kan pas als de Cloudflare-zone okkiedarts.nl actief is (nameservers); dat is
+#                     bewust niet gedaan (DNSSEC bij STRATO).
+# Uitrollen en migreren ALTIJD via de expliciete scripts in package.json (deploy:staging / deploy:production,
+# migrate:staging / migrate:production); tests/omgevingen.test.js bewaakt dat productie nooit de staging-D1 bindt.
 # Spelers jonger dan 16: alleen met MINORS_OPEN = "true" (na juridische toets en DPIA, VRIENDEN.md §4); nu nergens gezet.
 # Secrets (nooit in Git), per omgeving met `npx wrangler secret put <NAAM> [--env production]`:
 #   TURNSTILE_SECRET
 #   CF_ACCESS_TEAM_DOMAIN, CF_ACCESS_AUD, ADMIN_ALLOWED_EMAILS  (alleen production; zonder deze is beheer dicht)
 # Access-instellingen staan bewust als secrets, zodat een latere deploy ze niet met lege [vars] overschrijft.
-name = "okkie-community-api"
+name = "okkie-api-staging"
 main = "src/worker.js"
 compatibility_date = "2026-10-10"
 workers_dev = true

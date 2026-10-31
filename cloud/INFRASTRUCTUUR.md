@@ -3,6 +3,18 @@
 Status: **voorbereid op branch `infra/cloudflare-community`. Niets staat live, DNS is niet gewijzigd.**
 Dit document beschrijft de doelarchitectuur, wat al klaar is, en de exacte stappen (met wie ze kan uitvoeren).
 
+> **Stand 24 oktober 2026 (gecontroleerd met `wrangler versions view` en `wrangler d1 info`, actueler dan de rest):**
+>
+> | Omgeving | Worker (live) | D1 (live binding) | Wie roept hem aan |
+> |---|---|---|---|
+> | productie | `okkie-api` (`wrangler deploy --env production`) | `okkie-community` (`6d496b27…`) | app.okkiedarts.nl en de dartlog-app via `community/config.js` `PROD_API` |
+> | staging | `okkie-community-api` → hernoemd naar `okkie-api-staging` in `wrangler.toml` | `okkie-community-staging` (`ddf81dd7…`) | niemand (0 schrijfacties per 24 u) |
+>
+> De oude naam `okkie-community-api` was misleidend: het is de **staging**worker en die bindt terecht de staging-D1.
+> De productieworker `okkie-api` bindt de productie-D1. Er staan geen productiegegevens in staging. Uitrollen en migreren
+> alleen via `npm run deploy:staging|deploy:production` en `npm run migrate:staging|migrate:production`;
+> `tests/omgevingen.test.js` bewaakt de scheiding. Overstap naar de nieuwe stagingnaam: zie §8.
+>
 > **Stand 11 oktober 2026 (actueler dan de rest van dit document):** de app staat op app.okkiedarts.nl (GitHub Pages,
 > repo `okkie-app`), de website op okkiedarts.nl (GitHub Pages, repo `okkiedarts-site`). De API draait als Worker
 > `okkie-api` op workers.dev (staging: `okkie-community-api`), met D1 `okkie-community` (migraties 0001–0003).
@@ -16,7 +28,7 @@ Dit document beschrijft de doelarchitectuur, wat al klaar is, en de exacte stapp
 ```
 okkiedarts.nl            publieke website (introductie, installatie-uitleg, openbare ranglijst)
 www.okkiedarts.nl        → doorverwijzing naar okkiedarts.nl
-api.okkiedarts.nl        Cloudflare Worker "okkie-community-api" + D1 "okkie-community"   (deze map)
+api.okkiedarts.nl        (gepland) Cloudflare Worker "okkie-api" + D1 "okkie-community"   (deze map); nu okkie-api.<subdomein>.workers.dev
 okkiedarts.nl/beheer     privébeheerdersdashboard, afgeschermd met Cloudflare Access (alleen jouw e-mailadres)
 martijndbesten.github.io/dartlog/            de bestaande OKKIE.-app — BLIJFT HIER
 martijndbesten.github.io/dartlog/community/  profiel koppelen/beheren (moet op dezelfde origin als de app staan)
@@ -143,7 +155,33 @@ npm run migrate:local && npm run dev           # lokale API met lokale D1 op htt
 
 Zet voor een lokale test van de pagina's `API_BASE = 'http://localhost:8787'` in `community/config.js` (niet committen).
 
-## Melding uit Darters afhandelen (sinds 1.8.0, ook nodig voor de App Store)
+## 8. Staging hernoemen, back-up en opruimen (voorbereid 24-10-2026, NIET uitgevoerd)
+
+Niets hiervan raakt de app of de productie-D1, behalve stap 1 (alleen lezen). Uitvoeren pas na akkoord van Martijn.
+
+1. **Back-up productie vóór elke wijziging** (B82-recept; bestand buiten Git, bevat persoonsgegevens):
+   `npx wrangler d1 export okkie-community --remote --env production --output ../../okkie-backups/okkie-community-$(date +%F).sql`
+   Daarnaast blijft D1 Time Travel beschikbaar (`npx wrangler d1 time-travel info okkie-community`).
+   Duur: seconden (±213 kB); tijdens de export kan de database heel kort trager reageren.
+2. **Nieuwe stagingworker uitrollen:** `npm run deploy:staging` → maakt Worker `okkie-api-staging` met dezelfde staging-D1.
+   Downtime: geen (niemand gebruikt staging). Verifiëren:
+   `curl https://okkie-api-staging.<subdomein>.workers.dev/v1/health` → `"registration":false,"groups":false` en
+   `npx wrangler versions view <versie> --name okkie-api-staging` → `env.DB (ddf81dd7…)`.
+3. **Oude stagingworker verwijderen** (akkoord nodig): `npx wrangler delete --name okkie-community-api`.
+   Tot dan draait de opschoon-cron 2× op de staging-D1; dat is onschadelijk.
+   Rollback: `git revert` van de hernoeming en `npm run deploy:staging` (maakt `okkie-community-api` opnieuw).
+4. **Productie blijft ongemoeid:** geen nieuwe D1, geen bindingwijziging, geen migratie nodig. Controle achteraf:
+   `npx wrangler versions view <actieve versie> --name okkie-api` → `env.DB (6d496b27…)`.
+
+**Voorstel (geen actie):** het workers.dev-accountsubdomein staat hard in `community/config.js`. Een eigen adres
+(`api.okkiedarts.nl`) maakt de app onafhankelijk van account en subdomein, maar vraagt de zone okkiedarts.nl in
+Cloudflare (nameservers van STRATO naar Cloudflare, eerst DNSSEC uit volgens B98) en een app-release met een nieuwe
+`PROD_API`; het oude adres moet daarna een overgangsperiode blijven werken voor geïnstalleerde PWA's.
+De Worker `okkiedarts-site` (oude, indexeerbare websitekopie van 10-10 op workers.dev) hoort niet meer bij de
+architectuur (de website staat op GitHub Pages): verwijderen met `npx wrangler delete --name okkiedarts-site`
+(akkoord nodig; herstel = `npx wrangler deploy -c site/wrangler.toml` na `npm run build:site`).
+
+## 9. Melding uit Darters afhandelen (sinds 1.8.0, ook nodig voor de App Store)
 
 In Darters kan iedereen bij een profiel *Meld dit profiel* kiezen: dat opent een e-mail aan info@denckh.nl met de
 profielcode (12 tekens). Afhandelen, liefst binnen een paar dagen:

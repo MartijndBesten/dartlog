@@ -67,7 +67,7 @@ test('webbuild voor de app: dezelfde app als app.okkiedarts.nl, met opstarten vi
 });
 
 test('workflow: handmatig te starten, TestFlight alleen vanaf de iOS-branch, nooit naar de App Store', () => {
-  const wf = read('.github/workflows/ios.yml');
+  const wf = read('.github/workflows/ios.yml').replace(/\r\n/g, '\n'); // Windows-checkout (autocrlf) heeft CRLF
   assert.match(wf, /^  workflow_dispatch:/m, 'handmatig te starten (bestand moet ook op main staan)');
   assert.match(wf, /github\.event_name == 'workflow_dispatch' && inputs\.testflight &&/);
   assert.match(wf, /github\.ref == 'refs\/heads\/claude\/ios-app'/);
