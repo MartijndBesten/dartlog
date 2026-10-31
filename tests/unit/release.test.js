@@ -293,7 +293,7 @@ test('dartregels op de website: letterlijk dezelfde tekst en tekening als in de 
 test('offline: elke module die de app laadt, staat in de lijst van de serviceworker', () => {
   const sw = read('sw.js');
   const assets = new Set([...sw.match(/const ASSETS = \[([\s\S]*?)\];/)[1].matchAll(/'([^']+)'/g)].map(m => m[1]));
-  const seen = new Set(), todo = ['js/app.js'];
+  const seen = new Set(), todo = ['js/boot.js', 'js/app.js'];
   while (todo.length) {
     const f = todo.pop();
     if (seen.has(f)) continue;

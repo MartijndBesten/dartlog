@@ -142,3 +142,16 @@ npm run migrate:local && npm run dev           # lokale API met lokale D1 op htt
 ```
 
 Zet voor een lokale test van de pagina's `API_BASE = 'http://localhost:8787'` in `community/config.js` (niet committen).
+
+## Melding uit Darters afhandelen (sinds 1.8.0, ook nodig voor de App Store)
+
+In Darters kan iedereen bij een profiel *Meld dit profiel* kiezen: dat opent een e-mail aan info@denckh.nl met de
+profielcode (12 tekens). Afhandelen, liefst binnen een paar dagen:
+
+1. Bekijk het profiel: `https://okkie-api.zaalverhuur-sion.workers.dev/v1/players/<profielcode>`.
+2. Ongepast? Verwijderen via de beheer-API (`DELETE /v1/admin/members/<profielcode>`, achter Cloudflare Access) of,
+   als het dashboard er nog niet is: `npx wrangler d1 execute okkie-community --remote --env production --command
+   "DELETE FROM members WHERE handle = '<profielcode>'"` (gedeelde cijfers verdwijnen mee via de cascade; controleer
+   dat met `SELECT` vóór en na).
+3. Mail de melder kort terug en verwijder de melding uiterlijk na 180 dagen (privacyverklaring §6, *Melden en verbergen*).
+

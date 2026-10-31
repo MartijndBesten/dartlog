@@ -12,8 +12,9 @@ name: OKKIE iPhone-app
 # nooit afgedrukt. Zie IOS-APP.md.
 on:
   push:
-    # Bewust zonder main: daar staat (nog) geen iOS-project. Na het samenvoegen main hier toevoegen.
-    branches: ['claude/ios-**', 'feature/**', 'release/**']
+    # Ook main (iOS-project staat daar sinds de samenvoeging). Een push bouwt alleen voor de simulator;
+    # TestFlight start nooit vanzelf, alleen handmatig (workflow_dispatch met testflight=true).
+    branches: [main, 'claude/ios-**', 'feature/**', 'release/**']
     paths:
       - 'ios/**'
       - 'js/**'
@@ -44,7 +45,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'push' }}
 env:
   BUNDLE_ID: nl.denckh.okkie
-  TEAM_ID: W9H8R7BPDN
+  TEAM_ID: GUAS9KT7W3
 
 jobs:
   simulator:

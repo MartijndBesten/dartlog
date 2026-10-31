@@ -24,7 +24,8 @@ const frozen = page => page.evaluate(() => {
   const sort = v => Array.isArray(v) ? v.map(sort) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map(k => [k, sort(v[k])])) : v;
   const d = JSON.parse(localStorage.getItem('oche.data')); delete d.active; return JSON.stringify(sort(d));
 });
-const stats = page => page.evaluate(() => { const d = window.__okkie.data; return { trainings: d.trainings.length, matches: d.matches.length }; });
+// Sinds 1.8.0 start de app via js/boot.js, net ná het load-event: eerst wachten tot hij draait.
+const stats = async page => { await page.waitForFunction(() => !!window.__okkie); return page.evaluate(() => { const d = window.__okkie.data; return { trainings: d.trainings.length, matches: d.matches.length }; }); };
 async function discard(page, expectedDarts) {
   await page.click('[data-act=finish-training]');
   const choice = page.locator('.modal');
