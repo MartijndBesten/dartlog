@@ -11,12 +11,12 @@ Ontwikkeld door **Denckh.**
 - `uitleg/`: uitleg voor kinderen en beginners met een oefenbeurt die niets opslaat.
 - `community/`: Darters, het openbare overzicht van vrijwillig gedeelde cijfers (Cloudflare Worker in `cloud/`).
 - `ontdek/`: de website okkiedarts.nl (`node tools/build-public-site.mjs`). Zie VERHUIZING.md en cloud/INFRASTRUCTUUR.md.
-- Later naar Android/iPhone als echte app: zie TOEKOMST-APPS.md.
+- **iPhone-app** (Capacitor, TestFlight): zie IOS-APP.md. Android later: TOEKOMST-APPS.md.
 
 ## Functies
 
 - **Scoretraining**: 30, 60 of 99 pijlen, vrij trainen of een eigen aantal beurten. Per pijl invoeren met grote knoppen (DOUBLE/TRIPLE + 1–20, 25, BULL, MIS) of typen (`T20 5 D10`).
-- **Samen trainen**: 1 tot 4 spelers (vrienden, familie) gooien om de beurt 3 pijlen; OKKIE springt automatisch naar de volgende naam, toont een ranglijst en bewaart voor iedereen een eigen training.
+- **Samen trainen**: 1 tot 8 spelers (vrienden, familie) gooien om de beurt 3 pijlen; OKKIE springt automatisch naar de volgende naam, toont een ranglijst en bewaart voor iedereen een eigen training.
 - **Scores uit een andere app**: de 10 DartCounter-scoretrainingen met één tik toevoegen, of zelf een eindstand invullen (pijlen, totaal, hoogste beurt, datum). Deze tellen mee in gemiddelden en records, niet in de trefferkaart.
 - **Rond de klok**: 1 t/m 20 en de bull, in zo min mogelijk pijlen.
 - **Wedstrijd 301/501**: 1–4 spelers, 1 leg of best of 3/5/7/9, double-out of straight-out, bust-regels, uitgooi-advies, stoppen en later hervatten. Een tegenstander met eigen OKKIE. koppel je met zijn koppelcode (Speler toevoegen); zijn uitslag en wedstrijdcijfers gaan na afloop naar zijn eigen telefoon, ook als je offline speelde.
@@ -33,7 +33,7 @@ Ontwikkeld door **Denckh.**
 - **Meerdere spelers** op één toestel, elk met eigen statistieken. Per speler: naam wijzigen, statistieken wissen of helemaal verwijderen (ook online bij Darters), zonder andere spelers te raken.
 - **Geschiedenis**: elke training en wedstrijd terugkijken (alle pijlen), verwijderen met bevestiging.
 - **Back-up**: exporteren naar JSON en terugzetten (samenvoegen of vervangen), met validatie; herinnering na tien afgeronde trainingen per speler en bewaren via de deelfunctie (Bestanden/iCloud Drive). Overzetcode voor een andere telefoon of van Safari naar de geïnstalleerde app.
-- **Installeerbaar (PWA)** en werkt offline.
+- **Installeerbaar (PWA)** en werkt offline. Ook als **iPhone-app** (1.8.0, via TestFlight; zie IOS-APP.md).
 
 ## Op de telefoon zetten
 
@@ -64,6 +64,9 @@ npm test             # unit-tests (spelregels, statistiek, opslag, migratie, bac
 npm run test:e2e     # browsertests met Playwright (iPhone-, Android- en desktopformaat)
 ```
 
+iPhone-app: `npm run ios:sync` bouwt `dist-ios/` en zet het in het Xcode-project. Compileren en de rooktest in de
+iOS-simulator gebeuren in GitHub Actions (`.github/workflows/ios.yml`); TestFlight-upload alleen met de hand. Zie IOS-APP.md.
+
 `node tools/upgrade-check.mjs <map-met-oude-versie>` controleert een echte update (oude versie → nieuwe) op hetzelfde adres: lopende en afgeronde trainingen, cache en offline gebruik.
 
 De browsertests gebruiken de geïnstalleerde Chrome (`PW_CHANNEL=chrome`, standaard).
@@ -90,5 +93,7 @@ Verhoog bij een release `VERSION` in `sw.js`, `APP_VERSION` in `js/app.js` en `p
 | `js/share-card.js` | Scorekaart om een training te delen |
 | `js/community-sync.js`, `js/guest-sync.js`, `js/transfer.js` | Darters-synchronisatie, spelen op een andere telefoon, overzetten |
 | `sw.js`, `manifest.webmanifest` | PWA en offline |
+| `js/native.js`, `js/boot.js` | iPhone-app: duurzame kopie van de gegevens, deelmenu, Haptics, statusbalk (doet niets op het web) |
+| `ios/`, `capacitor.config.json`, `tools/ios/` | iPhone-app (Capacitor 8), zie IOS-APP.md |
 
 Uitbreiden: nieuwe spelregels en berekeningen in `logic.js` (met een test in `tests/unit`), een nieuw scherm als functie in `VIEWS` in `app.js`.

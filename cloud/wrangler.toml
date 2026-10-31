@@ -27,7 +27,7 @@ crons = ["30 3 * * *"]
 
 [vars]
 # Meerdere origins gescheiden met komma; de bestaande PWA-origin blijft altijd nodig.
-ALLOWED_ORIGINS = "https://app.okkiedarts.nl,https://martijndbesten.github.io,https://okkiedarts.nl,https://www.okkiedarts.nl,http://localhost:4173,http://127.0.0.1:4173"
+ALLOWED_ORIGINS = "https://app.okkiedarts.nl,https://martijndbesten.github.io,https://okkiedarts.nl,https://www.okkiedarts.nl,capacitor://localhost,http://localhost:4173,http://127.0.0.1:4173"
 # Openbare registratie dicht tot privacyverklaring + ouderlijke toestemming (<16) geregeld zijn. Alleen "true" opent.
 REGISTRATION_ENABLED = "false"
 # Mijn vrienden (besloten groepen) uit sinds 1.5.0; gegevens blijven bewaard. Darters (openbaar, één schakelaar) aan.
@@ -63,7 +63,7 @@ name = "okkie-api"
 workers_dev = true
 
 [env.production.vars]
-ALLOWED_ORIGINS = "https://app.okkiedarts.nl,https://martijndbesten.github.io,https://okkiedarts.nl,https://www.okkiedarts.nl"
+ALLOWED_ORIGINS = "https://app.okkiedarts.nl,https://martijndbesten.github.io,https://okkiedarts.nl,https://www.okkiedarts.nl,capacitor://localhost"
 ADMIN_HOST = "beheer.okkiedarts.nl"
 # Openbare registratie dicht tot privacyverklaring + ouderlijke toestemming (<16) geregeld zijn. Alleen "true" opent.
 REGISTRATION_ENABLED = "false"

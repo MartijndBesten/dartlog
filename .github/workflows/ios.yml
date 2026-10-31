@@ -1,0 +1,201 @@
+name: OKKIE iPhone-app
+# De echte iPhone-app (Capacitor) bouwen op een macOS-runner van GitHub (gratis voor deze openbare repository).
+#
+# Handmatig starten (GitHub-regel: dit bestand moet op de standaardbranch main staan om in Actions te verschijnen):
+#   Actions → OKKIE iPhone-app → Run workflow → "Use workflow from": kies de iOS-branch (claude/ios-app of release/…),
+#   NIET main zolang het iOS-project daar nog niet staat. Vinkje "TestFlight" aan om te uploaden.
+#   GitHub gebruikt dan de workflow én de code van de gekozen branch.
+# - Elke push naar een iOS-branch: compileren voor de simulator en de rooktest (tools/ios/smoke.sh).
+# - TestFlight alleen met de hand en alleen vanaf een toegestane branch. Nooit naar de openbare App Store:
+#   indienen voor review blijft een handmatige stap van de eigenaar in App Store Connect.
+# App Store Connect-gegevens komen uitsluitend uit GitHub-secrets (ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8) en worden
+# nooit afgedrukt. Zie IOS-APP.md.
+on:
+  push:
+    # Ook main (iOS-project staat daar sinds de samenvoeging). Een push bouwt alleen voor de simulator;
+    # TestFlight start nooit vanzelf, alleen handmatig (workflow_dispatch met testflight=true).
+    branches: [main, 'claude/ios-**', 'feature/**', 'release/**']
+    paths:
+      - 'ios/**'
+      - 'js/**'
+      - 'css/**'
+      - 'index.html'
+      - 'community/**'
+      - 'uitleg/**'
+      - 'vrienden/**'
+      - 'icons/**'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tools/app-files.mjs'
+      - 'tools/build-ios-web.mjs'
+      - 'tools/ios/**'
+      - '.github/workflows/ios.yml'
+  workflow_dispatch:
+    inputs:
+      testflight:
+        description: 'Ondertekenen en uploaden naar TestFlight (alleen vanaf claude/ios-app, release/… of main met iOS-project)'
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  # Een push mag een lopende handmatige (TestFlight-)run nooit afbreken.
+  group: ios-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+env:
+  BUNDLE_ID: nl.denckh.okkie
+  TEAM_ID: GUAS9KT7W3
+
+jobs:
+  simulator:
+    name: Compileren en rooktest (simulator)
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Juiste branch? (iOS-project aanwezig)
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          { echo "### OKKIE. iPhone-app"; echo "- Branch: \`$GITHUB_REF_NAME\`"; echo "- Commit: \`$GITHUB_SHA\`"; echo "- Versie: $VERSION"; } >> "$GITHUB_STEP_SUMMARY"
+          if [ ! -f ios/App/App.xcodeproj/project.pbxproj ]; then
+            echo "::error::Op branch '$GITHUB_REF_NAME' staat geen iOS-project. Kies bij 'Use workflow from' de iOS-branch (claude/ios-app)."
+            exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Xcode (nieuwste niet-bèta Xcode 26)
+        run: tools/ios/select-xcode.sh
+      - name: Webbestanden in de app (dist-ios) en Capacitor sync
+        run: node tools/build-ios-web.mjs && npx cap sync ios
+      - name: Compileren voor de simulator
+        run: |
+          xcodebuild -list -project ios/App/App.xcodeproj
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tee build.log | grep -E "error:|warning: .*OKKIE|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" build.log
+      - name: Rooktest in de simulator
+        run: tools/ios/smoke.sh build/Build/Products/Debug-iphonesimulator/App.app smoke
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-rooktest
+          path: |
+            smoke/
+            build.log
+          retention-days: 14
+
+  testflight:
+    name: TestFlight
+    needs: simulator
+    # Alleen handmatig, met vinkje, en alleen vanaf een toegestane branch.
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.testflight &&
+      (github.ref == 'refs/heads/claude/ios-app' || startsWith(github.ref, 'refs/heads/release/') || github.ref == 'refs/heads/main')
+    runs-on: macos-26
+    timeout-minutes: 60
+    # Aanbevolen: zet de drie secrets als environment-secrets van "testflight" en beperk die environment tot de
+    # toegestane branches (Settings → Environments). Repository-secrets werken ook.
+    environment: testflight
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      RUN_ID: ${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Secrets en App Store Connect controleren (zonder iets af te drukken)
+        run: |
+          echo "SIGN=$RUNNER_TEMP/sign" >> "$GITHUB_ENV"
+          node tools/ios/asc-signing.mjs check
+          node tools/ios/asc-signing.mjs app
+      - name: Xcode (nieuwste niet-bèta Xcode 26)
+        run: tools/ios/select-xcode.sh
+      - name: Tijdelijk certificaat en profiel
+        run: |
+          mkdir -p "$SIGN"
+          openssl req -new -newkey rsa:2048 -nodes -keyout "$SIGN/key.pem" -out "$SIGN/csr.pem" -subj "/CN=OKKIE CI/O=Denckh/C=NL" 2>/dev/null
+          node tools/ios/asc-signing.mjs prepare "$SIGN/csr.pem" "$SIGN"
+          openssl x509 -inform DER -in "$SIGN/distribution.cer" -out "$SIGN/distribution.pem"
+          P12PASS=$(openssl rand -hex 16)
+          # OpenSSL 3 maakt standaard een p12 die macOS niet kan lezen: dan -legacy. LibreSSL (macOS) kent die optie niet.
+          LEGACY=""; if openssl version | grep -q '^OpenSSL 3'; then LEGACY="-legacy"; fi
+          openssl pkcs12 -export $LEGACY -inkey "$SIGN/key.pem" -in "$SIGN/distribution.pem" -out "$SIGN/dist.p12" -passout pass:$P12PASS
+          KC="$SIGN/okkie.keychain-db"; KCPASS=$(openssl rand -hex 16)
+          security create-keychain -p "$KCPASS" "$KC"
+          security set-keychain-settings -lut 3600 "$KC"
+          security unlock-keychain -p "$KCPASS" "$KC"
+          curl -fsSL -o "$SIGN/wwdr.cer" https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer
+          security import "$SIGN/wwdr.cer" -k "$KC" -T /usr/bin/codesign || true
+          security import "$SIGN/dist.p12" -k "$KC" -P "$P12PASS" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KCPASS" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$KC"
+          security cms -D -i "$SIGN/profile.mobileprovision" > "$SIGN/profile.plist"
+          UUID=$(plutil -extract UUID raw -o - "$SIGN/profile.plist")
+          for d in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+            mkdir -p "$d"; cp "$SIGN/profile.mobileprovision" "$d/$UUID.mobileprovision"; done
+          echo "PROFILE_NAME=$(node -p "require('$SIGN/ids.json').profileName")" >> "$GITHUB_ENV"
+          mkdir -p "$HOME/private_keys"
+          node -e "require('fs').writeFileSync(process.argv[1], process.env.ASC_KEY_P8.replace(/\\\\n/g, '\n'), { mode: 0o600 })" "$HOME/private_keys/AuthKey_$ASC_KEY_ID.p8"
+      - name: Webbestanden en Capacitor sync
+        run: node tools/build-ios-web.mjs && npx cap sync ios
+      - name: Archief maken (Release, Apple Distribution)
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          python3 tools/ios/manual-signing.py ios/App/App.xcodeproj/project.pbxproj "$PROFILE_NAME" "$TEAM_ID"
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/OKKIE.xcarchive" \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            archive | tee archive.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
+          grep -q "ARCHIVE SUCCEEDED" archive.log
+          echo "- TestFlight-build: $VERSION ($GITHUB_RUN_NUMBER) van \`$GITHUB_REF_NAME\` @ \`${GITHUB_SHA::7}\`" >> "$GITHUB_STEP_SUMMARY"
+      - name: Uploaden naar TestFlight (niet naar de App Store)
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key><dict><key>$BUNDLE_ID</key><string>$PROFILE_NAME</string></dict>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>testFlightInternalTestingOnly</key><true/>
+          </dict></plist>
+          PLIST
+          set -o pipefail
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/OKKIE.xcarchive" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" -allowProvisioningUpdates \
+            -authenticationKeyPath "$HOME/private_keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            | tee export.log | grep -Ei "error|upload|EXPORT (SUCCEEDED|FAILED)" || true
+          grep -qE "EXPORT SUCCEEDED|Upload succeeded" export.log
+          echo "Build ${{ github.run_number }} staat in App Store Connect; na verwerking (5-30 min) verschijnt hij in TestFlight (alleen interne tests)." | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Opruimen (alleen het eigen tijdelijke certificaat intrekken, sleutel weg)
+        if: always()
+        run: |
+          [ -n "${SIGN:-}" ] && node tools/ios/asc-signing.mjs cleanup "$SIGN" || true
+          security delete-keychain "${SIGN:-/nonexistent}/okkie.keychain-db" 2>/dev/null || true
+          rm -rf "${SIGN:-/nonexistent}" "$HOME/private_keys"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-testflight-logs
+          path: |
+            archive.log
+            export.log
+          retention-days: 14

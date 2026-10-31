@@ -251,6 +251,40 @@ test('layout: speelscherm past zonder scrollen en knoppen zijn groot genoeg', as
   expect(horiz).toBeLessThanOrEqual(0);
 });
 
+test('samen trainen: maximaal 8 spelers, strip past op het scherm en de ranglijst telt door', async ({ page }, info) => {
+  await onboard(page, 'Senn');
+  await page.click('.action.train');
+  const names = ['Papa', 'Mama', 'Oma', 'Opa', 'Mila', 'Daan', 'Noor'];
+  for (const name of names) {
+    await page.click('[data-testid=add-player]');
+    await page.fill('[data-form=train-player] input', name);
+    await page.click('[data-form=train-player] .btn');
+  }
+  await expect(page.locator('[data-testid=train-players] li')).toHaveCount(8);
+  await expect(page.getByTestId('add-player')).toHaveCount(0);
+  await page.click('[data-act=setup-turns][data-arg="-1"]');
+  await page.fill('[data-input=custom-turns]', '1');
+  await page.locator('[data-input=custom-turns]').dispatchEvent('change');
+  await expect(page.locator('.choice-info')).toHaveText('1 beurten van 3 pijlen (3 pijlen).');
+  await page.click('[data-testid=start-score]');
+  await expect(page.locator('[data-testid=group-strip] .gp-p')).toHaveCount(8);
+  // Strip, scorebord en toetsenbord passen zonder horizontaal scrollen; de laatste toets is zichtbaar.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+  await expect(page.locator('[data-act=undo]')).toBeInViewport();
+  await page.screenshot({ path: `screenshots/e2e-${info.project.name}-samen-8.png` });
+  // 1 beurt per speler; Noor (laatste) gooit het meest, Senn het minst.
+  for (let i = 0; i < 8; i++) {
+    await expect(page.getByTestId('now-up')).toHaveText(['Senn', ...names][i]);
+    for (let d = 0; d < 3; d++) await dart(page, 'S' + (i + 1));
+  }
+  await expect(page.getByTestId('group-winner')).toHaveText('Noor');
+  await expect(page.locator('.ranking li')).toHaveCount(8);
+  await expect(page.locator('.ranking li .rk').nth(7)).toHaveText('8');
+  const d = await stored(page);
+  expect(d.trainings).toHaveLength(8);
+  expect(new Set(d.players.map(p => p.color)).size).toBe(8);
+});
+
 test('samen trainen: 3 spelers gooien om de beurt 3 pijlen', async ({ page }, info) => {
   await onboard(page, 'Senn');
   await page.click('.action.train');

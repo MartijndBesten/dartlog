@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.8.0 — OKKIE. als echte iPhone-app (TestFlight)
+
+- **iPhone-app** (Capacitor 8, bundle-ID `nl.denckh.okkie`, team GUAS9KT7W3): dezelfde app als app.okkiedarts.nl,
+  met alle bestanden in de app zelf, dus trainen en wedstrijden werken zonder internet. Alleen iPhone, staand.
+  Bouwen via GitHub Actions (macOS, gratis voor deze openbare repository); TestFlight alleen met de hand. Zie IOS-APP.md.
+- **Gegevens in de app** (`js/native.js`, `js/boot.js`): alle OKKIE.-gegevens staan ook in een bestand in de app
+  (Library/OKKIE, om en om twee bestanden). Is de webviewopslag leeg maar de kopie niet, dan zet de app die eerst
+  terug en start daarna pas. Getest in de iOS-simulator (`tools/ios/smoke.sh`), ook na het wissen van de webviewopslag.
+- **Overstappen vanaf Safari of het beginscherm:** de app toont bij de eerste start bovenaan *Trainingen ophalen*
+  (overzetcode of back-upbestand); online profielen gaan mee als je dat aanvinkt. Er wordt nergens iets gewist.
+- **In de app:** back-up bewaren en delen via het iOS-deelmenu (Bewaar in Bestanden/iCloud Drive), trillen via
+  Haptics, statusbalk volgt het thema, eigen startscherm en app-icoon. Geen installatieadvies en geen serviceworker in
+  de app. De PWA en de website werken ongewijzigd door.
+- **Darters:** per darter *Verbergen op dit toestel* en *Meld dit profiel* (e-mail naar Denckh.), ook op het web.
+  De ouderlink wijst vanuit de app naar het openbare adres.
+- **Server:** `capacitor://localhost` toegestaan als herkomst (cloud/wrangler.toml), nodig voor Darters, Hulp & feedback
+  en de dagteller in de app. *Nog niet gepubliceerd:* de Worker-deploy wacht op akkoord van de eigenaar.
+
 ## Website okkiedarts.nl — bezoekersteller zonder cookies (20 oktober 2026, geen nieuwe appversie)
 
 - **Alleen de website** (okkiedarts.nl): `tools/build-public-site.mjs` zet op elke pagina de cookieloze teller van het
@@ -7,6 +25,16 @@
   en utm_source. De app (app.okkiedarts.nl, ook uitleg/ in de app) krijgt de teller niet; de bronpagina's blijven zonder.
 - Privacyverklaring: nieuwe alinea *Bezoekersteller* (punt 3) en een regel in *In het kort*; Cloudflare-hosting aangevuld.
 - Test: teller precies één keer op elke websitepagina, nooit in de bron of in de app-build.
+
+## 1.7.5 — Samen trainen met 8 spelers
+
+- **Samen trainen: nu maximaal 8 spelers** (was 4). Om de beurt 3 pijlen, zoals voorheen; ranglijst en per speler een
+  eigen training. Bij 5 tot 8 spelers staat de spelersstrip in twee rijen (naam en totaal; het gemiddelde van wie aan
+  de beurt is staat groot op het scorebord). Past ook op een klein scherm (iPhone SE) zonder scrollen.
+- Ranglijst na afloop: plaats 4 tot en met 8 als cijfer.
+- Twee extra spelerskleuren (oranje, lichtgrijs), zodat 8 nieuwe spelers elk een eigen kleur krijgen. Bestaande
+  spelers houden hun kleur.
+- **Wedstrijd 301/501 blijft 1–4 spelers.** Rond de klok blijft voor één speler.
 
 ## 1.7.4 — Een training weggooien
 

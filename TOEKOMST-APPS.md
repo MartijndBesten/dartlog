@@ -1,6 +1,7 @@
 # OKKIE. later als app voor Android en iPhone
 
-OKKIE. blijft voorlopig een PWA (app.okkiedarts.nl). Er zijn géén appwinkel-, account- of abonnementsfuncties gebouwd.
+OKKIE. is een PWA (app.okkiedarts.nl) en sinds 1.8.0 ook een **iPhone-app** (Capacitor, TestFlight): zie **IOS-APP.md**.
+Er zijn géén account- of abonnementsfuncties gebouwd. Android volgt later (TWA, zie hieronder).
 Deze notitie legt vast wat er al klaarligt, zodat een overstap later zonder dataverlies kan.
 
 ## Wat is al overdraagbaar
@@ -24,8 +25,8 @@ Ids zijn UUID's (`crypto.randomUUID`), tijden ISO-8601 in UTC: geen botsingen bi
   (overzetcode of back-up), net als bij de verhuizing naar app.okkiedarts.nl (VERHUIZING.md).
 - **Android eerst via TWA** (Trusted Web Activity) op app.okkiedarts.nl: dezelfde origin, dus dezelfde opslag als de
   geïnstalleerde PWA in Chrome. Vereist `/.well-known/assetlinks.json` op app.okkiedarts.nl.
-- **iPhone vraagt een wrapper** (bijv. Capacitor) met eigen opslag: overzetten via code/back-up is dan nodig. Spraak
-  (`speechSynthesis`), delen (`navigator.share`) en trillen werken daar via de webview of een plugin.
+- **iPhone: gedaan in 1.8.0** met Capacitor (IOS-APP.md). Eigen opslag (capacitor://localhost) plus een duurzame kopie
+  in de app; overstappen via overzetcode of back-up. Delen en trillen via plugins, spraak via de webview.
 - **Geen extra persoonsgegevens**: de app werkt zonder account; houd dat zo, tenzij er een bewust besluit komt.
 - **Geen aankopen in de app en geen steun- of betaalfunctie** (besluit eigenaar, 1.6.3): OKKIE. blijft helemaal gratis.
   Komt er ooit toch een betaalweg, dan gelden in een appwinkelversie de regels van Apple en Google.

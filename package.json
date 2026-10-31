@@ -1,8 +1,8 @@
 {
   "name": "okkie",
-  "version": "1.7.4",
+  "version": "1.8.0",
   "private": true,
-  "description": "OKKIE — persoonlijke darttrainer (PWA) met scoretraining, 301/501 en statistieken",
+  "description": "OKKIE — persoonlijke darttrainer (PWA en iPhone-app) met scoretraining, 301/501 en statistieken",
   "type": "module",
   "scripts": {
     "start": "node tools/serve.mjs",
@@ -11,9 +11,23 @@
     "check": "npm test && npm run test:e2e",
     "icons": "node tools/make-icons.mjs",
     "build:site": "node tools/build-public-site.mjs",
-    "check:launch": "node tools/launch-check.mjs"
+    "check:launch": "node tools/launch-check.mjs",
+    "ios:web": "node tools/build-ios-web.mjs",
+    "ios:sync": "node tools/build-ios-web.mjs && cap sync ios",
+    "ios:assets": "node tools/make-ios-assets.mjs"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.3",
     "@playwright/test": "^1.64.0"
+  },
+  "dependencies": {
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/filesystem": "8.1.5",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/ios": "8.5.3",
+    "@capacitor/share": "8.0.3",
+    "@capacitor/splash-screen": "8.0.2",
+    "@capacitor/status-bar": "8.0.4"
   }
 }

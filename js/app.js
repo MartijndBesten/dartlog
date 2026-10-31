@@ -21,10 +21,11 @@ import * as M from './motivation.js';
 import * as SC from './share-card.js';
 import * as SV from './stat-prefs.js';
 import { turnChart, bindTurnCharts } from './turn-chart.js';
+import * as N from './native.js';
 
 FB.captureErrors();
 
-export const APP_VERSION = '1.7.4';
+export const APP_VERSION = '1.8.0';
 // "Nodig een vriend uit": altijd de website als link. Die blijft geldig, ook na de verhuizing van de app.
 export const INVITE_URL = 'https://okkiedarts.nl/';
 export const INVITE_TEXT = 'Ik train mijn darts met OKKIE. 🎯 Gratis, werkt gewoon op je telefoon en je ziet meteen of je beter wordt. Doe je mee?';
@@ -70,7 +71,7 @@ function sanitizeActive() {
   const okTraining = a.training && Array.isArray(a.training.turns) && Array.isArray(a.training.pending);
   const okMatch = a.match && Array.isArray(a.match.legs) && a.match.legs.length && Array.isArray(a.match.pending);
   data.active = { training: okTraining ? a.training : null, match: okMatch ? a.match : null };
-  // Oudere lopende trainingen hadden één speler; nu kunnen 1-4 spelers om de beurt gooien.
+  // Oudere lopende trainingen hadden één speler; nu kunnen 1-8 spelers om de beurt gooien.
   const t = data.active.training;
   if (t && !Array.isArray(t.players)) { t.players = [t.playerId]; t.turns.forEach(x => { x.p = 0; }); }
   if (t) t.players = t.players.filter(id => data.players.some(p => p.id === id));
@@ -128,7 +129,8 @@ function overview(playerId = data.activePlayerId) {
 }
 
 function haptic(ms = 12) {
-  if (data.settings.vibrate && navigator.vibrate) try { navigator.vibrate(ms); } catch { /* niet ondersteund */ }
+  if (!data.settings.vibrate || N.haptic(ms)) return;   // iPhone-app: Haptics (navigator.vibrate bestaat op iOS niet)
+  if (navigator.vibrate) try { navigator.vibrate(ms); } catch { /* niet ondersteund */ }
 }
 
 let audioCtx = null;
@@ -305,14 +307,14 @@ VIEWS.welcome = () => `
     <div class="welcome-logo">${logoSVG({ height: 72 })}</div>
     <p class="tagline">${TAGLINE}</p>
     <p class="lead">Jouw eigen darttrainer. Gooi, tik je pijlen in en zie of je beter wordt.</p>
-    ${T.role() === 'new' ? fetchCard() : ''}
+    ${T.role() === 'new' || N.isNative() ? fetchCard() : ''}
     ${T.announce() ? newHereCard() : ''}
     <form class="card" data-form="welcome">
       <label for="wname">Hoe heet je?</label>
-      <input id="wname" name="name" maxlength="24" autocomplete="nickname" placeholder="Je naam" required autofocus>
+      <input id="wname" name="name" maxlength="24" autocomplete="nickname" placeholder="Je naam" required${N.isNative() ? '' : ' autofocus'}>
       <button class="btn primary big" type="submit">Let's play darts</button>
     </form>
-    ${T.role() !== 'new' && I.isStandalone() ? fetchCard() : ''}
+    ${T.role() !== 'new' && !N.isNative() && I.isStandalone() ? fetchCard() : ''}
     <a class="btn ghost welcome-guide" href="./uitleg/">${icon('book', { size: 19 })}Hoe werkt het? Uitleg in 2 minuten</a>
     <p class="fineprint">Alles wordt op dit toestel bewaard. Geen account, geen reclame.</p>
       <p class="maker-line"><a class="maker" href="https://denckh.nl/" target="_blank" rel="noopener" aria-label="Ontwikkeld door Denckh (naar denckh.nl)"><span class="maker-role">Ontwikkeld door</span><img class="on-dark" src="./icons/denckh-logo-signature-light.svg" alt="Denckh" width="92" height="28"><img class="on-light" src="./icons/denckh-logo-signature.svg" alt="Denckh" width="92" height="28"></a></p>
@@ -330,7 +332,7 @@ function newHereCard() {
 // in een geïnstalleerde app onder het naamveld.
 function fetchCard() {
   return `<section class="card move-card" data-testid="fetch-card"><h3>Al eerder OKKIE. gebruikt?</h3>
-      <p class="muted">In Safari of op een andere telefoon? Haal eerst je spelers en trainingen hierheen.</p>
+      <p class="muted">${N.isNative() ? 'In Safari, op je beginscherm of op een andere telefoon? Haal eerst je spelers en trainingen naar deze app. Daar wordt niets gewist.' : 'In Safari of op een andere telefoon? Haal eerst je spelers en trainingen hierheen.'}</p>
       <button class="btn secondary" data-act="transfer-receive">${icon('download', { size: 19 })}Trainingen ophalen</button></section>`;
 }
 
@@ -398,7 +400,8 @@ function tile(label, value, extra = '', sub = '') {
   return `<div class="tile ${extra}"><span>${esc(label)}</span><strong>${value}</strong>${sub ? `<small>${sub}</small>` : ''}</div>`;
 }
 
-// ----- Samen trainen: 1-4 spelers gooien om de beurt 3 pijlen -----
+// ----- Samen trainen: 1-8 spelers gooien om de beurt 3 pijlen -----
+const MAX_TRAIN = 8; // wedstrijd 301/501 blijft max. 4 (store.js, guest-sync)
 function curIdx(t) { return t.turns.length % t.players.length; }
 function playerTurns(t, i) { return t.turns.filter(x => x.p === i); }
 function subTotals(t, i) { return L.trainingTotals({ turns: playerTurns(t, i) }); }
@@ -448,11 +451,11 @@ VIEWS.train = () => {
       <p class="choice-info">${info}</p>
       ${goalLine(ps, s)}
       ${s.turns === -1 ? `<label class="inline">Aantal beurten <input type="number" min="1" max="200" inputmode="numeric" value="${s.custom}" data-input="custom-turns"></label>` : ''}
-      <h3 class="who">Wie gooien er? <small>max. 4, om de beurt</small></h3>
+      <h3 class="who">Wie gooien er? <small>max. ${MAX_TRAIN}, om de beurt</small></h3>
       <ol class="match-players" data-testid="train-players">${ps.map((id, i) => `<li><span><i class="dot" style="background:${esc(player(id).color)}"></i> ${esc(player(id).name)}${G.guestLink(id)?.code ? ' <span class="linked" title="Gekoppeld: deze training gaat naar zijn eigen OKKIE.">🔗</span>' : ''}</span>
         ${i > 0 ? `<button class="icon-btn small" data-act="tp-up" data-arg="${i}" aria-label="Eerder gooien">↑</button>` : ''}
         ${ps.length > 1 ? `<button class="icon-btn small" data-act="tp-remove" data-arg="${i}" aria-label="Niet meedoen">✕</button>` : ''}</li>`).join('')}</ol>
-      ${ps.length < 4 ? `<button class="btn secondary add-btn" data-act="add-player-open" data-arg="train" data-testid="add-player">+ Speler toevoegen</button>` : ''}
+      ${ps.length < MAX_TRAIN ? `<button class="btn secondary add-btn" data-act="add-player-open" data-arg="train" data-testid="add-player">+ Speler toevoegen</button>` : ''}
       <button class="btn primary big" data-act="start-score" data-testid="start-score">${ps.length > 1 ? `Start met ${ps.length} spelers` : 'Start scoretraining'}</button>
     </section>
     <section class="card">
@@ -477,7 +480,7 @@ function goalLine(ps, s) {
 function addPlayerModal(ctx = ui.addCtx) {
   ui.addCtx = ctx;
   const inList = ctx === 'match' ? ui.match.players.map(p => p.id) : setupPlayers();
-  if (inList.length >= 4) return closeModal();
+  if (inList.length >= (ctx === 'match' ? 4 : MAX_TRAIN)) return closeModal();
   const others = data.players.filter(p => !inList.includes(p.id));
   const act = ctx === 'match' ? 'mp-add' : 'tp-add';
   modal(`<h3>Speler toevoegen</h3>
@@ -626,7 +629,7 @@ VIEWS['result-training'] = () => {
       .sort((a, b) => b.tot.avg - a.tot.avg);
     const gsv = SV.statView(data.settings, data.activePlayerId);
     const pick = rows.find(g => g.playerId === ui.resultPick) || rows.find(g => g.playerId === data.activePlayerId) || rows[0];
-    const medal = i => ['🥇', '🥈', '🥉', '4'][i];
+    const medal = i => ['🥇', '🥈', '🥉'][i] || String(i + 1);
     const extra = rows.filter(g => g.newBadges.length);
     return `${header('Uitslag', 'home')}<main class="page">
       <section class="result-hero win"><small>${esc(trainingTitle(rows[0].t))} · ${rows.length} spelers</small><strong data-testid="group-winner">${esc(rows[0].p?.name)}</strong><span>hoogste gemiddelde: ${fmt(rows[0].tot.avg, 2)}</span></section>
@@ -1136,15 +1139,15 @@ VIEWS.more = () => {
     </nav>
     <section class="card">
       <h3>Back-up en overzetten</h3>
-      <p class="muted">Je gegevens staan alleen op dit toestel. Maak af en toe een back-up, zeker voordat je de browser opschoont.</p>
-      <div class="row-actions"><button class="btn primary" data-act="export">${icon('download', { size: 19 })}Back-up downloaden</button><button class="btn secondary" data-act="backup-share">${icon('share', { size: 19 })}Bewaar via Delen / iCloud</button>
+      <p class="muted">${N.isNative() ? 'Je gegevens staan alleen op deze iPhone (ook in de iCloud-back-up van je iPhone). Bewaar af en toe zelf een back-up in Bestanden of iCloud Drive.' : 'Je gegevens staan alleen op dit toestel. Maak af en toe een back-up, zeker voordat je de browser opschoont.'}</p>
+      <div class="row-actions">${N.isNative() ? '' : `<button class="btn primary" data-act="export">${icon('download', { size: 19 })}Back-up downloaden</button>`}<button class="btn ${N.isNative() ? 'primary' : 'secondary'}" data-act="backup-share">${icon('share', { size: 19 })}${N.isNative() ? 'Back-up bewaren in Bestanden' : 'Bewaar via Delen / iCloud'}</button>
       <label class="btn secondary file">${icon('upload', { size: 19 })}Back-up terugzetten<input type="file" accept="application/json,.json" data-input="import" hidden></label></div>
       <h4>Naar een andere telefoon of app</h4>
-      <p class="muted small">Met een overzetcode zet je alles over via kopiëren en plakken, bijvoorbeeld van Safari naar OKKIE. op je beginscherm. Er komt niets dubbel.</p>
+      <p class="muted small">Met een overzetcode zet je alles over via kopiëren en plakken, bijvoorbeeld van Safari ${N.isNative() ? 'of je beginscherm naar deze app' : 'naar OKKIE. op je beginscherm'}. Er komt niets dubbel.</p>
       <div class="row-actions"><button class="btn secondary" data-act="transfer-code" data-testid="make-code">${icon('copy', { size: 19 })}Overzetcode maken</button><button class="btn secondary" data-act="transfer-receive" data-testid="enter-code">${icon('download', { size: 19 })}Code invoeren</button></div>
       <button class="link-row compact" data-go="andere-app"><span><b>Scores uit een andere app</b><small>Bijv. DartCounter, of zelf een eindstand invullen</small></span>${icon('chevron', { size: 18 })}</button>
     </section>
-    <section class="card" data-testid="install-help">
+    ${N.isNative() ? '' : `<section class="card" data-testid="install-help">
       <h3>Installeren op je telefoon</h3>
       ${standalone ? `<p class="ok-line">${icon('check', { size: 18 })}OKKIE. draait als app op dit toestel.</p>` : `
       ${ui.installEvent ? `<button class="btn primary" data-act="install">${icon('install', { size: 19 })}Installeer OKKIE.</button>` : ''}
@@ -1154,7 +1157,7 @@ VIEWS.more = () => {
       <h4>Installeren op Android</h4>
       <p>Open <b>app.okkiedarts.nl</b> in <b>Chrome</b> en kies via het menu <b>⋮</b> <b>'App installeren'</b> of <b>'Toevoegen aan startscherm'</b>.</p>
       <p class="muted small">Installeren hoeft niet: OKKIE. werkt ook gewoon in de browser. Op iPhone heeft de app op je beginscherm een eigen opslag; zet je bestaande trainingen dan over met een overzetcode (hierboven).</p>`}
-    </section>
+    </section>`}
     <section class="card">
       <h3>Instellingen</h3>
       ${toggle('sound', 'Geluidjes')}${toggle('vibrate', 'Trillen bij tikken')}
@@ -1175,7 +1178,7 @@ VIEWS.more = () => {
 VIEWS.hulp = () => {
   if (!ui.fb.startedAt) ui.fb.startedAt = Date.now();
   return `${header('Hulp & feedback', 'more')}
-  <main class="page">${FB.feedbackPage(ui.fb, FB.techInfo({ version: APP_VERSION, installed: I.isStandalone() }))}</main>`;
+  <main class="page">${FB.feedbackPage(ui.fb, FB.techInfo({ version: APP_VERSION, installed: I.isStandalone() || N.isNative() }))}</main>`;
 };
 
 VIEWS['andere-app'] = () => `${header('Andere app', 'more')}
@@ -1210,7 +1213,7 @@ function startScore() {
   ui.savedHigh = null;
   const s = ui.setup;
   const turns = s.turns === -1 ? Math.max(1, Math.min(200, Number(s.custom) || 10)) : s.turns;
-  const players = setupPlayers().slice(0, 4);
+  const players = setupPlayers().slice(0, MAX_TRAIN);
   // Persoonlijk doel (motivation.js) alleen bij alleen trainen: vergeleken met je eigen eerdere trainingen.
   const goal = players.length === 1 ? M.goalFor(data.trainings, players[0], turns || null) : null;
   data.active.training = { id: S.uid(), playerId: players[0], players, kind: 'score', limitTurns: turns || null, startedAt: now(), turns: [], pending: [], ...(goal ? { goal } : {}) };
@@ -1484,8 +1487,16 @@ function stopMatch() {
   });
 }
 
-function exportBackup() {
+async function exportBackup() {
   const blob = new Blob([S.makeBackup(data, { appVersion: APP_VERSION })], { type: 'application/json' });
+  if (N.isNative()) {   // iPhone-app: geen downloadmap; bewaren via het deelmenu (Bewaar in Bestanden)
+    const r = await N.saveFile(`okkie-backup-${new Date().toISOString().slice(0, 10)}.json`, blob, 'OKKIE. back-up').catch(e => toast(e.message, 'error'));
+    if (r !== 'shared') return;
+    Backup.backedUp(data);
+    toast('Back-up bewaard. Kies “Bewaar in Bestanden” en bij voorkeur iCloud Drive.');
+    if (ui.view === 'home' || ui.view === 'more') render();
+    return;
+  }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `okkie-backup-${new Date().toISOString().slice(0, 10)}.json`;
@@ -1853,7 +1864,7 @@ const ACTIONS = {
   'setup-turns': v => { ui.setup.kind = 'score'; ui.setup.turns = Number(v); render(); },
   'start-score': startScore,
   'add-player-open': ctx => addPlayerModal(ctx === 'match' ? 'match' : 'train'),
-  'tp-add': id => { const ps = setupPlayers(); if (player(id) && ps.length < 4 && !ps.includes(id)) ps.push(id); playerAdded(); },
+  'tp-add': id => { const ps = setupPlayers(); if (player(id) && ps.length < MAX_TRAIN && !ps.includes(id)) ps.push(id); playerAdded(); },
   'tp-remove': i => { setupPlayers().splice(Number(i), 1); render(); },
   'tp-up': i => { const a = setupPlayers(); const n = Number(i); [a[n - 1], a[n]] = [a[n], a[n - 1]]; render(); },
   'start-clock': startClock,
@@ -2084,7 +2095,7 @@ const FORMS = {
     if (!p) { p = S.newPlayer(nickname, data.players.length); data.players.push(p); save(); }
     G.linkGuest(p.id, code, nickname);
     if (ui.addCtx === 'match') { if (!ui.match.players.some(x => x.id === p.id) && ui.match.players.length < 4) ui.match.players.push({ id: p.id, name: p.name }); }
-    else { const ps = setupPlayers(); if (!ps.includes(p.id) && ps.length < 4) ps.push(p.id); }
+    else { const ps = setupPlayers(); if (!ps.includes(p.id) && ps.length < MAX_TRAIN) ps.push(p.id); }
     closeModal(); render();
     toast(`${nickname} is gekoppeld. Na afloop gaat ${ui.addCtx === 'match' ? 'de uitslag' : 'de training'} naar zijn eigen OKKIE.`);
   },
@@ -2118,7 +2129,7 @@ const FORMS = {
     if (p && getAccount(p.id) && !ps.includes(p.id)) return toast(`${p.name} heeft op deze telefoon een eigen profiel. Gooit ${p.name} zelf? Kies dan + ${p.name}. Anders: kies een andere naam.`);
     if (!p) { p = S.newPlayer(name, data.players.length); data.players.push(p); save(); }
     if (ps.includes(p.id)) return toast(`${p.name} doet al mee.`);
-    if (ps.length >= 4) return toast('Maximaal 4 spelers.');
+    if (ps.length >= MAX_TRAIN) return toast(`Maximaal ${MAX_TRAIN} spelers.`);
     ps.push(p.id);
     playerAdded();
   },
@@ -2160,7 +2171,7 @@ const FORMS = {
     f.busy = true; f.error = ''; render();
     try {
       await FB.sendFeedback({ kind: f.kind, message: f.message, contact: f.contact, website: String(fd.get('website') || ''), startedAt: f.startedAt, screenshot: f.screenshot,
-        meta: FB.techInfo({ version: APP_VERSION, installed: I.isStandalone() }) });
+        meta: FB.techInfo({ version: APP_VERSION, installed: I.isStandalone() || N.isNative() }) });
       ui.fb = { kind: f.kind, message: '', contact: '', screenshot: null, busy: false, error: '', sent: f.kind, contactGiven: !!f.contact, startedAt: 0 };
     } catch (e) {
       f.busy = false;
@@ -2183,6 +2194,7 @@ const FORMS = {
 
 function applyTheme() {
   document.documentElement.dataset.theme = data.settings.theme;
+  N.applyTheme(data.settings.theme);
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', data.settings.theme === 'light' ? '#f6f1e7' : '#07120d');
 }
 
@@ -2244,6 +2256,7 @@ document.addEventListener('focusout', e => {
 });
 
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); ui.installEvent = e; if (ui.view === 'more') render(); });
+if (window.__okkieInstallEvent) ui.installEvent = window.__okkieInstallEvent;   // al binnen vóór app.js (js/boot.js)
 
 // ---------- Start ----------
 const TAB_ICONS = { home: 'home', train: 'train', match: 'match', stats: 'stats', more: 'more' };
@@ -2263,7 +2276,8 @@ T.receiveViaWindow(async opened => {
 });
 window.addEventListener('appinstalled', () => I.writeState({ installedAt: now() }));
 
-if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+// In de iPhone-app staan alle bestanden in de app zelf: geen serviceworker nodig (en niet ondersteund).
+if ('serviceWorker' in navigator && location.protocol !== 'file:' && !N.isNative()) {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(reg => {
     reg.addEventListener('updatefound', () => {

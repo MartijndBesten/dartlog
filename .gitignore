@@ -1,7 +1,7 @@
 node_modules/
 test-results/
 playwright-report/
-screenshots/
+/screenshots/
 cloud/.dev.vars
 cloud/.wrangler/
 cloud/dist/
@@ -9,3 +9,11 @@ dist/
 .wrangler/
 .site-dryrun/
 dist-app/
+dist-ios/
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/App/App/config.xml
+ios/App/build/
+ios/DerivedData/
+*.xcuserstate
+xcuserdata/
