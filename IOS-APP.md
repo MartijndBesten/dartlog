@@ -116,23 +116,29 @@ Tot dan werkt de app volledig, alleen Darters/feedback/dagteller geven in de app
 `.github/workflows/ios.yml` → job **Compileren en rooktest**: `npm ci`, `build-ios-web`, `cap sync ios`, `xcodebuild`
 voor de simulator en `tools/ios/smoke.sh`. Schermafbeeldingen en logs staan als artefact bij de run.
 
-### TestFlight (eenmalige voorbereiding door de eigenaar)
+### TestFlight
 
-1. **API-sleutel:** App Store Connect → Gebruikers en toegang → Integraties → App Store Connect API → *Team Keys* →
-   **+** → naam `OKKIE GitHub`, toegang **Admin** (nodig om het tijdelijke distributiecertificaat te maken).
-   Download `AuthKey_XXXX.p8` (kan maar één keer). Noteer **Key ID** en **Issuer ID**.
-2. **App aanmaken:** App Store Connect → Apps → **+** → Nieuwe app: iOS, naam `OKKIE. Darttrainer`, taal
-   Nederlands, bundle-ID `nl.denckh.okkie` (staat er niet? dan eerst op developer.apple.com → Identifiers → **+** →
-   App IDs → Explicit `nl.denckh.okkie`, of draai stap 4 één keer: het script maakt het bundle-ID zelf aan), SKU `okkie-ios`.
-3. **GitHub-secrets:** github.com/MartijndBesten/dartlog → Settings → Secrets and variables → Actions → *New repository secret*:
-   `ASC_KEY_ID`, `ASC_ISSUER_ID` en `ASC_KEY_P8` (de hele inhoud van het .p8-bestand, inclusief BEGIN/END-regels).
-4. **Bouwen en uploaden:** Actions → **OKKIE iPhone-app** → *Run workflow* → branch kiezen → vinkje **TestFlight** →
-   Run. Duurt ±15 minuten; daarna 5–30 minuten verwerking bij Apple.
-5. **Testen:** App Store Connect → OKKIE. → TestFlight → *Interne tests* → groep maken → jezelf toevoegen. Op de iPhone
-   de app **TestFlight** installeren en de uitnodiging openen.
+**Hoe de route is beveiligd**
+- `ios.yml` staat (alleen dat bestand) op `main`: dat eist GitHub om een workflow met de hand te kunnen starten. Het
+  iOS-project zelf staat nog alleen op `claude/ios-app`; er is niets van naar productie gegaan.
+- Bij *Run workflow* kies je de branch; GitHub gebruikt dan de workflow én de code van die branch. TestFlight draait
+  alleen vanaf `claude/ios-app`, `release/…` of (later) `main`, en alleen met het vinkje. Vanaf een branch zonder
+  iOS-project stopt de run meteen met een duidelijke melding. Een push breekt een lopende TestFlight-run niet af.
+- App Store Connect-gegevens komen alleen uit de secrets `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, alleen in de
+  TestFlight-job, en worden nooit afgedrukt (vooraf gecontroleerd op vorm, zonder waarden te tonen).
+- Per run een tijdelijk Apple Distribution-certificaat en App Store-profiel; na afloop wordt **alleen dat** certificaat
+  ingetrokken (ID én serienummer moeten kloppen) en alleen een profiel met de naam `OKKIE App Store CI …` verwijderd.
+  Je eigen certificaten en profielen worden nooit aangeraakt. Builds in TestFlight blijven werken.
+- De build wordt gemaakt als *alleen interne TestFlight-test* (`testFlightInternalTestingOnly`): hij kan niet naar
+  externe testers of de App Store. Voor de echte App Store-versie komt later een aparte, bewuste stap.
+- Altijd de nieuwste **niet-bèta** Xcode 26 (Apple weigert bèta-builds).
 
-Het script maakt per run een tijdelijk Apple Distribution-certificaat en App Store-profiel en trekt die na de upload
-weer in (een account mag maar enkele distributiecertificaten hebben). Builds in TestFlight blijven werken.
+**Eenmalig door de eigenaar** (zie de laatste paragraaf van dit document voor de exacte stappen):
+1. App Store Connect: API-sleutel (rol Admin), app aanmaken met bundle-ID `nl.denckh.okkie`.
+2. GitHub: drie secrets, bij voorkeur in de environment `testflight` (Settings → Environments → testflight →
+   *Deployment branches*: `claude/ios-app` en `release/*`).
+3. Actions → **OKKIE iPhone-app** → *Run workflow* → *Use workflow from*: **claude/ios-app** → vinkje **TestFlight** → Run.
+4. App Store Connect → TestFlight → interne testgroep → jezelf toevoegen; op de iPhone de app TestFlight.
 
 ### Testlijst op je iPhone (TestFlight)
 
@@ -174,3 +180,20 @@ Indienen voor review en publiceren doet de eigenaar zelf in App Store Connect; d
 - Op een echte iPhone nog niet getest (geen toestel beschikbaar in deze omgeving): zie de testlijst.
 - Geen iPad-versie (bewust; iPhone-app draait op iPad in iPhone-formaat).
 - Webversie 1.8.0 (boot.js, Darters melden/verbergen) is nog niet gepubliceerd op app.okkiedarts.nl.
+
+## Resterende handelingen eigenaar (eerste TestFlight-upload)
+
+1. **App Store Connect → Gebruikers en toegang → Integraties → App Store Connect API → Team Keys → +**
+   Naam `OKKIE GitHub`, toegang **Admin**. Download `AuthKey_XXXXXXXXXX.p8` (kan maar één keer). Noteer Key ID en
+   Issuer ID (staat boven de lijst).
+2. **App Store Connect → Apps → + → Nieuwe app**: platform iOS, naam `OKKIE. Darttrainer`, primaire taal Nederlands,
+   bundle-ID `nl.denckh.okkie`, SKU `okkie-ios`, volledige toegang.
+   Staat het bundle-ID niet in de lijst? developer.apple.com → Certificates, IDs & Profiles → Identifiers → + →
+   App IDs → App → beschrijving `OKKIE`, Explicit `nl.denckh.okkie`, geen extra capabilities → Register. Daarna stap 2.
+3. **GitHub → MartijndBesten/dartlog → Settings → Environments → testflight** (bestaat na de testrun; anders *New
+   environment* `testflight`) → *Deployment branches and tags*: *Selected* → `claude/ios-app` en `release/*` →
+   *Environment secrets* → `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (hele .p8-inhoud inclusief BEGIN/END-regels).
+4. **GitHub → Actions → OKKIE iPhone-app → Run workflow** → *Use workflow from*: `claude/ios-app` → vinkje
+   **TestFlight** → Run. ±25 minuten (simulatortest + archief + upload).
+5. **App Store Connect → OKKIE. → TestFlight**: na verwerking (5–30 min) → *Interne testers* → groep → jezelf
+   toevoegen. Op de iPhone **TestFlight** installeren en de uitnodiging openen.

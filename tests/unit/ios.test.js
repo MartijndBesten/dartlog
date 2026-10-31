@@ -66,12 +66,28 @@ test('webbuild voor de app: dezelfde app als app.okkiedarts.nl, met opstarten vi
   assert.ok(!files.some(f => /^(cloud|tests|tools|ios|node_modules)\b/.test(f)), 'geen servercode, tests of tools in de app');
 });
 
-test('workflow: TestFlight alleen met de hand; nooit automatisch indienen bij de App Store', () => {
+test('workflow: handmatig te starten, TestFlight alleen vanaf de iOS-branch, nooit naar de App Store', () => {
   const wf = read('.github/workflows/ios.yml');
-  assert.match(wf, /if: github\.event_name == 'workflow_dispatch' && inputs\.testflight/);
-  assert.doesNotMatch(wf, /submit|appStoreVersionSubmissions|reviewSubmissions|deliver\b/i);
-  assert.match(wf, /asc-signing\.mjs cleanup/, 'tijdelijk certificaat wordt altijd ingetrokken');
-  assert.match(wf, /runs-on: macos-/);
+  assert.match(wf, /^  workflow_dispatch:/m, 'handmatig te starten (bestand moet ook op main staan)');
+  assert.match(wf, /github\.event_name == 'workflow_dispatch' && inputs\.testflight &&/);
+  assert.match(wf, /github\.ref == 'refs\/heads\/claude\/ios-app'/);
+  assert.doesNotMatch(wf.match(/^  push:\n    #.*\n    branches: \[(.*)\]/m)?.[1] || 'main', /\bmain\b/, 'push op main bouwt niet (daar staat geen iOS-project)');
+  assert.match(wf, /Op branch '\$GITHUB_REF_NAME' staat geen iOS-project/);
+  assert.match(wf, /cancel-in-progress: \$\{\{ github\.event_name == 'push' \}\}/, 'een push breekt een TestFlight-run niet af');
+  assert.match(wf, /<key>testFlightInternalTestingOnly<\/key><true\/>/, 'build kan niet naar de App Store of externe testers');
+  assert.doesNotMatch(wf, /submit|appStoreVersionSubmissions|reviewSubmissions|deliver\b|altool/i);
+  assert.match(wf, /asc-signing\.mjs cleanup/, 'tijdelijk certificaat wordt altijd opgeruimd');
+  assert.match(wf, /select-xcode\.sh/, 'nooit met een bèta-Xcode bouwen');
+});
+
+test('workflow: App Store Connect-gegevens alleen uit secrets, nooit afgedrukt', () => {
+  const wf = read('.github/workflows/ios.yml');
+  for (const k of ['ASC_KEY_ID', 'ASC_ISSUER_ID', 'ASC_KEY_P8']) assert.match(wf, new RegExp(`${k}: \\$\\{\\{ secrets\\.${k} \\}\\}`));
+  assert.equal((wf.match(/secrets\./g) || []).length, 3, 'geen andere of dubbele secrets');
+  assert.doesNotMatch(wf, /echo[^\n]*\$\{?ASC_|set -x|-----BEGIN/);
+  assert.doesNotMatch(wf, /pull_request_target/);
+  // Secrets alleen in de TestFlight-job (die alleen handmatig draait).
+  assert.doesNotMatch(wf.split('\n  testflight:')[0], /secrets\./);
 });
 
 test('geen aankopen, abonnementen of advertenties in de app', () => {
