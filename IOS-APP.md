@@ -76,18 +76,32 @@ De oude PWA wordt nooit gewist; wie wil, kan beide blijven gebruiken (gegevens s
 
 | Onderwerp | Hoe in de app | Status |
 |---|---|---|
-| Offline | Alle bestanden in de app; geen serviceworker in de app | simulator ✔ |
+| Offline | Alle bestanden in de app; geen serviceworker in de app | simulator ✔ (laadt `capacitor://localhost`, geen netwerk nodig) |
 | Opslag | localStorage + duurzame kopie | simulator ✔ (ook na wissen) |
 | Delen (OKKIE. aanraden, scorekaart, uitdagen) | `navigator.share` → native deelmenu | nagebootst ✔, **op iPhone testen** |
 | Back-up exporteren | Deelmenu → Bewaar in Bestanden | nagebootst ✔, **op iPhone testen** |
 | Back-up/overzetcode importeren | Bestandskiezer (`<input type=file>`), plakken | **op iPhone testen** |
 | Spraak | `speechSynthesis` van de webview (WKWebView) | **op iPhone testen** (stille modus!) |
 | Trillen | Haptics (navigator.vibrate bestaat niet op iOS) | nagebootst ✔ |
-| Statusbalk | Volgt het thema (donker/licht) | nagebootst ✔ |
-| Veilige randen | `viewport-fit=cover` + `env(safe-area-inset-*)` (al in de CSS) | simulator-screenshot |
-| Toetsenbord | Standaard webview (geen Keyboard-plugin): zelfde gedrag als Safari | **op iPhone testen** (typvak bij trainen) |
+| Statusbalk | Volgt het thema (donker/licht) | simulator ✔ (lichte tekst op donker), thema wisselen nagebootst ✔ |
+| Veilige randen | `viewport-fit=cover` + `env(safe-area-inset-*)` (al in de CSS) | simulator ✔ (Dynamic Island en thuisbalk vrij) |
+| Toetsenbord | Standaard webview (geen Keyboard-plugin). Gevonden in de simulator: WKWebView opent bij `autofocus` meteen het toetsenbord; in de app staat autofocus op het welkomstscherm daarom uit | simulator ✔ welkomstscherm; **typvak bij trainen op iPhone testen** |
 | Navigatie | Eigen terugknoppen; externe links openen in Safari | **op iPhone testen** |
 | Camera/foto's | Alleen bij feedbackfoto en "Bewaar afbeelding" (teksten in Info.plist) | **op iPhone testen** |
+
+## Wat is gecompileerd en getest (31 oktober 2026)
+
+| Wat | Waar | Uitslag |
+|---|---|---|
+| iOS-app compileren (Debug, simulator) | GitHub Actions `macos-26`, Xcode 26.6, iOS 26.5 SDK | ✔ BUILD SUCCEEDED, geen waarschuwingen in eigen code |
+| Rooktest in de iOS-simulator (iPhone, `tools/ios/smoke.sh`) | idem | ✔ 0: nieuwe installatie zonder fouten · 1: terugzetten uit kopie · 2: app schrijft kopie · 3: herstel na wissen webviewopslag |
+| Unit-tests app (`npm test`) | Linux | ✔ 148/148 |
+| Worker-tests (`cloud`) | Linux | ✔ 61/61 |
+| Browsertests (`npm run test:e2e`, iPhone-/Android-/desktopformaat, incl. nagebootste app) | Linux, Chromium | ✔ 255/255 |
+| Archief + ondertekenen + TestFlight-upload | workflow klaar | ✖ **nog niet gedraaid**: wacht op API-sleutel (secrets) en de app in App Store Connect |
+| Echte iPhone | — | ✖ niet beschikbaar in deze omgeving: testlijst hieronder |
+
+Schermafbeeldingen en logs van elke simulatorrun: Actions → OKKIE iPhone-app → run → artefact *ios-simulator-rooktest*.
 
 ## Server (Darters, Hulp & feedback, dagteller)
 
