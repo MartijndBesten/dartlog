@@ -71,7 +71,8 @@ test('workflow: handmatig te starten, TestFlight alleen vanaf de iOS-branch, noo
   assert.match(wf, /^  workflow_dispatch:/m, 'handmatig te starten (bestand moet ook op main staan)');
   assert.match(wf, /github\.event_name == 'workflow_dispatch' && inputs\.testflight &&/);
   assert.match(wf, /github\.ref == 'refs\/heads\/claude\/ios-app'/);
-  assert.doesNotMatch(wf.match(/^  push:\n    #.*\n    branches: \[(.*)\]/m)?.[1] || 'main', /\bmain\b/, 'push op main bouwt niet (daar staat geen iOS-project)');
+  assert.match(wf.match(/^  push:\n(?:    #.*\n)*    branches: \[(.*)\]/m)?.[1] || '', /\bmain\b/, 'push op main bouwt voor de simulator (iOS-project staat op main)');
+  assert.match(wf, /if: >-\n\s+github\.event_name == 'workflow_dispatch' && inputs\.testflight/, 'TestFlight nooit bij een push');
   assert.match(wf, /Op branch '\$GITHUB_REF_NAME' staat geen iOS-project/);
   assert.match(wf, /cancel-in-progress: \$\{\{ github\.event_name == 'push' \}\}/, 'een push breekt een TestFlight-run niet af');
   assert.match(wf, /<key>testFlightInternalTestingOnly<\/key><true\/>/, 'build kan niet naar de App Store of externe testers');

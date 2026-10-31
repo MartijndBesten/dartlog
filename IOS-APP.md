@@ -119,10 +119,12 @@ voor de simulator en `tools/ios/smoke.sh`. Schermafbeeldingen en logs staan als 
 ### TestFlight
 
 **Hoe de route is beveiligd**
-- `ios.yml` staat (alleen dat bestand) op `main`: dat eist GitHub om een workflow met de hand te kunnen starten. Het
-  iOS-project zelf staat nog alleen op `claude/ios-app`; er is niets van naar productie gegaan.
+- Het iOS-project en `ios.yml` staan op `main` (samengevoegd 31-10-2026). Een push naar `main` bouwt alleen voor de
+  simulator (rooktest); TestFlight start nooit vanzelf. GitHub Pages vanaf `main` is het oude adres, dat doorstuurt
+  naar app.okkiedarts.nl; app.okkiedarts.nl zelf verandert alleen via de aparte publicatieronde.
 - Bij *Run workflow* kies je de branch; GitHub gebruikt dan de workflow én de code van die branch. TestFlight draait
-  alleen vanaf `claude/ios-app`, `release/…` of (later) `main`, en alleen met het vinkje. Vanaf een branch zonder
+  alleen vanaf `claude/ios-app`, `release/…` of `main`, en alleen met het vinkje. De secrets in environment
+  `testflight` zijn alleen beschikbaar voor de branches die daar zijn toegestaan (Settings → Environments). Vanaf een branch zonder
   iOS-project stopt de run meteen met een duidelijke melding. Een push breekt een lopende TestFlight-run niet af.
 - App Store Connect-gegevens komen alleen uit de secrets `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, alleen in de
   TestFlight-job, en worden nooit afgedrukt (vooraf gecontroleerd op vorm, zonder waarden te tonen).

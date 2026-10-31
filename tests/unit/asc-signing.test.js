@@ -10,6 +10,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const script = fileURLToPath(new URL('../../tools/ios/asc-signing.mjs', import.meta.url));
+const scriptUrl = new URL('../../tools/ios/asc-signing.mjs', import.meta.url).href; // import() op Windows vereist een file://-URL
 const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
 const P8 = privateKey.export({ type: 'pkcs8', format: 'pem' });
 const ENV = { ASC_KEY_ID: 'ABCDE12345', ASC_ISSUER_ID: '12345678-90ab-cdef-1234-567890abcdef', ASC_KEY_P8: P8, RUN_ID: '42' };
@@ -17,7 +18,7 @@ let mod, calls, api;
 const realFetch = globalThis.fetch;
 before(async () => {
   Object.assign(process.env, ENV);
-  mod = await import(script);
+  mod = await import(scriptUrl);
   globalThis.fetch = async (url, opt = {}) => {
     const path = url.replace('https://api.appstoreconnect.apple.com/v1', ''), method = opt.method || 'GET';
     calls.push(method + ' ' + path);
@@ -85,5 +86,5 @@ test('cleanup weigert een certificaat met een ander serienummer en een profiel m
 async function importRun(cmd, ...args) {
   const saved = process.argv;
   process.argv = [process.execPath, script, cmd, ...args];
-  try { return await (await import(script + '?run=' + Math.random())).done; } finally { process.argv = saved; }
+  try { return await (await import(scriptUrl + '?run=' + Math.random())).done; } finally { process.argv = saved; }
 }
