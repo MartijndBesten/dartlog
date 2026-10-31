@@ -88,7 +88,6 @@ jobs:
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
       RUN_ID: ${{ github.run_id }}
-      SIGN: ${{ runner.temp }}/sign
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -101,7 +100,9 @@ jobs:
           sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1 || xcode-select -p)" || true
           xcodebuild -version
       - name: App bestaat in App Store Connect?
-        run: node tools/ios/asc-signing.mjs app
+        run: |
+          echo "SIGN=$RUNNER_TEMP/sign" >> "$GITHUB_ENV"
+          node tools/ios/asc-signing.mjs app
       - name: Tijdelijk certificaat en profiel
         run: |
           mkdir -p "$SIGN"
