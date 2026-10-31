@@ -19,6 +19,7 @@ const fakeCapacitor = () => {
         readFile: async ({ path, directory }) => { const v = fs()[directory + '/' + path]; if (v == null) throw new Error('File does not exist'); return { data: v }; },
         writeFile: async ({ path, directory, data }) => { put(directory + '/' + path, data); return { uri: 'file:///' + directory + '/' + path }; },
         mkdir: async () => {},
+        readdir: async ({ path, directory }) => { const pre = directory + '/' + path + '/'; const files = Object.keys(fs()).filter(k => k.startsWith(pre)).map(k => ({ name: k.slice(pre.length) })); if (!files.length) throw new Error('Directory does not exist'); return { files }; },
         getUri: async ({ path, directory }) => ({ uri: 'file:///' + directory + '/' + path }),
       },
       Share: { share: async o => log('__shared', o) },

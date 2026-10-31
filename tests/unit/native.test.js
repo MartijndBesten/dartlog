@@ -87,7 +87,7 @@ test('de hele route: echte gegevens, webviewopslag gewist, alles terug inclusief
   const { data } = store.load();
   data.players.push({ id: 'p1', name: 'Senn', color: '#3ddc84', createdAt: '2026-10-01T10:00:00.000Z' });
   data.activePlayerId = 'p1';
-  data.trainings.push({ id: 't1', playerId: 'p1', kind: 'score', limitTurns: 1, startedAt: '2026-10-02T10:00:00.000Z', endedAt: '2026-10-02T10:05:00.000Z', turns: [{ darts: ['T20', 'T20', 'T20'] }] });
+  data.trainings.push({ id: 't1', playerId: 'p1', kind: 'score', limitTurns: 1, startedAt: '2026-10-02T10:00:00.000Z', finishedAt: '2026-10-02T10:05:00.000Z', turns: [{ at: '2026-10-02T10:01:00.000Z', darts: ['T20', 'T20', 'T20'] }] });
   store.save(data);
   storage.setItem('okkie.community.v1', JSON.stringify({ version: 1, accounts: { p1: { handle: 'abcdefabcdef', token: 't', recovery: 'r' } } }));
   const before = storage.dump();
@@ -108,4 +108,17 @@ test('in de browser (geen Capacitor) doet de app-laag niets', async () => {
   assert.equal(await saveFile('x.json', new Blob(['{}'])), 'web');
   assert.equal(publicUrl('community/', { href: 'https://app.okkiedarts.nl/' }), 'https://app.okkiedarts.nl/community/');
   assert.equal(publicUrl('community/', null), 'https://app.okkiedarts.nl/community/');
+});
+
+test('alleen bestaande kopiebestanden worden gelezen', async () => {
+  const storage = memStorage({ 'oche.data': 'x' }), fs = memFs();
+  await createMirror({ fs, storage, ...sync() }).write();
+  const read = []; const realRead = fs.read;
+  fs.read = async n => { read.push(n); return realRead(n); };
+  fs.list = async () => [...fs.files.keys(), 'iets-anders.txt'];
+  const m = await createMirror({ fs, storage, ...sync() }).load();
+  assert.equal(m.seq, 1);
+  assert.deepEqual(read, [SLOTS[1]], 'opslag-b.json bestaat, opslag-a.json niet: alleen b lezen');
+  fs.list = async () => { throw new Error('map bestaat nog niet'); };
+  assert.equal(await createMirror({ fs, storage, ...sync() }).load(), null);
 });

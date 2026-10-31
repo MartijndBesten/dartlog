@@ -10,7 +10,7 @@ const store = createStore(storage);
 const { data } = store.load();
 data.players.push({ id: 'sim-1', name: 'Simulator', color: '#3ddc84', createdAt: '2026-10-01T10:00:00.000Z' });
 data.activePlayerId = 'sim-1';
-data.trainings.push({ id: 'sim-t1', playerId: 'sim-1', kind: 'score', limitTurns: 1, startedAt: '2026-10-30T19:00:00.000Z', endedAt: '2026-10-30T19:02:00.000Z', turns: [{ darts: ['T20', 'T20', 'T20'] }] });
+data.trainings.push({ id: 'sim-t1', playerId: 'sim-1', kind: 'score', limitTurns: 1, startedAt: '2026-10-30T19:00:00.000Z', finishedAt: '2026-10-30T19:02:00.000Z', turns: [{ at: '2026-10-30T19:01:00.000Z', darts: ['T20', 'T20', 'T20'] }] });
 store.save(data);
 writeFileSync(process.argv[2], JSON.stringify({ format: FORMAT, version: 1, seq: 1, savedAt: new Date().toISOString(), items: snapshot(storage) }));
 console.log('Kopie met 1 speler en een 180 geschreven naar', process.argv[2]);

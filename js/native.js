@@ -69,13 +69,16 @@ export function restoreInto(storage, mirror) {
   return { restored: true, keys, savedAt: mirror.savedAt || null };
 }
 
-// fs: { read(name) -> string|null, write(name, text) } ; los te testen zonder iPhone.
+// fs: { read(name) -> string|null, write(name, text), list?() -> namen } ; los te testen zonder iPhone.
 export function createMirror({ fs, storage, delay = 800, now = () => new Date().toISOString(), timer = setTimeout, clear = clearTimeout }) {
   let seq = 0, pending = null, chain = Promise.resolve(), last = null;
   const api = {
     async load() {
       const texts = [];
-      for (const name of SLOTS) { try { texts.push(await fs.read(name)); } catch { texts.push(null); } }
+      // Alleen bestaande bestanden lezen (geen foutmeldingen in het iOS-logboek bij de eerste start).
+      let names = SLOTS;
+      if (fs.list) { try { const have = await fs.list(); names = SLOTS.filter(n => have.includes(n)); } catch { names = []; } }
+      for (const name of names) { try { texts.push(await fs.read(name)); } catch { texts.push(null); } }
       const m = pickNewest(texts);
       if (m) seq = Math.max(seq, m.seq);
       last = m ? JSON.stringify(m.items) : null;
@@ -107,6 +110,7 @@ function capacitorFs() {
   if (!F) return null;
   let made = false;
   return {
+    async list() { return ((await F.readdir({ path: FOLDER, directory: DIR })).files || []).map(f => (typeof f === 'string' ? f : f.name)); },
     async read(name) {
       try { return (await F.readFile({ path: `${FOLDER}/${name}`, directory: DIR, encoding: 'utf8' })).data; }
       catch { return null; }   // bestand bestaat (nog) niet

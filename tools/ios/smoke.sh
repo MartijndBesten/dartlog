@@ -29,7 +29,8 @@ run() { # $1 = naam
   echo "::group::Console $1"; grep -a "⚡️" "$log" | cut -c1-300 || true; echo "::endgroup::"
   sips -Z 520 -s format jpeg -s formatOptions 55 "$OUT/$1.png" --out "$OUT/$1.jpg" >/dev/null
   echo "SCREENSHOT-$1-BEGIN"; base64 -i "$OUT/$1.jpg" | fold -w 900; echo "SCREENSHOT-$1-END"
-  if grep -aE "⚡️ +\[error\]|JS ERROR" "$log" | grep -v "OKKIE. kopie" ; then echo "::error::JavaScript-fout in $1"; exit 1; fi
+  # Verwacht en onschuldig: de map OKKIE bestaat bij een eerste start nog niet (OS-PLUG-FILE-0008, "does not exist").
+  if grep -aE "⚡️ +\[error\]|JS ERROR" "$log" | grep -v "OKKIE. kopie" | grep -v "does not exist" ; then echo "::error::JavaScript-fout in $1"; exit 1; fi
 }
 need() { grep -aq "$2" "$OUT/$1.log" || { echo "::error::$1: verwacht in log: $2"; exit 1; }; }
 
