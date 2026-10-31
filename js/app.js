@@ -311,7 +311,7 @@ VIEWS.welcome = () => `
     ${T.announce() ? newHereCard() : ''}
     <form class="card" data-form="welcome">
       <label for="wname">Hoe heet je?</label>
-      <input id="wname" name="name" maxlength="24" autocomplete="nickname" placeholder="Je naam" required autofocus>
+      <input id="wname" name="name" maxlength="24" autocomplete="nickname" placeholder="Je naam" required${N.isNative() ? '' : ' autofocus'}>
       <button class="btn primary big" type="submit">Let's play darts</button>
     </form>
     ${T.role() !== 'new' && !N.isNative() && I.isStandalone() ? fetchCard() : ''}

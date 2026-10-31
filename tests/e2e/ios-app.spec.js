@@ -44,6 +44,8 @@ test('nieuwe app: Trainingen ophalen bovenaan, startscherm weg, geen servicework
   const order = await page.evaluate(() => [...document.querySelectorAll('.welcome > *')].map(e => e.dataset.testid || e.tagName));
   expect(order.indexOf('fetch-card')).toBeLessThan(order.indexOf('FORM'));
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('__splash'))).toBe('weg');
+  // In de app geen autofocus: WKWebView opent dan meteen het toetsenbord over Trainingen ophalen heen (simulatortest).
+  await expect(page.locator('#wname')).not.toHaveAttribute('autofocus', /.*/);
   await page.fill('#wname', 'Mila');
   await page.click('text=Let\'s play darts');
   await page.click('.tabbar [data-go=more]');
