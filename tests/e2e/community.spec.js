@@ -131,3 +131,34 @@ test('Darters: een naam die online is aangepast, neemt de app over bij openen (O
   expect(A.errors).toEqual([]);
   await A.context.close();
 });
+
+test('Darters: een darter melden of verbergen op dit toestel (App Store-richtlijn 1.2), en weer tonen', async ({ browser }, info) => {
+  test.skip(info.project.name !== 'iphone', 'één keer is genoeg');
+  const sfx = Math.random().toString(36).slice(2, 6);
+  const A = await phone(browser, info, [{ id: 'pa', name: 'Kees' + sfx, color: '#3ddc84' }], [tr('t1', 'pa', ['T20', 'S20', 'S20'])]);
+  await A.page.goto('/community/');
+  await A.page.locator('[data-toggle=pa]').check();
+  await A.page.locator('[data-join=pa]').getByText('16 jaar of ouder').click();
+  await A.page.locator('[data-join=pa]').getByRole('button', { name: 'Delen aanzetten' }).click();
+  await expect(A.page.locator('#rankings')).toContainText('Kees' + sfx);
+  // Iemand anders kijkt mee op zijn eigen telefoon
+  const B = await phone(browser, info, [{ id: 'pz', name: 'Lotte', color: '#4da3ff' }]);
+  await B.page.goto('/community/');
+  await B.page.locator('.d-name', { hasText: 'Kees' + sfx }).click();
+  const report = B.page.getByTestId('report-darter');
+  await expect(report).toHaveAttribute('href', /^mailto:info@denckh\.nl\?subject=Melding%20OKKIE\.%20Darters%3A%20[a-z0-9]{12}&body=/);
+  expect(decodeURIComponent(await report.getAttribute('href'))).toContain('Naam: Kees' + sfx);
+  await B.page.getByTestId('hide-darter').click();
+  await expect(B.page.locator('#rankings')).not.toContainText('Kees' + sfx);
+  await expect(B.page.locator('#rankings')).toContainText('verborgen op dit toestel');
+  await B.page.reload();
+  await expect(B.page.locator('#rankings')).not.toContainText('Kees' + sfx);   // blijft verborgen
+  await B.page.getByRole('button', { name: 'Weer tonen' }).click();
+  await expect(B.page.locator('#rankings')).toContainText('Kees' + sfx);
+  // Voor de schrijver zelf verandert er niets
+  await A.page.reload();
+  await expect(A.page.locator('#rankings')).toContainText('Kees' + sfx);
+  await A.page.locator('[data-toggle=pa]').uncheck();
+  for (const p of [A, B]) expect(p.errors).toEqual([]);
+  for (const p of [A, B]) await p.context.close();
+});
