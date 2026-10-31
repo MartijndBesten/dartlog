@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Rooktest van de echte iPhone-app in de iOS-simulator (GitHub Actions, macOS). Zie IOS-APP.md.
+#  0. Nieuwe installatie: welkomstscherm zonder fouten.
 #  1. Starten met een duurzame kopie maar lege webviewopslag: de app moet de speler terugzetten (log + scherm).
 #  2. Kopie weggooien, opnieuw starten: de app moet zelf een nieuwe kopie schrijven.
 #  3. Webviewopslag wissen (zoals iOS kan doen), opnieuw starten: alles komt terug uit de kopie.
@@ -34,6 +35,10 @@ run() { # $1 = naam
 }
 need() { grep -aq "$2" "$OUT/$1.log" || { echo "::error::$1: verwacht in log: $2"; exit 1; }; }
 
+echo "== 0. Nieuwe installatie: welkomstscherm, geen fouten, nog geen kopie"
+run 0-nieuw
+test ! -e "$KOPIE/opslag-a.json" && test ! -e "$KOPIE/opslag-b.json" || { echo "::error::kopie zonder gegevens"; exit 1; }
+
 echo "== 1. Terugzetten uit de kopie (lege webviewopslag)"
 mkdir -p "$KOPIE"
 node tools/ios/seed-mirror.mjs "$KOPIE/opslag-a.json"
@@ -45,7 +50,7 @@ rm -f "$KOPIE"/opslag-*.json
 run 2-kopie-schrijven
 ls -la "$KOPIE"
 test -s "$KOPIE/opslag-b.json" || test -s "$KOPIE/opslag-a.json" || { echo "::error::geen kopie geschreven"; exit 1; }
-grep -q '"Simulator"' "$KOPIE"/opslag-*.json || { echo "::error::kopie mist de speler"; exit 1; }
+grep -q 'Simulator' "$KOPIE"/opslag-*.json || { echo "::error::kopie mist de speler"; exit 1; }
 
 echo "== 3. Webviewopslag gewist (zoals iOS kan doen)"
 find "$DATA/Library" -maxdepth 3 -iname "*WebKit*" -print
