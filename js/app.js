@@ -2256,6 +2256,7 @@ document.addEventListener('focusout', e => {
 });
 
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); ui.installEvent = e; if (ui.view === 'more') render(); });
+if (window.__okkieInstallEvent) ui.installEvent = window.__okkieInstallEvent;   // al binnen vóór app.js (js/boot.js)
 
 // ---------- Start ----------
 const TAB_ICONS = { home: 'home', train: 'train', match: 'match', stats: 'stats', more: 'more' };

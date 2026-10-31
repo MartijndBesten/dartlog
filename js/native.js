@@ -108,7 +108,6 @@ export function createMirror({ fs, storage, delay = 800, now = () => new Date().
 function capacitorFs() {
   const F = plugin('Filesystem');
   if (!F) return null;
-  let made = false;
   return {
     async list() { return ((await F.readdir({ path: FOLDER, directory: DIR })).files || []).map(f => (typeof f === 'string' ? f : f.name)); },
     async read(name) {
@@ -116,7 +115,7 @@ function capacitorFs() {
       catch { return null; }   // bestand bestaat (nog) niet
     },
     async write(name, text) {
-      if (!made) { try { await F.mkdir({ path: FOLDER, directory: DIR, recursive: true }); } catch { /* bestaat al */ } made = true; }
+      // recursive: maakt Library/OKKIE zelf aan (een losse mkdir meldt een fout als de map al bestaat).
       await F.writeFile({ path: `${FOLDER}/${name}`, directory: DIR, data: text, encoding: 'utf8', recursive: true });
     },
   };
