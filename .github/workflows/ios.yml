@@ -44,7 +44,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'push' }}
 env:
   BUNDLE_ID: nl.denckh.okkie
-  TEAM_ID: W9H8R7BPDN
+  TEAM_ID: GUAS9KT7W3
 
 jobs:
   simulator:

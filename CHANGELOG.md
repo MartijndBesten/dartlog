@@ -2,7 +2,7 @@
 
 ## 1.8.0 — OKKIE. als echte iPhone-app (TestFlight)
 
-- **iPhone-app** (Capacitor 8, bundle-ID `nl.denckh.okkie`, team W9H8R7BPDN): dezelfde app als app.okkiedarts.nl,
+- **iPhone-app** (Capacitor 8, bundle-ID `nl.denckh.okkie`, team GUAS9KT7W3): dezelfde app als app.okkiedarts.nl,
   met alle bestanden in de app zelf, dus trainen en wedstrijden werken zonder internet. Alleen iPhone, staand.
   Bouwen via GitHub Actions (macOS, gratis voor deze openbare repository); TestFlight alleen met de hand. Zie IOS-APP.md.
 - **Gegevens in de app** (`js/native.js`, `js/boot.js`): alle OKKIE.-gegevens staan ook in een bestand in de app

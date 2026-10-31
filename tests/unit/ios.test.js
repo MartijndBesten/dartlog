@@ -37,7 +37,7 @@ test('Info.plist: Nederlands, alleen staand, versleuteling vrijgesteld, uitleg b
 
 test('Xcode-project: alleen iPhone, team en versie gelijk aan package.json, privacymanifest in de app', () => {
   assert.equal((pbx.match(/TARGETED_DEVICE_FAMILY = 1;/g) || []).length, 2);
-  assert.equal((pbx.match(/DEVELOPMENT_TEAM = W9H8R7BPDN;/g) || []).length, 2);
+  assert.equal((pbx.match(/DEVELOPMENT_TEAM = GUAS9KT7W3;/g) || []).length, 2);
   assert.equal((pbx.match(/PRODUCT_BUNDLE_IDENTIFIER = nl\.denckh\.okkie;/g) || []).length, 2);
   assert.equal((pbx.match(/MARKETING_VERSION = ([\d.]+);/g) || []).map(m => m.match(/[\d.]+/)[0]).filter(v => v !== pkg.version).length, 0, 'MARKETING_VERSION = package.json');
   assert.match(pbx, /PrivacyInfo\.xcprivacy in Resources/);

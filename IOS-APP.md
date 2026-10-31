@@ -7,7 +7,7 @@ app.okkiedarts.nl) is met **Capacitor 8** verpakt als echte iOS-app. De PWA en d
 |---|---|
 | Appnaam (beginscherm) | **OKKIE.** |
 | Bundle-ID | `nl.denckh.okkie` |
-| Team-ID | `W9H8R7BPDN` (individuele ontwikkelaar) |
+| Team-ID | `GUAS9KT7W3` (individuele ontwikkelaar) |
 | iOS | 15 of nieuwer, alleen iPhone, alleen staand |
 | Bouwen | GitHub Actions, `macos-26`-runner (gratis voor deze openbare repository): `.github/workflows/ios.yml` |
 | App Store-teksten | `appstore/APPSTORE-TEKSTEN.md`, privacylabels `appstore/PRIVACY-APPSTORE.md`, screenshots `appstore/screenshots/6.9/` |
