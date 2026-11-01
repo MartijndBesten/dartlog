@@ -37,6 +37,7 @@ final class OKKIEUITests: XCTestCase {
         if fixture { app.launchEnvironment["OKKIE_FIXTURE"] = Fixture.mirror }
         app.launch()
         self.app = app
+        assertTestModeActive(app)
         return app
     }
 
@@ -73,6 +74,13 @@ final class OKKIEUITests: XCTestCase {
         while !el.isHittable && tries < 6 { app.webViews.firstMatch.swipeUp(); tries += 1 }
         XCTAssertTrue(el.isHittable, "niet aan te tikken: \(label)", file: file, line: line)
         el.tap()
+    }
+
+    /// Het testscript (netwerkblokkade, foutmelder) moet echt geladen zijn; anders zou een test de productie-API kunnen
+    /// raken. Het script zet een onzichtbaar element met dit label in elke pagina (SceneDelegate.swift, UITestMode).
+    private func assertTestModeActive(_ app: XCUIApplication, _ file: StaticString = #filePath, _ line: UInt = #line) {
+        let mark = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'okkie-uitest-actief'")).firstMatch
+        XCTAssertTrue(mark.waitForExistence(timeout: wait), "testmodus niet actief: netwerkblokkade ontbreekt", file: file, line: line)
     }
 
     private func assertNoJSError(_ app: XCUIApplication, _ file: StaticString = #filePath, _ line: UInt = #line) {
@@ -301,6 +309,8 @@ final class OKKIEUITests: XCTestCase {
         expectVisible(Fixture.player, in: offline)
         tap("Open Darters", in: offline, exact: true)
         expectVisible("werkt gewoon", in: offline)    // "… trainen werkt gewoon."
+        // Netwerk geblokkeerd: geen echte ranglijst van de productie-API (die toont "gem." per darter).
+        XCTAssertFalse(offline.webViews.descendants(matching: .any).matching(NSPredicate(format: "label == 'gem.'")).firstMatch.exists, "Darters toont echte gegevens: netwerkblokkade werkt niet")
         tap("Terug naar app", in: offline, exact: true)
         expectVisible("Mijn statistieken", in: offline)
     }

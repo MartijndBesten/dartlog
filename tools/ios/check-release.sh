@@ -5,7 +5,7 @@
 #   check-release.sh <Release-binary> <Debug-binary of -dylib> [meer Debug-kandidaten]
 set -euo pipefail
 rel="$1"; shift
-MARKS='-OKKIEUITest|OKKIE_FIXTURE|okkie-js-fout|-OKKIEWipeWebKit'
+MARKS='-OKKIEUITest|OKKIE_FIXTURE|okkie-js-fout|okkie-uitest-actief|-OKKIEWipeWebKit'
 if strings -a "$rel" | grep -E -- "$MARKS"; then echo "::error::Release-build bevat de UI-testmodus"; exit 1; fi
 found=0
 for dbg in "$@"; do
