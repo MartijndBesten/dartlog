@@ -11,8 +11,8 @@ tests `tests/clubs.test.js`.
 
 | Instelling | Staging | Productie |
 |---|---|---|
-| `CLUBS_ENABLED` (var, alleen exact `"true"` opent) | `"true"` | `"false"`; migratie 0009 **niet** uitgevoerd |
-| `CLUB_PILOT_CODES` (secret, komma-gescheiden, min. 16 tekens) | via `wrangler secret put` | niet gezet |
+| `CLUBS_ENABLED` (var, alleen exact `"true"` opent) | `"true"` | `"true"` sinds 1 november 2026; migraties 0009 en 0010 uitgevoerd |
+| Oprichten | iedereen van 16+ | iedereen van 16+ (geen proefclubcode meer) |
 
 - Vlag uit: `/v1/clubs*` geeft 404, registreren met een club- of proefclubcode geeft 403, `/v1/health` meldt `clubs: false`.
 - Een club aanmaken kan alleen met een proefclubcode, en elke code werkt één keer (`app_flags`: `clubpilot:<sha256>`).
@@ -123,3 +123,24 @@ een niet-openbaar profiel.
 - Checkout- en finishpercentages: de app synchroniseert die niet, dus het captain-overzicht toont ze niet.
 - Jeugd (onder 16): pas later, met een ouderroute en DPIA. Zie B55 en `VRIENDEN.md` voor de bestaande ouderlink.
 - Trainer wijst oefeningen toe, duels, clubrecords en club-tegen-club (zie het concept, onder "Later").
+
+## Live sinds 1 november 2026 (1.9.0)
+
+- **Misbruiklimieten** (`CLUB_LIMITS` in `src/clubs.js`):
+  - per speler hoogstens 2 nieuwe clubs per 30 dagen en hoogstens 3 clubs als beheerder;
+  - hoogstens 100 nieuwe clubs per dag voor heel OKKIE.;
+  - hoogstens 3 openstaande aanmeldingen per speler;
+  - hoogstens 50 openstaande aanmeldingen per club;
+  - IP-limiet (`RL_REGISTER`).
+- **Melding van nieuwe clubs en moderatie:** de besloten inbox (`/v1/feedback/inbox#key=…`), sectie **Clubs**. Daar:
+  logo verwijderen, naam wijzigen, een clubtraining verwijderen of de club opheffen.
+- **E-mail bij een nieuwe club:** nog niet mogelijk. Er is geen maildienst gekoppeld (zie `FEEDBACK.md`).
+- **Uitnodigingslinks:** `https://okkiedarts.nl/club/uitnodiging/#club=CODE`. De pagina toont de clubnaam (via
+  `/v1/clubs/preview`) en heeft een knop naar `https://app.okkiedarts.nl/club/#club=CODE`.
+- **Terugzetten:**
+  - Worker: `wrangler rollback 5d1a2c58-e29c-402e-9f64-461018b4be93 --env production`, of `CLUBS_ENABLED="false"`
+    en opnieuw deployen;
+  - database: Time Travel-bookmark `00000110-00000000-00005116-fc0a04b5bb6c0bdacaa5319984e0fbab` of export
+    `okkie-backups/okkie-community-2026-11-01-voor-club.sql`;
+  - webapp: tag `live-1.8.0` in okkie-app (revert van `a97eb29`);
+  - website: tags `live-voor-club-privacy` en `live-voor-club-live` in okkiedarts-site.
