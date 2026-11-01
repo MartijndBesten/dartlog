@@ -139,7 +139,8 @@ enum UITestMode {
           var mark = function () {
             var m = document.createElement('div');
             m.setAttribute('role', 'note'); m.setAttribute('aria-label', 'okkie-uitest-actief');
-            m.style.cssText = 'position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:0.02;pointer-events:none;z-index:2147483646';
+            m.textContent = 'okkie-uitest-actief';   // buiten beeld, wel in de toegankelijkheidsboom
+            m.style.cssText = 'position:fixed;left:-2000px;top:0;width:200px;height:20px;overflow:hidden;pointer-events:none';
             document.documentElement.appendChild(m);
           };
           if (document.documentElement) mark(); else document.addEventListener('DOMContentLoaded', mark);
