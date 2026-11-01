@@ -81,6 +81,22 @@ jobs:
           grep -q "BUILD SUCCEEDED" build.log
       - name: Rooktest in de simulator
         run: tools/ios/smoke.sh build/Build/Products/Debug-iphonesimulator/App.app smoke
+      - name: UI-tests (XCUITest) in de simulator
+        # Testmodus alleen in Debug: schone opslag, vaste testdata, geen netwerk buiten de app (nooit de productie-API).
+        # Faalt bij een gefaalde of overgeslagen test en bij minder tests dan UITEST_MIN (tools/ios/check-tests.sh).
+        env:
+          UITEST_MIN: 6
+        run: |
+          DEV=$(tools/ios/pick-simulator.sh)
+          set +e
+          xcodebuild test -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -destination "id=$DEV" -derivedDataPath build -resultBundlePath uitests.xcresult \
+            CODE_SIGNING_ALLOWED=NO > uitests.log 2>&1
+          status=$?
+          set -e
+          grep -E "Test Case .*(passed|failed|skipped)|error:|\*\* TEST" uitests.log | cut -c1-300 || true
+          tools/ios/check-tests.sh uitests.xcresult "$UITEST_MIN"
+          exit $status
       - if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -88,6 +104,8 @@ jobs:
           path: |
             smoke/
             build.log
+            uitests.log
+            uitests.xcresult
           retention-days: 14
 
   testflight:
