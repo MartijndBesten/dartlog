@@ -17,13 +17,26 @@ Stand: 1 november 2026 · branch `claude/ios-uitests` → PR naar `main` · zie 
   `OKKIERouter` in `SceneDelegate.swift`. Niet in TestFlight-build 11; zit in de volgende build.
 
 ## Testresultaten (werkelijk gedraaid)
-RESULTATEN
+| Suite | Waar | Geslaagd | Mislukt | Overgeslagen |
+|---|---|---|---|---|
+| XCUITests (10 scenario's, verplichte namen 10/10) | CI run 41293721810, `macos-26`, commit `8de97a3` | 10 | 0 | 0 |
+| Rooktest simulator (4 scenario's) | idem | ✔ **alleen na herpoging** (zie hieronder) | — | — |
+| Release zonder testmodus (`check-release.sh`) | idem | ✔ Release: 0 markeringen · tegenproef Debug-dylib: 4 | — | — |
+| Unit-tests app (`npm test`) | lokaal Windows, Node 24 | 156 | 0 | 0 |
+| Cloud/Worker-tests | lokaal | 66 | 0 | 0 |
+| Browsertests (Playwright, 3 profielen) | lokaal + CI op PR #9 | 255 | 0 | 51 (bewust per profiel via `test.skip`) |
+
+Eerdere runs (41286432077, 41287820322, 41290961555, 41292351632) faalden op testfouten die zijn hersteld
+(selectors, verwachte teksten) en op de echte app-fout (wit scherm uitleg/Darters).
 
 ## Bekende instabiliteit (niet opgelost)
 - **Rooktest, eerste start na het opstarten van de simulator:** in run 41287820322 (poging 1) startte de app niet op
   de voorgrond en laadde daarna de webview niet; dezelfde commit slaagde bij een herhaling. `tools/ios/smoke.sh`
   probeert een hangende start nu één keer opnieuw en geeft dan een `::warning::`. De oorzaak is onbekend (vermoedelijk
-  een trage simulator); de herpoging maskeert die. RETRYSTATUS
+  een trage simulator); de herpoging maskeert die. **In de laatste groene run (41293721810) slaagde de rooktest alleen dankzij deze herpoging**
+(`::warning::0-nieuw: webview niet geladen bij de eerste start, nieuwe poging`). In run 41290961555 en 41292351632
+was geen herpoging nodig. Vervolg: oorzaak onderzoeken (bijv. simulator vooraf opwarmen of `bootstatus` + wachten op
+SpringBoard) en de herpoging daarna weer verwijderen.
 
 ## Niet automatisch gedekt
 - Een echte update van build 11 naar een nieuwere build (XCUITest kan geen oudere build installeren); getest is

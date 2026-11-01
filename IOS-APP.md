@@ -98,7 +98,8 @@ De oude PWA wordt nooit gewist; wie wil, kan beide blijven gebruiken (gegevens s
 | Unit-tests app (`npm test`) | Linux | ✔ 148/148 |
 | Worker-tests (`cloud`) | Linux | ✔ 61/61 |
 | Browsertests (`npm run test:e2e`, iPhone-/Android-/desktopformaat, incl. nagebootste app) | Linux, Chromium | ✔ 255/255 |
-| Archief + ondertekenen + TestFlight-upload | workflow klaar | ✖ **nog niet gedraaid**: wacht op API-sleutel (secrets) en de app in App Store Connect |
+| Archief + ondertekenen + TestFlight-upload | run 41238145345 (31-10) | ✔ build 11 (1.8.0) in TestFlight, intern |
+| XCUITests (10 scenario's) + Release zonder testmodus | run 41293721810 (1-11) | ✔ 10/10, 0 overgeslagen; rooktest alleen na herpoging |
 | Echte iPhone | — | ✖ niet beschikbaar in deze omgeving: testlijst hieronder |
 
 Schermafbeeldingen en logs van elke simulatorrun: Actions → OKKIE iPhone-app → run → artefact *ios-simulator-rooktest*.
@@ -145,7 +146,8 @@ schermafbeelding per test), logs en de rooktest staan altijd als artefact *ios-s
 - **Bekende instabiliteit rooktest:** de eerste start na het opstarten van de simulator bleef in CI één keer hangen
   (run 41287820322, poging 1: app niet op de voorgrond, daarna webview niet geladen). `smoke.sh` probeert een
   hangende start nu één keer opnieuw en meldt dat als waarschuwing. Dat maskeert de oorzaak (onbekend, vermoedelijk
-  trage simulator) en is dus **niet opgelost**; een tweede mislukte poging laat de build wel falen.
+  trage simulator) en is dus **niet opgelost**; een tweede mislukte poging laat de build wel falen. In de groene run
+  41293721810 (1 november) slaagde de rooktest **alleen dankzij die herpoging**.
 
 ### Met de hand op de iPhone (kort)
 
