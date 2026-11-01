@@ -1,3 +1,5 @@
 # Kopieer naar cloud/.dev.vars voor `npm run dev` (lokaal). Nooit committen.
 # Turnstile-testsleutels van Cloudflare (altijd geslaagd): sitekey 1x00000000000000000000AA
 TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+# Lokaal beheer zonder Cloudflare Access (minimaal 32 tekens):
+ADMIN_TOKEN=vervang-dit-door-een-lange-willekeurige-string-van-minimaal-32-tekens

@@ -3,32 +3,12 @@
 Status: **voorbereid op branch `infra/cloudflare-community`. Niets staat live, DNS is niet gewijzigd.**
 Dit document beschrijft de doelarchitectuur, wat al klaar is, en de exacte stappen (met wie ze kan uitvoeren).
 
-> **Stand 24 oktober 2026 (gecontroleerd met `wrangler versions view` en `wrangler d1 info`, actueler dan de rest):**
->
-> | Omgeving | Worker (live) | D1 (live binding) | Wie roept hem aan |
-> |---|---|---|---|
-> | productie | `okkie-api` (`wrangler deploy --env production`) | `okkie-community` (`6d496b27…`) | app.okkiedarts.nl en de dartlog-app via `community/config.js` `PROD_API` |
-> | staging | `okkie-community-api` → hernoemd naar `okkie-api-staging` in `wrangler.toml` | `okkie-community-staging` (`ddf81dd7…`) | niemand (0 schrijfacties per 24 u) |
->
-> De oude naam `okkie-community-api` was misleidend: het is de **staging**worker en die bindt terecht de staging-D1.
-> De productieworker `okkie-api` bindt de productie-D1. Er staan geen productiegegevens in staging. Uitrollen en migreren
-> alleen via `npm run deploy:staging|deploy:production` en `npm run migrate:staging|migrate:production`;
-> `tests/omgevingen.test.js` bewaakt de scheiding. Overstap naar de nieuwe stagingnaam: zie §8.
->
-> **Stand 11 oktober 2026 (actueler dan de rest van dit document):** de app staat op app.okkiedarts.nl (GitHub Pages,
-> repo `okkie-app`), de website op okkiedarts.nl (GitHub Pages, repo `okkiedarts-site`). De API draait als Worker
-> `okkie-api` op workers.dev (staging: `okkie-community-api`), met D1 `okkie-community` (migraties 0001–0003).
-> De Cloudflare-zone okkiedarts.nl is **niet** actief (nameservers staan bij STRATO, DNSSEC aan); daarom geen
-> api.okkiedarts.nl en geen beheer.okkiedarts.nl. Beheer is dicht (geen Access-secrets). Zie VRIENDEN.md.
-> Sinds 1.7.2 staat het gebruik van de app (anonieme dagteller, `src/usage.js`) ook in de besloten inbox van Hulp & feedback
-> (`/v1/feedback/inbox`, geheime sleutel FEEDBACK_KEY); het Access-dashboard toont hetzelfde zodra Access is ingesteld.
-
 ## 1. Architectuur
 
 ```
 okkiedarts.nl            publieke website (introductie, installatie-uitleg, openbare ranglijst)
 www.okkiedarts.nl        → doorverwijzing naar okkiedarts.nl
-api.okkiedarts.nl        (gepland) Cloudflare Worker "okkie-api" + D1 "okkie-community"   (deze map); nu okkie-api.<subdomein>.workers.dev
+api.okkiedarts.nl        Cloudflare Worker "okkie-community-api" + D1 "okkie-community"   (deze map)
 okkiedarts.nl/beheer     privébeheerdersdashboard, afgeschermd met Cloudflare Access (alleen jouw e-mailadres)
 martijndbesten.github.io/dartlog/            de bestaande OKKIE.-app — BLIJFT HIER
 martijndbesten.github.io/dartlog/community/  profiel koppelen/beheren (moet op dezelfde origin als de app staan)
@@ -51,7 +31,7 @@ Een andere domeinnaam is een andere origin: de data gaat niet mee. Daarom:
 | Worker-API met CORS-allowlist, Turnstile, beveiligingsheaders, JSON-/groottecontrole | `src/worker.js` | klaar, getest |
 | Rate limiting (per IP bij registratie/herstel, per account bij wijzigingen) | `src/worker.js`, `wrangler.toml` | klaar; werkt zodra de bindings bestaan, anders stilletjes uit |
 | Beheer-API (`/v1/admin/*`): overzicht, ledenlijst, verbergen, verwijderen, logboek | `src/worker.js` | basis klaar voor het dashboard; nooit hashes/tokens naar buiten |
-| Beheerauthenticatie: uitsluitend Cloudflare Access-JWT op beheer.okkiedarts.nl (e-mail-allowlist, geen tokenroute) | `src/admin-auth.js` | klaar, getest met echte RS256-handtekeningen |
+| Beheerauthenticatie: Cloudflare Access-JWT (productie) of `ADMIN_TOKEN` (lokaal) | `src/worker.js` | klaar, getest met echte RS256-handtekeningen |
 | Dagelijkse opschoning (bewaartermijnen) | `src/worker.js` (`scheduled`), `wrangler.toml` (`crons`) | klaar, getest |
 | D1-schema + migratie 0002 (logboek, indexen) | `migrations/` | klaar |
 | Omgevingen staging (workers.dev) en production (api.okkiedarts.nl) | `wrangler.toml` | klaar; database-ID's nog invullen |
@@ -89,7 +69,7 @@ Legenda: 🟢 kan Claude zelfstandig · 🟡 Claude kan het uitvoeren zodra jij 
 11. 🟡 Uit de Access-applicatie: **AUD-tag** en **team domain** (`<naam>.cloudflareaccess.com`) → `ACCESS_AUD` en `ACCESS_TEAM_DOMAIN`
     in `wrangler.toml` (productie) → opnieuw deployen. Vanaf dan controleert de API het Access-JWT zelf (dubbele beveiliging).
 12. 🟢 Het dashboard zelf (door ChatGPT in ontwikkeling) praat met `/v1/admin/overview`, `/v1/admin/members`,
-    `PATCH/DELETE /v1/admin/members/:handle` en `/v1/admin/audit`. Lokaal is beheer dicht; de tests ondertekenen eigen Access-JWT's.
+    `PATCH/DELETE /v1/admin/members/:handle` en `/v1/admin/audit`. Lokaal testen kan met `ADMIN_TOKEN` in `.dev.vars`.
 
 ### D. Publieke website op okkiedarts.nl
 13. 🟡 Aanbevolen: Cloudflare Pages-project gekoppeld aan deze repository (branch `main`, build-output = map met de statische site),
@@ -154,42 +134,3 @@ npm run migrate:local && npm run dev           # lokale API met lokale D1 op htt
 ```
 
 Zet voor een lokale test van de pagina's `API_BASE = 'http://localhost:8787'` in `community/config.js` (niet committen).
-
-## 8. Staging hernoemen, back-up en opruimen (voorbereid 24-10-2026, NIET uitgevoerd)
-
-Niets hiervan raakt de app of de productie-D1, behalve stap 1 (alleen lezen). Uitvoeren pas na akkoord van Martijn.
-
-1. **Back-up productie vóór elke wijziging** (B82-recept; bestand buiten Git, bevat persoonsgegevens):
-   `npx wrangler d1 export okkie-community --remote --env production --output ../../okkie-backups/okkie-community-$(date +%F).sql`
-   Daarnaast blijft D1 Time Travel beschikbaar (`npx wrangler d1 time-travel info okkie-community`).
-   Duur: seconden (±213 kB); tijdens de export kan de database heel kort trager reageren.
-2. **Nieuwe stagingworker uitrollen:** `npm run deploy:staging` → maakt Worker `okkie-api-staging` met dezelfde staging-D1.
-   Downtime: geen (niemand gebruikt staging). Verifiëren:
-   `curl https://okkie-api-staging.<subdomein>.workers.dev/v1/health` → `"registration":false,"groups":false` en
-   `npx wrangler versions view <versie> --name okkie-api-staging` → `env.DB (ddf81dd7…)`.
-3. **Oude stagingworker verwijderen** (akkoord nodig): `npx wrangler delete --name okkie-community-api`.
-   Tot dan draait de opschoon-cron 2× op de staging-D1; dat is onschadelijk.
-   Rollback: `git revert` van de hernoeming en `npm run deploy:staging` (maakt `okkie-community-api` opnieuw).
-4. **Productie blijft ongemoeid:** geen nieuwe D1, geen bindingwijziging, geen migratie nodig. Controle achteraf:
-   `npx wrangler versions view <actieve versie> --name okkie-api` → `env.DB (6d496b27…)`.
-
-**Voorstel (geen actie):** het workers.dev-accountsubdomein staat hard in `community/config.js`. Een eigen adres
-(`api.okkiedarts.nl`) maakt de app onafhankelijk van account en subdomein, maar vraagt de zone okkiedarts.nl in
-Cloudflare (nameservers van STRATO naar Cloudflare, eerst DNSSEC uit volgens B98) en een app-release met een nieuwe
-`PROD_API`; het oude adres moet daarna een overgangsperiode blijven werken voor geïnstalleerde PWA's.
-De Worker `okkiedarts-site` (oude, indexeerbare websitekopie van 10-10 op workers.dev) hoort niet meer bij de
-architectuur (de website staat op GitHub Pages): verwijderen met `npx wrangler delete --name okkiedarts-site`
-(akkoord nodig; herstel = `npx wrangler deploy -c site/wrangler.toml` na `npm run build:site`).
-
-## 9. Melding uit Darters afhandelen (sinds 1.8.0, ook nodig voor de App Store)
-
-In Darters kan iedereen bij een profiel *Meld dit profiel* kiezen: dat opent een e-mail aan info@denckh.nl met de
-profielcode (12 tekens). Afhandelen, liefst binnen een paar dagen:
-
-1. Bekijk het profiel: `https://okkie-api.zaalverhuur-sion.workers.dev/v1/players/<profielcode>`.
-2. Ongepast? Verwijderen via de beheer-API (`DELETE /v1/admin/members/<profielcode>`, achter Cloudflare Access) of,
-   als het dashboard er nog niet is: `npx wrangler d1 execute okkie-community --remote --env production --command
-   "DELETE FROM members WHERE handle = '<profielcode>'"` (gedeelde cijfers verdwijnen mee via de cascade; controleer
-   dat met `SELECT` vóór en na).
-3. Mail de melder kort terug en verwijder de melding uiterlijk na 180 dagen (privacyverklaring §6, *Melden en verbergen*).
-
