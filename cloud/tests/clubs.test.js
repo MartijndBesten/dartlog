@@ -56,8 +56,10 @@ async function twoClubs(env = env0()) {
   const both = await joiner(env, 'Dubbel', a.club.inviteCode, a, a.club.id);
   await ok(await call(env, '/v1/clubs/join', { method: 'POST', token: both.token, body: { code: b.club.inviteCode, consent: true } }), 201);
   await ok(await call(env, `/v1/clubs/${b.club.id}/requests/${both.account.handle}`, { method: 'POST', token: b.token, body: { approve: true } }));
+  // Zonder vaste testtijd (echte klok) kan de week net gesloten zijn (zondag na 22:00): dan de oefening voor volgende week.
+  const real = !env.CLUB_TEST_NOW, closed = real && !weekOpen(clubWeek(new Date()), new Date());
   for (const [admin, kind] of [[a, 'score30'], [b, 'score30']])
-    await ok(await call(env, `/v1/clubs/${admin.club.id}/challenge`, { method: 'PUT', token: admin.token, body: { kind } }));
+    await ok(await call(env, `/v1/clubs/${admin.club.id}/challenge`, { method: 'PUT', token: admin.token, body: { kind, ...(closed ? { week: 'next' } : {}) } }));
   return { env, a, b, a1, a2, b1, both };
 }
 
@@ -411,4 +413,64 @@ test('tijd: clubweek en sluiting volgen Amsterdam, ook rond de wisseling naar wi
   assert.deepEqual(amsterdam(new Date('2026-11-08T21:00:00Z')), { date: '2026-11-08', weekday: 7, hour: 22, minute: 0 });
   assert.equal(normalizeCode(' abcd-efgh '), 'ABCDEFGH');
   for (let i = 0; i < 50; i++) assert.match(newInviteCode(), /^[A-HJKMNP-Z2-9]{8}$/);
+});
+
+// ---------- 1.10.0: Bob's 27 en 121 Checkout als weekoefening, clubrecord per oefening ----------
+test("weekoefening Bob's 27 en 121: beheerder kiest, resultaat uit de training, hoger is beter, clubrecord per oefening", async () => {
+  const { env, a, b, a1, a2, b1, both } = await twoClubs();
+  const A = a.club.id, B = b.club.id;
+  const bobs = (id, pts) => ({ trainingId: id, kind: 'bobs27', darts: 63, points: pts });
+  const c121 = (id, level, darts = 30) => ({ trainingId: id, kind: 'c121', darts, points: level });
+  // Alleen de beheerder kiest; deze week staat al score30 zonder resultaten, dus wijzigen mag.
+  assert.equal(await status(await call(env, `/v1/clubs/${A}/challenge`, { method: 'PUT', token: a1.token, body: { kind: 'bobs27' } })), 403);
+  await ok(await call(env, `/v1/clubs/${A}/challenge`, { method: 'PUT', token: a.token, body: { kind: 'bobs27' } }));
+  await ok(await call(env, `/v1/clubs/${B}/challenge`, { method: 'PUT', token: b.token, body: { kind: 'bobs27' } }));
+  assert.equal(await status(await call(env, `/v1/clubs/${A}/challenge`, { method: 'PUT', token: a.token, body: { kind: 'cricket' } })), 400);
+  // Alleen de eindscore: 63 pijlen, 0-1437, geen hoogste beurt; extra velden (zoals losse pijlen) worden niet bewaard.
+  await ok(await share(env, a1, A, { ...bobs('d1', 412), turns: [{ target: 'D1', hits: 3 }] }), 201);
+  await ok(await share(env, a2, A, bobs('d2', 300), { feed: false }), 201);
+  const r = await ok(await share(env, a1, A, bobs('d3', 250)), 201);
+  assert.equal(r.challenge.best, false, 'lagere score telt niet: hoger is beter');
+  for (const bad of [bobs('x1', 1438), { ...bobs('x2', 300), darts: 60 }, { ...bobs('x3', 300), high: 100 }]) assert.equal(await status(await share(env, a1, A, bad)), 400);
+  assert.equal(await status(await share(env, a1, A, c121('x4', 124))), 409, 'andere oefening dan deze week');
+  // Club B: hogere score van een lid dat alleen in B zit, en van het lid dat in beide clubs zit.
+  await ok(await share(env, b1, B, bobs('e1', 900)), 201);
+  await ok(await share(env, both, B, bobs('e2', 800)), 201);
+  let view = await ok(await call(env, `/v1/clubs/${A}/challenge`, { token: a2.token }));
+  assert.deepEqual(view.ranking.map(x => [x.nickname, x.points, x.average]), [['Alex', 412, null], ['Amira', 300, null]]);
+  assert.deepEqual(view.record, { value: 412, nickname: 'Alex', week: view.week }, 'clubrecord van club A, niet de 900 uit club B');
+  const feed = await ok(await call(env, `/v1/clubs/${A}/feed`, { token: a1.token }));
+  assert.ok(!JSON.stringify(feed).includes('turns'), 'geen losse pijlen in de feed');
+  const row = env.DB.raw.prepare("SELECT * FROM club_results WHERE training_id = 'd1'").get();
+  assert.deepEqual(Object.keys(row).sort(), ['challenge_id', 'club_id', 'darts', 'high', 'member_id', 'points', 'submitted_at', 'training_id', 'value']);
+  // Volgende week 121 Checkout; het record van Bob's 27 blijft per soort apart.
+  await ok(await call(env, `/v1/clubs/${A}/challenge`, { method: 'PUT', token: a.token, body: { kind: 'c121', week: 'next' } }));
+  const next = at(env, '2026-11-10T19:00:00Z');
+  assert.equal(await status(await share(next, a1, A, c121('f0', 120))), 400, 'niveau onder 121 kan niet');
+  assert.equal(await status(await share(next, a1, A, c121('f9', 131))), 400, 'boven 130 kan niet in 10 doelen');
+  assert.equal(await status(await share(next, a1, A, c121('f8', 125, 91))), 400, 'meer dan 90 pijlen kan niet');
+  await ok(await share(next, a1, A, c121('f1', 123)), 201);
+  await ok(await share(next, a2, A, c121('f2', 126)), 201);
+  view = await ok(await call(next, `/v1/clubs/${A}/challenge`, { token: a1.token }));
+  assert.deepEqual(view.ranking.map(x => [x.nickname, x.points]), [['Amira', 126], ['Alex', 123]]);
+  assert.equal(view.record.value, 126);
+  assert.equal(view.challenge.kind, 'c121');
+  const prev = await ok(await call(next, `/v1/clubs/${A}/challenge?week=previous`, { token: a1.token }));
+  assert.equal(prev.record.value, 412, "clubrecord Bob's 27 blijft");
+  // Wie de club verlaat, telt niet meer mee voor het clubrecord.
+  await ok(await call(next, `/v1/clubs/${A}/me`, { method: 'DELETE', token: a2.token }));
+  view = await ok(await call(next, `/v1/clubs/${A}/challenge`, { token: a1.token }));
+  assert.equal(view.record.value, 123);
+  // Niet-lid ziet niets.
+  assert.equal(await status(await call(next, `/v1/clubs/${A}/challenge`, { token: b1.token })), 404);
+});
+
+test('trainingOkay: grenzen voor bobs27 en c121', () => {
+  assert.equal(trainingOkay({ trainingId: 'a', kind: 'bobs27', darts: 63, points: 0 }), true);
+  assert.equal(trainingOkay({ trainingId: 'a', kind: 'bobs27', darts: 63, points: 1437 }), true);
+  assert.equal(trainingOkay({ trainingId: 'a', kind: 'bobs27', darts: 63, points: 1438 }), false);
+  assert.equal(trainingOkay({ trainingId: 'a', kind: 'bobs27', darts: 30, points: 100 }), false, 'alleen volledig gespeeld');
+  assert.equal(trainingOkay({ trainingId: 'a', kind: 'c121', darts: 3, points: 121 }), true);
+  assert.equal(trainingOkay({ trainingId: 'a', kind: 'c121', darts: 90, points: 130 }), true);
+  assert.equal(trainingOkay({ trainingId: 'a', kind: 'c121', darts: 0, points: 121 }), false);
 });

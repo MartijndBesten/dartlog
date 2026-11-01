@@ -144,3 +144,18 @@ een niet-openbaar profiel.
     `okkie-backups/okkie-community-2026-11-01-voor-club.sql`;
   - webapp: tag `live-1.8.0` in okkie-app (revert van `a97eb29`);
   - website: tags `live-voor-club-privacy` en `live-voor-club-live` in okkiedarts-site.
+
+## 1.10.0: Bob's 27 en 121 Checkout als weekoefening (staging; productie wacht op akkoord)
+- **Soorten:** `CHALLENGE_KINDS` kent nu ook `bobs27` (altijd 63 pijlen, punten = eindscore 0-1437, geen hoogste beurt) en
+  `c121` (1-90 pijlen, punten = hoogste uitgegooide doel 121-130). Hoger is beter; geen gemiddelde. De app stuurt alleen
+  die eindscore (`js/club-share.js` → `clubDrill`); rondes, pijlen en doelen blijven op de telefoon.
+- **Clubrecord:** `GET /v1/clubs/:id/challenge` (en de clubweergave) geeft `record: { value, nickname, week }`: het beste
+  weekresultaat ooit bij die soort, alleen van actieve leden van deze club. Wie vertrekt, telt niet meer mee.
+- **Migratie 0011** (`migrations/0011_club_oefeningen.sql`): `club_challenges`, `club_results` en `club_feed` opnieuw
+  opgebouwd met de nieuwe soorten in de CHECK. Volgorde: kopiëren → eerst kindtabel weg → oudertabel weg → hernoemen,
+  zodat geen ON DELETE CASCADE afgaat. Getest met gegevens in `tests/migratie-0011.test.js`; op staging uitgevoerd
+  (verwijzing `club_results.challenge_id → club_challenges` gecontroleerd).
+- **Week:** ongewijzigd maandag 00:00 t/m zondag 22:00 (Europe/Amsterdam).
+- **Productie (na akkoord):** back-up (`wrangler d1 export … --env production`) + Time Travel-bookmark, `npm run
+  migrate:production`, `npm run deploy:production`, versie en terugzetversie noteren. Terug: `wrangler rollback <vorige>
+  --env production`; de nieuwe tabellen zijn een superset, de oude Worker werkt erop door.

@@ -28,8 +28,15 @@ export const CLUB_LIMITS = {
 };
 export const clubsOpen = env => env.CLUBS_ENABLED === 'true';
 export const CLUB_ADULTS_ONLY = 'OKKIE. Club is voorlopig alleen voor spelers van 16 jaar en ouder.';
-export const CHALLENGE_KINDS = { score30: 30, score60: 60, score99: 99, clock: null };
-const FEED_KINDS = ['score30', 'score60', 'score99', 'free', 'clock'];
+// Weekoefeningen. Waarde = vast aantal pijlen (of null). Sinds 1.10.0 ook de gerichte oefeningen (migratie 0011):
+// bobs27 = Bob's 27 (altijd 63 pijlen, punten = eindscore 0-1437); c121 = 121 Checkout (punten = hoogste uitgegooide
+// doel, 121-130). Alleen die eindscore komt naar de server, nooit losse pijlen.
+export const CHALLENGE_KINDS = { score30: 30, score60: 60, score99: 99, clock: null, bobs27: 63, c121: null };
+const FEED_KINDS = ['score30', 'score60', 'score99', 'free', 'clock', 'bobs27', 'c121'];
+export const BOBS_MAX = 1437;
+export const C121_RANGE = [121, 130];
+const LOWER_IS_BETTER = new Set(['clock']);
+const NO_AVERAGE = new Set(['clock', 'bobs27', 'c121']);
 const ID = /^[a-f0-9]{32}$/;
 const HANDLE = /^[a-z0-9]{12}$/;
 const TRAINING_ID = /^[A-Za-z0-9_-]{1,64}$/;
@@ -74,13 +81,15 @@ export function trainingOkay(t, kinds = FEED_KINDS) {
   if (typeof t.trainingId !== 'string' || !TRAINING_ID.test(t.trainingId) || !kinds.includes(t.kind)) return false;
   if (![t.darts, t.points].every(v => Number.isSafeInteger(v) && v >= 0)) return false;
   if (t.high !== undefined && t.high !== null && !(Number.isSafeInteger(t.high) && t.high >= 0 && t.high <= 180)) return false;
+  if (t.kind === 'bobs27') return t.darts === 63 && t.points <= BOBS_MAX && (t.high === undefined || t.high === null);
+  if (t.kind === 'c121') return t.darts >= 1 && t.darts <= 90 && t.points >= C121_RANGE[0] && t.points <= C121_RANGE[1] && (t.high === undefined || t.high === null);
   const fixed = CHALLENGE_KINDS[t.kind];
   if (fixed) return t.darts === fixed && t.points <= fixed * 60;
   if (t.kind === 'clock') return t.darts >= 21 && t.darts <= 999 && t.points === 0;
   return t.darts >= 3 && t.darts <= 3000 && t.darts % 3 === 0 && t.points <= t.darts * 60;   // vrij trainen
 }
 const resultValue = t => t.kind === 'clock' ? t.darts : t.points;
-const better = (kind, a, b) => kind === 'clock' ? a < b : a > b;
+const better = (kind, a, b) => LOWER_IS_BETTER.has(kind) ? a < b : a > b;
 
 // ---------- Lidmaatschap ----------
 async function activeMembership(env, clubId, memberId) {
@@ -161,7 +170,7 @@ async function challengeOf(env, clubId, week) {
   return env.DB.prepare('SELECT id, week, kind FROM club_challenges WHERE club_id = ? AND week = ?').bind(clubId, week).first();
 }
 async function challengeRanking(env, clubId, challenge, viewerId) {
-  const asc = challenge.kind === 'clock';
+  const asc = LOWER_IS_BETTER.has(challenge.kind);
   const rows = await env.DB.prepare(
     "SELECT m.id, m.handle, m.nickname, r.darts, r.points, r.high, r.value, r.submitted_at AS submittedAt FROM club_results r " +
     "JOIN club_members cm ON cm.club_id = r.club_id AND cm.member_id = r.member_id AND cm.status = 'active' " +
@@ -169,13 +178,24 @@ async function challengeRanking(env, clubId, challenge, viewerId) {
     `ORDER BY r.value ${asc ? 'ASC' : 'DESC'}, r.submitted_at ASC, m.handle ASC`
   ).bind(clubId, challenge.id).all();
   return (rows.results || []).map((r, i) => ({ rank: i + 1, handle: r.handle, nickname: r.nickname, you: r.id === viewerId, darts: r.darts, points: r.points,
-    high: r.high, value: r.value, average: challenge.kind === 'clock' ? null : Math.round(r.points / r.darts * 300) / 100 }));
+    high: r.high, value: r.value, average: NO_AVERAGE.has(challenge.kind) ? null : Math.round(r.points / r.darts * 300) / 100 }));
+}
+// Clubrecord per oefening: het beste weekresultaat ooit van een actief lid in deze club, bij deze soort weekoefening.
+async function clubRecord(env, clubId, kind) {
+  const asc = LOWER_IS_BETTER.has(kind);
+  const r = await env.DB.prepare(
+    "SELECT r.value, m.nickname, c.week FROM club_results r JOIN club_challenges c ON c.id = r.challenge_id " +
+    "JOIN club_members cm ON cm.club_id = r.club_id AND cm.member_id = r.member_id AND cm.status = 'active' " +
+    "JOIN members m ON m.id = r.member_id WHERE r.club_id = ? AND c.club_id = ? AND c.kind = ? " +
+    `ORDER BY r.value ${asc ? 'ASC' : 'DESC'}, r.submitted_at ASC LIMIT 1`
+  ).bind(clubId, clubId, kind).first();
+  return r ? { value: r.value, nickname: r.nickname, week: r.week } : null;
 }
 async function challengeView(env, clubId, week, viewerId, now) {
   const c = await challengeOf(env, clubId, week);
   if (!c) return { week, challenge: null };
   return { week, challenge: { kind: c.kind, darts: CHALLENGE_KINDS[c.kind], open: weekOpen(week, now), closesAt: closesAt(week) },
-    ranking: await challengeRanking(env, clubId, c, viewerId) };
+    ranking: await challengeRanking(env, clubId, c, viewerId), record: await clubRecord(env, clubId, c.kind) };
 }
 
 // ---------- Routes: /v1/clubs* ----------
@@ -410,7 +430,7 @@ export async function handleClubs(request, env, path, h, cors) {
   if (rest === '/challenge' && method === 'PUT') {
     if (!isAdmin) return forbidden();
     const body = await h.bodyJson(request);
-    if (!(body.kind in CHALLENGE_KINDS)) return h.fail('Kies een weekoefening: scoretraining 30, 60 of 99 pijlen of rond de klok.', 400, cors);
+    if (!Object.hasOwn(CHALLENGE_KINDS, body.kind)) return h.fail("Kies een weekoefening: scoretraining 30, 60 of 99 pijlen, rond de klok, Bob's 27 of 121 Checkout.", 400, cors);
     const week = body.week === 'next' ? clubWeek(now, 1) : clubWeek(now);
     if (week === clubWeek(now) && !weekOpen(week, now)) return h.fail('Deze week is al gesloten. Kies de oefening voor volgende week.', 409, cors);
     const existing = await challengeOf(env, clubId, week);
