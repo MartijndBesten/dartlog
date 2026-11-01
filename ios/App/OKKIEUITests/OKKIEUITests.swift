@@ -222,9 +222,14 @@ final class OKKIEUITests: XCTestCase {
         expectVisible("Beurt 2 van 10", in: app)
         closeApp(app)
 
+        // De app opent de lopende training direct weer (gezien in CI); via het startscherm (Bezig → Verder) mag ook.
         let again = launch(keepData: true)
-        expectVisible("Bezig", in: again)
-        tap("Verder", in: again, exact: true)
+        let resume = element("Verder", in: again, exact: true)
+        let playing = again.webViews.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Beurt 2 van 10'")).firstMatch
+        let deadline = Date().addingTimeInterval(wait)
+        while Date() < deadline && !playing.exists && !resume.exists { usleep(250_000) }
+        XCTAssertTrue(playing.exists || resume.exists, "lopende training na heropenen")
+        if !playing.exists && resume.exists { resume.tap() }
         expectVisible("Beurt 2 van 10", in: again)
         expectVisible("3/30", in: again)
         dart("T20", in: again)
