@@ -232,8 +232,10 @@ final class OKKIEUITests: XCTestCase {
         if !playing.exists && resume.exists { resume.tap() }
         expectVisible("Beurt 2 van 10", in: again)
         expectVisible("3/30", in: again)
-        dart("T20", in: again)
-        expectVisible("120", in: again)          // 60 + 60
+        // Het totaal telt hele beurten: beurt 2 afmaken (60 + 20 + 20) → 60 + 100 = 160, daarna beurt 3.
+        for c in ["T20", "S20", "S20"] { dart(c, in: again) }
+        expectVisible("Beurt 3 van 10", in: again)
+        expectVisible("160", in: again)
     }
 
     /// Training annuleren zonder op te slaan: niets erbij in de statistieken.
