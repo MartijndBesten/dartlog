@@ -132,7 +132,7 @@ test('homepage en uitleg werken zonder JavaScript', async ({ browser }, info) =>
   await expect(page.locator('.contact-mail')).toHaveAttribute('href', 'mailto:info@denckh.nl');
   await expect(page.locator('[data-copy]')).toBeHidden();
   await page.goto(SITE + '/privacy/');
-  await expect(page.locator('main h2')).toHaveCount(11); // 'In het kort' + punt 1 t/m 10
+  await expect(page.locator('main h2')).toHaveCount(12); // 'In het kort' + punt 1 t/m 10 + 6a (OKKIE. Club)
   await context.close();
 });
 
@@ -140,7 +140,7 @@ test('alle links op website en uitleg wijzen naar de juiste omgeving', async ({ 
   test.skip(info.project.name !== 'desktop', 'links zijn per toestel gelijk');
   // Cookieloze bezoekersteller (1.7.x, PR #4/#5): alleen op de website, zie tools/build-public-site.mjs en privacytekst.
   const COUNTER = 'https://dashboard.denckh.nl/s.js';
-  const allowedExternal = [APP, APP + 'community/', 'https://denckh.nl/', 'https://autoriteitpersoonsgegevens.nl/', 'https://dartswdf.com/rules', 'https://www.thedra.co.uk/dra-rulebook', COUNTER];
+  const allowedExternal = [APP, APP + 'community/', APP + 'club/', 'https://denckh.nl/', 'https://autoriteitpersoonsgegevens.nl/', 'https://dartswdf.com/rules', 'https://www.thedra.co.uk/dra-rulebook', COUNTER];
   for (const path of ['/', '/uitleg/', '/privacy/', '/contact/', '/dartregels/']) {
     await page.goto(SITE + path);
     const hrefs = await page.locator('a[href], link[href], script[src]').evaluateAll(els =>
