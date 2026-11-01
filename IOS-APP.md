@@ -263,3 +263,23 @@ Indienen voor review en publiceren doet de eigenaar zelf in App Store Connect; d
 
 Een nieuwe build maken kan via Actions → OKKIE iPhone-app → Run workflow → `main` → vinkje TestFlight; dat is een
 upload en gebeurt alleen op verzoek. Geen externe testers en geen App Store-review zonder akkoord.
+
+## Fout in de UI-testmodus (gevonden en opgelost op 1 november 2026)
+
+- **Wat er mis was:** de netwerkblokkade, de offline-stand en de JS-foutmelder van de UI-testmodus zijn **nooit
+  actief geweest**. Capacitor vervangt na `webViewConfiguration(for:)` de `userContentController`
+  (`CAPBridgeViewController.prepareWebView`); het daar toegevoegde script ging daardoor verloren.
+- **Gevolg:**
+  - alle UI-testruns sinds de invoering bereikten de productie-API;
+  - tot de Worker-deploy van 1 november (`capacitor://localhost` toegestaan) weigerde de API de app via CORS: er
+    kwam alleen leesverkeer aan, en schrijfverzoeken werden al bij de preflight geweigerd;
+  - na de deploy hebben de UI-testruns 24 en 25 dagtellerseintjes in productie geteld: op 1 november staan bij
+    versie 1.8.0 30 keer geopend en 30 nieuwe toestellen, het grootste deel uit de simulator;
+  - niet gecorrigeerd: dat wacht op een besluit van Martijn.
+- **Hersteld:**
+  - het script wordt nu toegevoegd in `webView(with:configuration:)`;
+  - het zet een onzichtbaar tekstelement `okkie-uitest-actief`, en elke test faalt zonder dat element;
+  - test10 faalt als Darters echte gegevens toont;
+  - `check-release.sh` controleert ook op het nieuwe kenmerk.
+- **Bewijs:** run 41323444069 had 10/10 tests geslaagd, met de testmodus per test aangetoond. De dagteller liep
+  tijdens die run niet op met testtoestellen (+3 in een uur, passend bij echte gebruikers van de 1.8.0-webversie).

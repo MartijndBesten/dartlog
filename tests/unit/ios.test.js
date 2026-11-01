@@ -164,3 +164,14 @@ test('App Store-screenshots: demogegevens in de simulator gelijk aan de generato
   for (const n of ['1-home', '2-training', '3-uitslag', '4-statistieken', '5-trefferkaart', '6-wedstrijd-501']) assert.ok(swift.includes(`shot("${n}")`), n);
   assert.doesNotMatch(read('ios/App/OKKIEUITests/OKKIEUITests.swift'), /AppStoreScreenshots/);
 });
+
+test('UI-testmodus wordt geladen waar Capacitor hem niet weggooit, en elke test bewijst dat hij actief is', () => {
+  const scene = lf(readFileSync(new URL('../../ios/App/App/SceneDelegate.swift', import.meta.url), 'utf8'));
+  // Capacitor vervangt na webViewConfiguration(for:) de userContentController; daar toegevoegde scripts gaan verloren.
+  assert.match(scene, /override func webView\(with frame: CGRect, configuration: WKWebViewConfiguration\) -> WKWebView \{\n\s+#if DEBUG\n\s+UITestMode\.install\(into: configuration\)/);
+  assert.doesNotMatch(scene, /func webViewConfiguration\(for[^}]*UITestMode\.install/s);
+  assert.match(scene, /aria-label', 'okkie-uitest-actief'/);
+  const tests = lf(readFileSync(new URL('../../ios/App/OKKIEUITests/OKKIEUITests.swift', import.meta.url), 'utf8'));
+  assert.match(tests, /app\.launch\(\)\n\s+self\.app = app\n\s+assertTestModeActive\(app\)/);
+  assert.match(lf(readFileSync(new URL('../../tools/ios/check-release.sh', import.meta.url), 'utf8')), /okkie-uitest-actief/);
+});
