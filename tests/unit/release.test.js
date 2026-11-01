@@ -15,13 +15,16 @@ const APP = 'https://app.okkiedarts.nl/';
 const EXTERNAL = [APP, APP + 'community/', 'https://denckh.nl/', 'https://okkiedarts.nl/privacy/', 'https://okkiedarts.nl/contact/',
   // canonieke adressen van de pagina's zelf
   'https://okkiedarts.nl/', 'https://okkiedarts.nl/uitleg/', 'https://okkiedarts.nl/dartregels/',
+  // OKKIE. Club voor verenigingen: canoniek adres en aanmelden als proefclub per mail (geen formulier)
+  'https://okkiedarts.nl/club/', 'mailto:info@denckh.nl?subject=Proefclub%20OKKIE.%20Club',
+  'mailto:info@denckh.nl?subject=Proefclub%20OKKIE.%20Club&amp;body=Onze%20vereniging%20wil%20graag%20proefclub%20worden.%0A%0ANaam%20vereniging%3A%0AAantal%20leden%20(ongeveer)%3A%0AContactpersoon%3A%0A',
   // bronnen van de dartregels (js/rules.js)
   'https://dartswdf.com/rules', 'https://www.thedra.co.uk/dra-rulebook',
   'https://autoriteitpersoonsgegevens.nl/', 'mailto:info@denckh.nl', 'mailto:info@denckh.nl?subject=OKKIE.',
   // cookieloze bezoekersteller van Denckh (alleen op de website, nooit in de app)
   'https://dashboard.denckh.nl/s.js'];
 const COUNTER = '<script defer src="https://dashboard.denckh.nl/s.js" data-brand="okkie"></script>';
-const PAGES = ['index.html', 'uitleg/index.html', 'privacy/index.html', 'contact/index.html', 'dartregels/index.html'];
+const PAGES = ['index.html', 'uitleg/index.html', 'privacy/index.html', 'contact/index.html', 'dartregels/index.html', 'club/index.html'];
 
 test('versie is overal gelijk: sw.js, app en package.json', () => {
   const pkg = JSON.parse(read('package.json')).version;
@@ -325,4 +328,15 @@ test('bezoekersteller: precies één keer op elke websitepagina, nooit in de app
   assert.match(privacy, /zonder cookies en zonder persoonsgegevens geteld/);
   assert.match(privacy, /De app wordt hiermee niet gevolgd/);
   assert.doesNotMatch(privacy, /geen analyse- of advertentiediensten en geen lettertypen of scripts van derden/);
+});
+
+test('okkiedarts.nl/club: OKKIE. Club voor verenigingen, duidelijk binnenkort, aanmelden alleen per mail, fictieve schermafbeeldingen', () => {
+  execFileSync(process.execPath, [join(root, 'tools/build-public-site.mjs')], { cwd: root, stdio: 'pipe' });
+  const html = readFileSync(join(root, 'dist/club/index.html'), 'utf8');
+  for (const t of ['OKKIE. Club voor dartverenigingen', 'BINNENKORT', 'proefclub', 'Weekoefening', 'clubranglijst', 'Eigen clubnaam en logo', 'Eigen trainingen maken', 'Beheerder', 'Captain', 'Lid', 'fictieve gegevens']) assert.ok(html.includes(t), t);
+  assert.match(html, /href="mailto:info@denckh\.nl\?subject=Proefclub/);
+  assert.doesNotMatch(html, /<form|<input|fetch\(|action=/i, 'geen formulier: aanmelden per mail');
+  for (const img of ['club-weekoefening.webp', 'club-trainingen.webp', 'club-profiel.webp']) assert.ok(existsSync(join(root, 'dist/club', img)), img);
+  assert.match(readFileSync(join(root, 'dist/index.html'), 'utf8'), /href="\/club\/"/, 'beginpagina linkt naar de clubpagina');
+  assert.match(readFileSync(join(root, 'dist/sitemap.xml'), 'utf8'), /okkiedarts\.nl\/club\//);
 });
