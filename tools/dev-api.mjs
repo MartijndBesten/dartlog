@@ -8,6 +8,8 @@ import { createD1 } from '../cloud/tests/d1-shim.js';
 const port = Number(process.argv[2] || 8799);
 // Eén eenmalige oprichterscode per test en per toestel (de echte server staat ook meerdere codes toe).
 export const TEST_FOUNDER_CODES = ['iphone', 'android', 'desktop'].flatMap(d => ['groep', 'kind', 'offline', 'toets', 'extra'].map(t => `okkie-test-${d}-${t}-2026`));
+// OKKIE. Club: één eenmalige proefclubcode per toestel en per test.
+export const TEST_CLUB_PILOT_CODES = ['iphone', 'android', 'desktop'].flatMap(d => ['club', 'extra'].map(t => `okkie-proefclub-${d}-${t}-2026`));
 const env = {
   DB: createD1(),
   ALLOWED_ORIGINS: 'http://localhost:4173,http://127.0.0.1:4173',
@@ -17,6 +19,8 @@ const env = {
   MINORS_OPEN: 'true',   // alleen lokaal; in productie staat dit uit (VRIENDEN.md §4)
   GROUP_FOUNDER_CODE: TEST_FOUNDER_CODES.join(','),
   FEEDBACK_KEY: 'okkie-lokale-test-inbox-sleutel-0000000000',   // alleen lokaal; productie: wrangler secret
+  CLUBS_ENABLED: 'true',   // OKKIE. Club: alleen lokaal en op staging (cloud/CLUB.md)
+  CLUB_PILOT_CODES: TEST_CLUB_PILOT_CODES.join(','),
 };
 
 createServer(async (req, res) => {

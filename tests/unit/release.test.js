@@ -271,7 +271,7 @@ test('gratis en reclamevrij: de website zegt het, en in de app en op de site is 
   assert.ok(!existsSync(join(dist, 'steun')), 'geen steun- of betaalpagina');
   for (const page of PAGES) assert.doesNotMatch(readFileSync(join(dist, page), 'utf8'), /steun okkie|mollie|betaallink|payment-links/i, page + ': geen steun of betalen');
   assert.match(read('js/app.js'), /geen reclame en geen aankopen in de app/);
-  for (const f of readdirSync(join(root, 'js'))) assert.doesNotMatch(read('js/' + f), /mollie|PaymentRequest|in-app-?purchase|steun okkie/i, 'js/' + f + ': geen betalen of steun in de app');
+  for (const f of readdirSync(join(root, 'js'), { recursive: true }).map(String).filter(f => /\.m?js$/.test(f))) assert.doesNotMatch(read('js/' + f.replaceAll('\\', '/')), /mollie|PaymentRequest|in-app-?purchase|steun okkie/i, 'js/' + f + ': geen betalen of steun in de app');
 });
 
 test('dartregels op de website: letterlijk dezelfde tekst en tekening als in de app, overal gelinkt', () => {

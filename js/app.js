@@ -3,6 +3,7 @@ import * as L from './logic.js';
 import * as S from './store.js';
 import { queueCommunitySync, resumePendingSync, getAccount, apiAvailable, request, dropAccount } from './community-sync.js';
 import * as G from './guest-sync.js';
+import { CLUB_OPEN } from '../community/config.js';
 import * as Backup from './backup-alert.js';
 import { boardSVG, heatLegend } from './board.js';
 import { lineChart, bindChart } from './chart.js';
@@ -1134,6 +1135,7 @@ VIEWS.more = () => {
       ${G.readGuest().queue.length ? `<p class="note" data-testid="guest-queue">${G.readGuest().queue.length === 1 ? '1 resultaat van een gast wacht' : G.readGuest().queue.length + ' resultaten van gasten wachten'} op internet om verstuurd te worden.${G.readGuest().queue.some(q => q.error) ? ' Eén of meer codes werken niet meer; vraag een nieuwe code en koppel opnieuw.' : ''}</p><button class="btn ghost small" data-act="guest-retry">Nu versturen</button>` : ''}
     </section>` : ''}
     <nav class="card link-list" aria-label="Delen en hulp">
+      ${CLUB_OPEN ? `<a class="link-row" href="./club/" data-testid="club-link"><span class="a-icon">${icon('trophy', { size: 20 })}</span><span><b>OKKIE. Club</b><small>Weekoefening en ranglijst, alleen voor je eigen club</small></span>${icon('chevron', { size: 18 })}</a>` : ''}
       <button class="link-row" data-act="invite" data-testid="invite-card"><span class="a-icon">${icon('invite', { size: 20 })}</span><span><b>Nodig een vriend uit</b><small>Een link naar okkiedarts.nl; er worden geen scores gedeeld</small></span>${icon('chevron', { size: 18 })}</button>
       <button class="link-row" data-go="hulp"><span class="a-icon">${icon('help', { size: 20 })}</span><span><b>Hulp &amp; feedback</b><small>Meld een probleem of stuur een idee</small></span>${icon('chevron', { size: 18 })}</button>
     </nav>

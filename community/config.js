@@ -17,3 +17,6 @@ export const GROUPS_OPEN = LOCAL ? DEV.groups === true : false;
 export const DARTERS_OPEN = LOCAL ? !!DEV.api : true;
 // Jonger dan 16: dicht tot juridische toets en DPIA (cloud/VRIENDEN.md §4). De API weigert het ook zelf (MINORS_OPEN).
 export const MINORS_OPEN = LOCAL ? DEV.minors === true : false;
+// OKKIE. Club (proef, cloud/CLUB.md): standaard UIT. Pas aanzetten na akkoord van Martijn, samen met CLUBS_ENABLED
+// en migratie 0009 op de productie-API. Lokaal testen: 'okkie.dev' = {"api":"…","club":true}.
+export const CLUB_OPEN = LOCAL ? DEV.club === true : false;

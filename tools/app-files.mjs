@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, rmSync, cpSync, readFileSync, writeFileSync } fr
 import { join } from 'node:path';
 
 // Alles wat de app nodig heeft. Geen cloud/, tests/, tools/, ontdek/ of documentatie.
-export const PARTS = ['index.html', 'manifest.webmanifest', 'sw.js', 'css', 'js', 'icons', 'uitleg', 'community', 'vrienden'];
+export const PARTS = ['index.html', 'manifest.webmanifest', 'sw.js', 'css', 'js', 'icons', 'uitleg', 'community', 'vrienden', 'club'];
 export const REQUIRED = ['index.html', 'manifest.webmanifest', 'sw.js', 'css', 'js', 'icons', 'uitleg'];
 
 export function copyApp(root, dest) {
@@ -19,7 +19,7 @@ export function copyApp(root, dest) {
   // geen kopie van de website. "Over OKKIE." wijst naar okkiedarts.nl.
   mkdirSync(join(dest, 'ontdek'), { recursive: true });
   cpSync(join(root, 'ontdek', 'site.css'), join(dest, 'ontdek', 'site.css'));
-  for (const page of ['community/index.html', 'vrienden/index.html']) {
+  for (const page of ['community/index.html', 'vrienden/index.html', 'club/index.html']) {
     const file = join(dest, page);
     if (existsSync(file)) writeFileSync(file, readFileSync(file, 'utf8').replaceAll('href="../ontdek/"', 'href="https://okkiedarts.nl/"'));
   }
