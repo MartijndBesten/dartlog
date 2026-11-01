@@ -37,6 +37,14 @@ on:
         description: 'Ondertekenen en uploaden naar TestFlight (alleen vanaf claude/ios-app, release/… of main met iOS-project)'
         type: boolean
         default: false
+      appstore:
+        description: 'Met TestFlight: build ook geschikt voor de App Store (anders alleen interne test). Indienen blijft handmatig.'
+        type: boolean
+        default: false
+      screenshots:
+        description: 'App Store-screenshots maken in de simulator (6,9" en 6,5", fictieve demogegevens); geen upload'
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -97,7 +105,7 @@ jobs:
           set +e
           xcodebuild test -project ios/App/App.xcodeproj -scheme App -configuration Debug \
             -destination "id=$DEV" -derivedDataPath build -resultBundlePath uitests.xcresult \
-            CODE_SIGNING_ALLOWED=NO > uitests.log 2>&1
+            -skip-testing:OKKIEUITests/AppStoreScreenshots CODE_SIGNING_ALLOWED=NO > uitests.log 2>&1
           status=$?
           set -e
           grep -E "Test Case .*(passed|failed|skipped)|error:|\*\* TEST" uitests.log | cut -c1-300 || true
@@ -195,6 +203,10 @@ jobs:
           grep -q "ARCHIVE SUCCEEDED" archive.log
           echo "- TestFlight-build: $VERSION ($GITHUB_RUN_NUMBER) van \`$GITHUB_REF_NAME\` @ \`${GITHUB_SHA::7}\`" >> "$GITHUB_STEP_SUMMARY"
       - name: Uploaden naar TestFlight (niet naar de App Store)
+        env:
+          # Standaard alleen interne test. Met appstore=true mag de build later aan een App Store-versie worden
+          # gekoppeld; indienen voor review blijft een handmatige stap.
+          INTERNAL_ONLY: ${{ inputs.appstore && 'false' || 'true' }}
         run: |
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
@@ -208,7 +220,7 @@ jobs:
             <key>provisioningProfiles</key><dict><key>$BUNDLE_ID</key><string>$PROFILE_NAME</string></dict>
             <key>uploadSymbols</key><true/>
             <key>manageAppVersionAndBuildNumber</key><false/>
-            <key>testFlightInternalTestingOnly</key><true/>
+            <key>testFlightInternalTestingOnly</key><$INTERNAL_ONLY/>
           </dict></plist>
           PLIST
           set -o pipefail
@@ -231,4 +243,34 @@ jobs:
           path: |
             archive.log
             export.log
+          retention-days: 14
+
+  screenshots:
+    name: App Store-screenshots (simulator)
+    # Alleen handmatig. Geen ondertekening, geen upload: de plaatjes komen als artefact "appstore-screenshots".
+    if: github.event_name == 'workflow_dispatch' && inputs.screenshots
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Xcode (nieuwste niet-bèta Xcode 26)
+        run: tools/ios/select-xcode.sh
+      - name: Webbestanden in de app (dist-ios) en Capacitor sync
+        run: node tools/build-ios-web.mjs && npx cap sync ios
+      - name: Screenshots 6,9" en 6,5" (fictieve demogegevens, geen netwerk)
+        run: tools/ios/appstore-shots.sh appstore-shots
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appstore-screenshots
+          path: |
+            appstore-shots/6.9
+            appstore-shots/6.5
+            appstore-shots/*.log
+            appstore-shots/*.xcresult
           retention-days: 14

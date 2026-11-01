@@ -14,6 +14,7 @@ echte code. Bij twijfel: liever iets opgeven dan weglaten.
 | Contactgegevens → **E-mailadres** | Alleen als je het zelf invult bij Hulp & feedback | Nee | Nee | Appfunctionaliteit |
 | Gebruikersinhoud → **Foto's of video's** | Schermafbeelding die je zelf toevoegt bij Hulp & feedback | Nee | Nee | Appfunctionaliteit |
 | Diagnose → **Overige diagnostische gegevens** | Recente foutmeldingen van de app, alleen mee met een feedbackmelding | Nee | Nee | Appfunctionaliteit |
+| ID's → **Gebruikers-ID** | Profielcode van het Darters-profiel (pseudoniem, willekeurig) | Ja | Nee | Appfunctionaliteit |
 | Gebruiksgegevens → **Productinteractie** | Dagteller: hooguit 1x per dag "geopend" + versienummer, geen ID | Nee | Nee | Analyse |
 
 Niet verzameld: locatie, contacten, gezondheid, financiële gegevens, browsegeschiedenis, zoekgeschiedenis, ID's,

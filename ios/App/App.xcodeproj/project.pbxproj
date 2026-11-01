@@ -19,6 +19,8 @@
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		0C1E0B00B0E5A1C4D0000002 /* OKKIEUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C1E0B00B0E5A1C4D0000001 /* OKKIEUITests.swift */; };
 		0C1E0B00B0E5A1C4D000000F /* Fixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C1E0B00B0E5A1C4D000000E /* Fixture.swift */; };
+		0C1E0B00B0E5A1C4D0000011 /* AppStoreScreenshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C1E0B00B0E5A1C4D0000010 /* AppStoreScreenshots.swift */; };
+		0C1E0B00B0E5A1C4D0000013 /* ScreenshotFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C1E0B00B0E5A1C4D0000012 /* ScreenshotFixture.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -46,6 +48,8 @@
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		0C1E0B00B0E5A1C4D0000001 /* OKKIEUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OKKIEUITests.swift; sourceTree = "<group>"; };
 		0C1E0B00B0E5A1C4D000000E /* Fixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fixture.swift; sourceTree = "<group>"; };
+		0C1E0B00B0E5A1C4D0000010 /* AppStoreScreenshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreScreenshots.swift; sourceTree = "<group>"; };
+		0C1E0B00B0E5A1C4D0000012 /* ScreenshotFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotFixture.swift; sourceTree = "<group>"; };
 		0C1E0B00B0E5A1C4D0000003 /* OKKIEUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OKKIEUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -109,6 +113,8 @@
 			children = (
 				0C1E0B00B0E5A1C4D0000001 /* OKKIEUITests.swift */,
 				0C1E0B00B0E5A1C4D000000E /* Fixture.swift */,
+				0C1E0B00B0E5A1C4D0000010 /* AppStoreScreenshots.swift */,
+				0C1E0B00B0E5A1C4D0000012 /* ScreenshotFixture.swift */,
 			);
 			path = OKKIEUITests;
 			sourceTree = "<group>";
@@ -236,6 +242,8 @@
 			files = (
 				0C1E0B00B0E5A1C4D0000002 /* OKKIEUITests.swift in Sources */,
 				0C1E0B00B0E5A1C4D000000F /* Fixture.swift in Sources */,
+				0C1E0B00B0E5A1C4D0000011 /* AppStoreScreenshots.swift in Sources */,
+				0C1E0B00B0E5A1C4D0000013 /* ScreenshotFixture.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

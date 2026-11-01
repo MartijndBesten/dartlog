@@ -10,15 +10,15 @@ Taal: **Nederlands** (primaire taal). Lengtes zijn gecontroleerd met `node tools
 | Naam (max. 30) | `OKKIE. Darttrainer` |
 | Ondertitel (max. 30) | `Gooi. Scoor. Word beter.` |
 | Bundle-ID | `nl.denckh.okkie` |
-| SKU | `okkie-ios` |
+| SKU | `okkie` (zo aangemaakt in App Store Connect) |
 | Primaire categorie | Sport |
-| Secundaire categorie | Gezondheid en fitness (optioneel; mag leeg) |
+| Secundaire categorie | leeg |
 | Inhoudsrechten | Geen inhoud van derden |
 | Copyright | `2026 Denckh.` |
-| Prijs | Gratis, alle landen (of alleen Nederland en België om te beginnen) |
+| Prijs | Gratis, alle 175 landen, ook nieuwe landen; geen in-app-aankopen |
 | Privacybeleid-URL | https://okkiedarts.nl/privacy/ |
 | Support-URL | https://okkiedarts.nl/contact/ |
-| Marketing-URL | https://okkiedarts.nl/ |
+| Marketing-URL | https://app.okkiedarts.nl/ |
 
 > Waarom niet alleen "OKKIE."? Een naam in de App Store moet uniek zijn en een korte naam zonder omschrijving
 > is lastiger te vinden. Op het beginscherm staat gewoon **OKKIE.** (CFBundleDisplayName).
@@ -87,12 +87,14 @@ Alles **Nee/Geen**, behalve:
 | Wedstrijden/gokken/loot boxes | Nee | Geen prijzen of geld. |
 | Ouderlijk toezicht / leeftijdsgarantie | Nee | Delen onder 16 staat dicht (MINORS_OPEN = false). |
 
-Verwachte uitkomst: **9+** of **13+** door de gebruikersinhoud. **Niet** in de categorie Kinderen plaatsen (die vereist
+Ingevuld via de API op 1 november 2026 (gebruikersinhoud Ja, sociale media Nee, chat Nee, reclame Nee, ouderlijk
+toezicht Nee, leeftijdsverificatie Nee, onbeperkt web Nee, al het andere Geen). Apple berekende **4+**.
+Vooraf verwacht: 9+ of 13+ door de gebruikersinhoud. **Niet** in de categorie Kinderen plaatsen (die vereist
 o.a. geen externe links en geen netwerkverkeer zonder ouderlijke poort).
 
 ## Notities voor de review (App Review Information)
 
-Contact: Martijn den Besten, info@denckh.nl. Inloggegevens: **niet nodig** (vink "Inloggen vereist" uit).
+Contactgegevens staan alleen in App Store Connect (niet in de repo). Inloggegevens: **niet nodig** ("Inloggen vereist" uit).
 
 ```
 OKKIE. is a darts training app (Dutch). No account or login is needed; all training data is stored on the device and the app works fully offline (all web assets are bundled in the app, no remote content).
@@ -104,6 +106,12 @@ Optional online feature "Darters": a public leaderboard of nicknames and summary
 No ads, no in-app purchases, no tracking. Native features used: haptics, share sheet (save to Files), local file storage for data durability, status bar.
 ```
 
+## Engels (en-US)
+
+Naam `OKKIE. Darts Trainer`, ondertitel `Throw. Score. Get better.`, beschrijving vertaald met bovenaan *Please note:
+the app is in Dutch.* Promotietekst en trefwoorden in het Engels. Zelfde URL's. De Engelse vermelding gebruikt de
+Nederlandse screenshots. Staat in App Store Connect (ingevuld via de API, 1 november 2026).
+
 ## Exportnaleving
 
 `ITSAppUsesNonExemptEncryption = false` staat in Info.plist: alleen standaard-HTTPS. App Store Connect vraagt het dan
@@ -111,6 +119,10 @@ niet meer bij elke build.
 
 ## Screenshots
 
+Uit de echte app in de simulator (fictieve demogegevens Sem en Papa, geen netwerk): Actions → OKKIE iPhone-app →
+Run workflow → vinkje *screenshots* → artefact `appstore-screenshots` met `6.9/` (1320 × 2868) en `6.5/`.
+Code: `tools/ios/appstore-shots.sh`, `ios/App/OKKIEUITests/AppStoreScreenshots.swift`, gegevens
+`tools/ios/appstore-demo-data.mjs`. Oudere browserversie (alleen 6,9"): `appstore/screenshots/6.9/`, zie hieronder.
 `appstore/screenshots/6.9/` (1320 × 2868, iPhone 6,9"): Home, Training, Uitslag, Statistieken, Trefferkaart, 501.
 Opnieuw maken: `PW_EXECUTABLE=… node tools/ios/appstore-screenshots.mjs`. Alleen iPhone (geen iPad), dus geen
 iPad-screenshots nodig. Kleinere iPhone-formaten maakt App Store Connect zelf uit 6,9".
