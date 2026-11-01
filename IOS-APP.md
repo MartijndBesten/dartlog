@@ -100,7 +100,8 @@ De oude PWA wordt nooit gewist; wie wil, kan beide blijven gebruiken (gegevens s
 | Browsertests (`npm run test:e2e`, iPhone-/Android-/desktopformaat, incl. nagebootste app) | Linux, Chromium | ✔ 255/255 |
 | Archief + ondertekenen + TestFlight-upload | run 41238145345 (31-10) | ✔ build 11 (1.8.0) in TestFlight, intern |
 | XCUITests (10 scenario's) + Release zonder testmodus | run 41293721810 (1-11) | ✔ 10/10, 0 overgeslagen; rooktest alleen na herpoging |
-| Echte iPhone | — | ✖ niet beschikbaar in deze omgeving: testlijst hieronder |
+| Archief + TestFlight-upload build 20 (1.8.0, vanaf `main` `183a360`) | run 41299410715 (1-11) | ✔ verwerkt door Apple, intern beschikbaar voor *OKKIE intern* |
+| Echte iPhone (handmatig, Martijn) | TestFlight intern, build 20, 1 november 2026 | ✔ volgens Martijn: "de app werkt goed" (geen details over specifieke schermen bekend) |
 
 Schermafbeeldingen en logs van elke simulatorrun: Actions → OKKIE iPhone-app → run → artefact *ios-simulator-rooktest*.
 
@@ -156,7 +157,11 @@ schermafbeelding per test), logs en de rooktest staan altijd als artefact *ios-s
 3. Trillen, geluid en spraak tijdens een training.
 4. Back-up naar Bestanden en terugzetten; scorekaart delen.
 5. Statusbalk/Dynamic Island in licht en donker thema.
-6. Na een volgende TestFlight-build: bijwerken over build 11 heen, alles nog daar.
+6. Na een volgende TestFlight-build: bijwerken over de vorige build heen, alles nog daar.
+
+**Uitgevoerd:** 1 november 2026, build 20 (1.8.0) via TestFlight intern, door Martijn op zijn eigen iPhone. Resultaat
+volgens Martijn: *de app werkt goed*. Welke schermen en punten van de lijst hierboven zijn bekeken, is niet bekend;
+ook niet of build 20 over build 11 heen is bijgewerkt of nieuw is geïnstalleerd. De update blijft dus een open punt.
 
 ## Server (Darters, Hulp & feedback, dagteller)
 
@@ -235,8 +240,11 @@ Indienen voor review en publiceren doet de eigenaar zelf in App Store Connect; d
 - **Worker-deploy** (origin `capacitor://localhost`) wacht op akkoord.
 - **Privacyverklaring** op okkiedarts.nl (paragraaf 2a, melden) is bijgewerkt in de bron; publiceren van de website
   wacht op akkoord (`node tools/build-public-site.mjs` → okkiedarts-site).
-- Op een echte iPhone nog niet getest (geen toestel beschikbaar in deze omgeving): zie *Met de hand op de iPhone*.
-- Rooktest: bekende instabiliteit bij de eerste start (zie *Automatische UI-tests*, beperkingen).
+- Echte iPhone: build 20 handmatig getest door Martijn (1 november 2026, "werkt goed", geen details); de lijst
+  *Met de hand op de iPhone* is niet punt voor punt afgevinkt.
+- Rooktest: bekende instabiliteit bij de eerste start, herpoging maskeert de oorzaak, **nog open** (zie
+  *Automatische UI-tests*, beperkingen).
+- Echte app-update (oudere build → nieuwere build met bestaande gegevens) is **niet aantoonbaar getest**, nog open.
 - Geen iPad-versie (bewust; iPhone-app draait op iPad in iPhone-formaat).
 - Webversie 1.8.0 (boot.js, Darters melden/verbergen) is nog niet gepubliceerd op app.okkiedarts.nl.
 
@@ -246,8 +254,12 @@ Indienen voor review en publiceren doet de eigenaar zelf in App Store Connect; d
   environment `testflight` zijn ingericht. Toegestane branches: `claude/ios-app`, `main`, `release/*`.
 - **Build 11 (1.8.0)** staat in TestFlight, alleen interne test, groep *OKKIE intern* (toegang tot alle builds).
   Tester: `info@deegh.nl` (status: uitgenodigd).
-- Build 11 is gemaakt vóór de router-reparatie (uitleg/Darters wit scherm); die zit pas in een volgende build.
+- Build 11 is gemaakt vóór de router-reparatie (uitleg/Darters wit scherm).
+- **Build 20 (1.8.0)**, met de router-reparatie, vanaf `main` `183a360` (run 41299410715, buildnummer = runnummer):
+  verwerkt (VALID), interne test (IN_BETA_TESTING), groep *OKKIE intern*; extern niet van toepassing.
+  Exportnaleving via `ITSAppUsesNonExemptEncryption = false`, zoals build 11.
+- **Handmatige test:** Martijn heeft build 20 op 1 november 2026 via TestFlight op zijn iPhone geïnstalleerd: *werkt
+  goed* (geen details over specifieke schermen bekend).
 
-**Nog te doen door de eigenaar:** de TestFlight-uitnodiging op de iPhone openen (mail aan info@deegh.nl), de app
-TestFlight installeren en daarin OKKIE. installeren. Een nieuwe build (met de router-reparatie) maken kan via
-Actions → OKKIE iPhone-app → Run workflow → `main` → vinkje TestFlight; dat is een upload en gebeurt alleen op verzoek.
+Een nieuwe build maken kan via Actions → OKKIE iPhone-app → Run workflow → `main` → vinkje TestFlight; dat is een
+upload en gebeurt alleen op verzoek. Geen externe testers en geen App Store-review zonder akkoord.

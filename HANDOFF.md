@@ -1,6 +1,6 @@
 # Overdracht OKKIE. — iOS-testfase 1.8.0
 
-Stand: 1 november 2026 · branch `claude/ios-uitests` → PR naar `main` · zie ook IOS-APP.md (*Automatische UI-tests*).
+Stand: 1 november 2026 · gemerged in `main` (PR #9) · TestFlight build 20 intern, handmatig getest · zie ook IOS-APP.md (*Automatische UI-tests*).
 
 ## Wat er is gedaan
 - **XCUITests** van de echte iPhone-app (target `OKKIEUITests`, gedeeld scheme `App`): tien scenario's — eerste
@@ -25,9 +25,23 @@ Stand: 1 november 2026 · branch `claude/ios-uitests` → PR naar `main` · zie 
 | Unit-tests app (`npm test`) | lokaal Windows, Node 24 | 156 | 0 | 0 |
 | Cloud/Worker-tests | lokaal | 66 | 0 | 0 |
 | Browsertests (Playwright, 3 profielen) | lokaal + CI op PR #9 | 255 | 0 | 51 (bewust per profiel via `test.skip`) |
+| **Handmatig op echte iPhone** (Martijn) | TestFlight intern, build 20 (1.8.0), 1 november 2026 | ✔ "de app werkt goed" | — | geen details over specifieke schermen bekend |
 
 Eerdere runs (41286432077, 41287820322, 41290961555, 41292351632) faalden op testfouten die zijn hersteld
 (selectors, verwachte teksten) en op de echte app-fout (wit scherm uitleg/Darters).
+
+## TestFlight build 20 (1 november 2026)
+Gebouwd en geüpload vanaf `main` `183a360` (run 41299410715; simulatortests en UI-tests in dezelfde run groen,
+rooktest zonder herpoging). Door Apple verwerkt (VALID), interne test (IN_BETA_TESTING) voor groep *OKKIE intern*;
+geen externe testers, geen App Store-review. Exportnaleving zoals build 11 (`ITSAppUsesNonExemptEncryption = false`).
+Martijn heeft build 20 op zijn iPhone geïnstalleerd en meldt: **de app werkt goed**. Welke schermen zijn bekeken en
+of het een update over build 11 was, is niet bekend.
+
+## Open punten
+- **Rooktest-herpoging** (hieronder): instabiliteit niet opgelost, alleen gemaskeerd.
+- **Echte app-update niet aantoonbaar getest:** niet automatisch (XCUITest) en ook niet bevestigd bij de handmatige
+  test van build 20.
+- **Webversie 1.8.0** wacht op akkoord van Martijn (app.okkiedarts.nl blijft 1.7.5).
 
 ## Bekende instabiliteit (niet opgelost)
 - **Rooktest, eerste start na het opstarten van de simulator:** in run 41287820322 (poging 1) startte de app niet op
@@ -45,7 +59,8 @@ SpringBoard) en de herpoging daarna weer verwijderen.
   Korte handmatige lijst: IOS-APP.md, *Met de hand op de iPhone*.
 
 ## Niet gedaan (bewust)
-Geen webrelease 1.8.0 (app.okkiedarts.nl blijft 1.7.5), geen TestFlight-upload, niets aan productie-API,
+Geen webrelease 1.8.0 (app.okkiedarts.nl blijft 1.7.5), geen externe TestFlight-test of App Store-review (wel build 20
+intern, op verzoek van Martijn), niets aan productie-API,
 stagingworker of PR #7, geen betaalde diensten.
 
 ## Bouwstenen
