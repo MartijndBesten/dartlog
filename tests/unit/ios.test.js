@@ -109,7 +109,14 @@ test('UI-tests (XCUITest): target, scheme, vaste testdata en minimum in de workf
   const wf = lf(read('.github/workflows/ios.yml'));
   const min = Number((wf.match(/UITEST_MIN: (\d+)/) || [])[1]);
   assert.equal(min, tests, `UITEST_MIN (${min}) = aantal tests in OKKIEUITests.swift (${tests})`);
-  assert.ok(tests >= 6);
+  assert.ok(tests >= 10);
+  const names = [...swift.matchAll(/^\s*func (test\w+)\(\)/gm)].map(m => m[1]).sort();
+  const req = (wf.match(/UITEST_REQUIRED: >-\n((?:\s{12}.*\n)+)/) || [])[1]?.split(',').map(s => s.trim()).filter(Boolean).sort();
+  assert.deepEqual(req, names, 'UITEST_REQUIRED = alle tests in OKKIEUITests.swift');
+  for (const s of ['Installatie', 'Onboarding', 'Scores', 'Badges', 'Instellingen', 'Hervatten', 'Annuleren', 'Offline', 'Update']) {
+    assert.ok(names.some(n => n.includes(s)), `essentieel scenario ontbreekt: ${s}`);
+  }
+  assert.match(wf, /tools\/ios\/check-release\.sh "\$BIN"/, 'Release-build wordt op testmodus gecontroleerd');
   assert.match(wf, /tools\/ios\/check-tests\.sh uitests\.xcresult "\$UITEST_MIN"/);
   const { fixtureSwift } = await import(new URL('../../tools/ios/uitest-fixture.mjs', import.meta.url).href);
   assert.equal(lf(read('ios/App/OKKIEUITests/Fixture.swift')), fixtureSwift(), 'Fixture.swift opnieuw maken: node tools/ios/uitest-fixture.mjs');

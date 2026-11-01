@@ -85,7 +85,13 @@ jobs:
         # Testmodus alleen in Debug: schone opslag, vaste testdata, geen netwerk buiten de app (nooit de productie-API).
         # Faalt bij een gefaalde of overgeslagen test en bij minder tests dan UITEST_MIN (tools/ios/check-tests.sh).
         env:
-          UITEST_MIN: 6
+          UITEST_MIN: 10
+          UITEST_REQUIRED: >-
+            test01_EersteInstallatieWelkomstscherm,test02_OnboardingNaarStartscherm,
+            test03_TrainingStartenScoresInvoerenAfronden,test04_GemiddeldenStatistiekenEnBadges,
+            test05_InstellingenWijzigenEnBewaren,test06_LopendeTrainingHervattenNaHeropenen,
+            test07_TrainingAnnulerenZonderOpslaan,test08_OfflineTrainen,test09_GegevensBehoudenNaUpdate,
+            test10_UitlegEnDartersPaginaOpenen
         run: |
           DEV=$(tools/ios/pick-simulator.sh)
           set +e
@@ -97,6 +103,14 @@ jobs:
           grep -E "Test Case .*(passed|failed|skipped)|error:|\*\* TEST" uitests.log | cut -c1-300 || true
           tools/ios/check-tests.sh uitests.xcresult "$UITEST_MIN"
           exit $status
+      - name: Release bevat geen testmodus
+        # Dezelfde broncode in Release (zoals TestFlight): de testmodus en het testscript mogen er niet in zitten.
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator'             -derivedDataPath build-release CODE_SIGNING_ALLOWED=NO build > build-release.log 2>&1 || { tail -50 build-release.log; exit 1; }
+          BIN=build-release/Build/Products/Release-iphonesimulator/App.app/App
+          test -f "$BIN"
+          tools/ios/check-release.sh "$BIN" build/Build/Products/Debug-iphonesimulator/App.app/App.debug.dylib build/Build/Products/Debug-iphonesimulator/App.app/App
       - if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -106,6 +120,7 @@ jobs:
             build.log
             uitests.log
             uitests.xcresult
+            build-release.log
           retention-days: 14
 
   testflight:

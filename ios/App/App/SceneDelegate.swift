@@ -32,12 +32,33 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 /// `-OKKIEUITest` komt er een testscript bij (zie UITestMode); in Release (TestFlight, App Store) is dit gelijk aan
 /// CAPBridgeViewController.
 class OKKIEBridgeViewController: CAPBridgeViewController {
+    override func router() -> Router {
+        OKKIERouter()
+    }
+
     override func webViewConfiguration(for instanceConfiguration: InstanceConfiguration) -> WKWebViewConfiguration {
         let configuration = super.webViewConfiguration(for: instanceConfiguration)
         #if DEBUG
         UITestMode.install(into: configuration)
         #endif
         return configuration
+    }
+}
+
+/// Pagina's in een map (./community/, ./uitleg/, ./vrienden/) laden hun eigen index.html. De standaardrouter van
+/// Capacitor geeft voor elk pad zonder extensie de index.html van de app; op /community/ laadt dan de app met
+/// kapotte relatieve verwijzingen (wit scherm). Gevonden met de XCUITests (1.8.0). Alle andere paden: als Capacitor.
+struct OKKIERouter: Router {
+    var basePath: String = ""
+
+    func route(for path: String) -> String {
+        guard URL(fileURLWithPath: path).pathExtension.isEmpty else { return basePath + path }
+        let trimmed = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if !trimmed.isEmpty, !trimmed.contains(".."), path.hasSuffix("/") {
+            let page = basePath + "/" + trimmed + "/index.html"
+            if FileManager.default.fileExists(atPath: page) { return page }
+        }
+        return basePath + "/index.html"
     }
 }
 
@@ -48,6 +69,8 @@ class OKKIEBridgeViewController: CAPBridgeViewController {
 ///                      zoals zonder internet. De productie-API wordt dus nooit benaderd.
 ///  -OKKIEOffline       daarnaast navigator.onLine = false (gedrag zonder internet).
 ///  -OKKIEKeepData      niet wissen (herstart met de gegevens van de vorige start).
+///  -OKKIEWipeWebKit    samen met -OKKIEKeepData: alleen de webviewopslag wissen, de duurzame kopie blijft.
+/// Wist alleen de opslag van de app in de simulator waarin de tests draaien; nooit in Release.
 ///  OKKIE_FIXTURE (env) vaste testdata als duurzame kopie (Library/OKKIE/opslag-a.json, formaat js/native.js).
 /// JavaScript-fouten en onafgehandelde promises worden zichtbaar gemaakt als element met label "okkie-js-fout: …",
 /// zodat een test faalt op elke fout.
@@ -61,6 +84,11 @@ enum UITestMode {
         guard let library = fm.urls(for: .libraryDirectory, in: .userDomainMask).first else { return }
         if !args.contains("-OKKIEKeepData") {
             for name in ["WebKit", "Caches", "OKKIE", "Cookies"] {
+                try? fm.removeItem(at: library.appendingPathComponent(name))
+            }
+        } else if args.contains("-OKKIEWipeWebKit") {
+            // Zoals iOS na een update of bij weinig opslag kan doen: webviewopslag weg, duurzame kopie blijft.
+            for name in ["WebKit", "Caches"] {
                 try? fm.removeItem(at: library.appendingPathComponent(name))
             }
         }
