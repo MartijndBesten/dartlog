@@ -46,6 +46,12 @@ test('wrangler.toml: registratie en groepen staan in beide omgevingen dicht', ()
   }
 });
 
+test('wrangler.toml: OKKIE. Club alleen op staging aan, in productie uit; nooit een testtijd of proefcode in de config', () => {
+  assert.deepEqual(field(stagingPart, 'CLUBS_ENABLED'), ['true']);
+  assert.deepEqual(field(productionPart, 'CLUBS_ENABLED'), ['false']);
+  assert.doesNotMatch(toml, /CLUB_TEST_NOW|CLUB_PILOT_CODES\s*=/, 'testtijd en proefclubcodes horen niet in wrangler.toml (codes zijn een secret)');
+});
+
 test('package.json: geen dubbelzinnige deploy/migrate-scripts; productie altijd met --env production', () => {
   const scripts = pkg.scripts;
   assert.equal(scripts.deploy, undefined, 'gebruik deploy:staging of deploy:production');
