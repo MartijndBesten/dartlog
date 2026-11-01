@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const read = f => readFileSync(join(root, f), 'utf8');
+const lf = s => s.replace(/\r\n/g, '\n'); // Windows-checkout (autocrlf) heeft CRLF
 const pkg = JSON.parse(read('package.json'));
 const cap = JSON.parse(read('capacitor.config.json'));
 const plist = read('ios/App/App/Info.plist');
@@ -36,7 +37,7 @@ test('Info.plist: Nederlands, alleen staand, versleuteling vrijgesteld, uitleg b
 });
 
 test('Xcode-project: alleen iPhone, team en versie gelijk aan package.json, privacymanifest in de app', () => {
-  assert.equal((pbx.match(/TARGETED_DEVICE_FAMILY = 1;/g) || []).length, 2);
+  assert.equal((pbx.match(/TARGETED_DEVICE_FAMILY = 1;/g) || []).length, 4, 'app en UI-tests, Debug en Release');
   assert.equal((pbx.match(/DEVELOPMENT_TEAM = GUAS9KT7W3;/g) || []).length, 2);
   assert.equal((pbx.match(/PRODUCT_BUNDLE_IDENTIFIER = nl\.denckh\.okkie;/g) || []).length, 2);
   assert.equal((pbx.match(/MARKETING_VERSION = ([\d.]+);/g) || []).map(m => m.match(/[\d.]+/)[0]).filter(v => v !== pkg.version).length, 0, 'MARKETING_VERSION = package.json');
@@ -95,4 +96,54 @@ test('geen aankopen, abonnementen of advertenties in de app', () => {
   const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies }).join(' ');
   assert.doesNotMatch(deps, /purchase|billing|revenuecat|admob|ads\b|stripe/i);
   assert.doesNotMatch(pbx, /StoreKit|GoogleMobileAds/);
+});
+
+test('UI-tests (XCUITest): target, scheme, vaste testdata en minimum in de workflow', async () => {
+  assert.match(pbx, /productType = "com\.apple\.product-type\.bundle\.ui-testing";/);
+  assert.equal((pbx.match(/TEST_TARGET_NAME = App;/g) || []).length, 2);
+  const scheme = read('ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme');
+  assert.match(scheme, /BlueprintName = "OKKIEUITests"/);
+  assert.match(scheme, /<ArchiveAction\s+buildConfiguration = "Release"/, 'TestFlight-archief blijft Release');
+  const swift = read('ios/App/OKKIEUITests/OKKIEUITests.swift');
+  const tests = (swift.match(/^\s*func test\w+\(\)/gm) || []).length;
+  const wf = lf(read('.github/workflows/ios.yml'));
+  const min = Number((wf.match(/UITEST_MIN: (\d+)/) || [])[1]);
+  assert.equal(min, tests, `UITEST_MIN (${min}) = aantal tests in OKKIEUITests.swift (${tests})`);
+  assert.ok(tests >= 10);
+  const names = [...swift.matchAll(/^\s*func (test\w+)\(\)/gm)].map(m => m[1]).sort();
+  const req = (wf.match(/UITEST_REQUIRED: >-\n((?:\s{12}.*\n)+)/) || [])[1]?.split(',').map(s => s.trim()).filter(Boolean).sort();
+  assert.deepEqual(req, names, 'UITEST_REQUIRED = alle tests in OKKIEUITests.swift');
+  for (const s of ['Installatie', 'Onboarding', 'Scores', 'Badges', 'Instellingen', 'Hervatten', 'Annuleren', 'Offline', 'Update']) {
+    assert.ok(names.some(n => n.includes(s)), `essentieel scenario ontbreekt: ${s}`);
+  }
+  assert.match(wf, /tools\/ios\/check-release\.sh "\$BIN"/, 'Release-build wordt op testmodus gecontroleerd');
+  assert.match(wf, /tools\/ios\/check-tests\.sh uitests\.xcresult "\$UITEST_MIN"/);
+  const { fixtureSwift } = await import(new URL('../../tools/ios/uitest-fixture.mjs', import.meta.url).href);
+  assert.equal(lf(read('ios/App/OKKIEUITests/Fixture.swift')), fixtureSwift(), 'Fixture.swift opnieuw maken: node tools/ios/uitest-fixture.mjs');
+});
+
+test('UI-testmodus alleen in Debug: nooit in TestFlight of de App Store', () => {
+  const scene = lf(read('ios/App/App/SceneDelegate.swift'));
+  assert.match(scene, /rootViewController = OKKIEBridgeViewController\(\)/);
+  const debugBlocks = [...scene.matchAll(/#if DEBUG\n([\s\S]*?)#endif/g)].map(m => m[1]).join('\n');
+  const outside = scene.replace(/#if DEBUG\n[\s\S]*?#endif/g, '').replace(/^\s*\/\/.*$/gm, '');
+  assert.match(debugBlocks, /enum UITestMode/);
+  assert.doesNotMatch(outside, /UITestMode|OKKIE_FIXTURE|-OKKIEUITest|addUserScript/, 'testcode buiten #if DEBUG');
+  assert.match(debugBlocks, /isActive: Bool \{ args\.contains\("-OKKIEUITest"\) \}/, 'alleen met het startargument van de tests');
+  assert.match(debugBlocks, /Promise\.reject\(blocked\(\)\)/, 'netwerk buiten de app geblokkeerd');
+});
+
+test('vaste UI-testdata: verzonnen speler, wordt teruggezet met de bekende uitkomst', async () => {
+  const { fixtureMirror, FIXTURE_PLAYER } = await import(new URL('../../tools/ios/uitest-fixture.mjs', import.meta.url).href);
+  const { restoreInto } = await import(new URL('../../js/native.js', import.meta.url).href);
+  const { createStore } = await import(new URL('../../js/store.js', import.meta.url).href);
+  const L = await import(new URL('../../js/logic.js', import.meta.url).href);
+  const m = new Map();
+  const storage = { get length() { return m.size; }, key: i => [...m.keys()][i] ?? null, getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) };
+  assert.equal(restoreInto(storage, fixtureMirror()).restored, true);
+  const d = createStore(storage).load().data;
+  assert.deepEqual(d.players.map(p => p.name), [FIXTURE_PLAYER]);
+  const t = d.trainings.map(x => L.trainingTotals(x));
+  assert.deepEqual(t.map(x => [x.points, x.darts, x.avg]), [[600, 30, 60], [720, 30, 72]]);
+  assert.equal(L.avg3(1320, 60), 66);
 });

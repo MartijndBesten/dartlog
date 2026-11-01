@@ -2,6 +2,11 @@
 
 ## 1.8.0 — OKKIE. als echte iPhone-app (TestFlight)
 
+- **iPhone-app: uitleg en Darters openden als wit scherm** (gevonden met de nieuwe UI-tests). De app laadt voor
+  `./uitleg/`, `./community/` en `./vrienden/` nu de pagina zelf (`OKKIERouter` in `SceneDelegate.swift`).
+  Zit nog niet in TestFlight-build 11.
+- **Automatische UI-tests (XCUITest)** van de iPhone-app bij elke iOS-build: tien scenario's, vaste testdata, geen
+  productie-API; de build faalt bij gefaalde, overgeslagen, ontbrekende of te weinig tests. Zie IOS-APP.md.
 - **iPhone-app** (Capacitor 8, bundle-ID `nl.denckh.okkie`, team GUAS9KT7W3): dezelfde app als app.okkiedarts.nl,
   met alle bestanden in de app zelf, dus trainen en wedstrijden werken zonder internet. Alleen iPhone, staand.
   Bouwen via GitHub Actions (macOS, gratis voor deze openbare repository); TestFlight alleen met de hand. Zie IOS-APP.md.

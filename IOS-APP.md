@@ -98,10 +98,65 @@ De oude PWA wordt nooit gewist; wie wil, kan beide blijven gebruiken (gegevens s
 | Unit-tests app (`npm test`) | Linux | ✔ 148/148 |
 | Worker-tests (`cloud`) | Linux | ✔ 61/61 |
 | Browsertests (`npm run test:e2e`, iPhone-/Android-/desktopformaat, incl. nagebootste app) | Linux, Chromium | ✔ 255/255 |
-| Archief + ondertekenen + TestFlight-upload | workflow klaar | ✖ **nog niet gedraaid**: wacht op API-sleutel (secrets) en de app in App Store Connect |
+| Archief + ondertekenen + TestFlight-upload | run 41238145345 (31-10) | ✔ build 11 (1.8.0) in TestFlight, intern |
+| XCUITests (10 scenario's) + Release zonder testmodus | run 41293721810 (1-11) | ✔ 10/10, 0 overgeslagen; rooktest alleen na herpoging |
 | Echte iPhone | — | ✖ niet beschikbaar in deze omgeving: testlijst hieronder |
 
 Schermafbeeldingen en logs van elke simulatorrun: Actions → OKKIE iPhone-app → run → artefact *ios-simulator-rooktest*.
+
+## Automatische UI-tests (XCUITest, sinds 1.8.0)
+
+Bij elke iOS-build (push naar `main`, `claude/ios-**`, `feature/**`, `release/**`, en vóór elke TestFlight-upload)
+draaien in `.github/workflows/ios.yml` na de rooktest tien XCUITests van de echte app in de iPhone-simulator
+(`ios/App/OKKIEUITests/OKKIEUITests.swift`):
+
+| # | Scenario | Hoe |
+|---|---|---|
+| 1 | Eerste installatie | schone start, welkomstscherm, geen crash |
+| 2 | Onboarding | naam invullen → startscherm met de vijf tabbladen |
+| 3 | Training starten, scores invoeren, afronden | 180 + 60 → 120,00; na herstart in de geschiedenis |
+| 4 | Gemiddelden, statistieken, badges | vaste testdata: 66,00 · beste 72,00 · slechtste 60,00 · badges 10/39 |
+| 5 | Instellingen wijzigen en bewaren | schakelaar Geluidjes, na opnieuw openen nog gewijzigd; subscherm en terug |
+| 6 | Lopende training hervatten | app afsluiten midden in een training → *Verder* → zelfde beurt |
+| 7 | Training annuleren zonder opslaan | *Weggooien* → statistieken ongewijzigd |
+| 8 | Offline trainen | zonder internet trainen en bewaren, telt mee |
+| 9 | Gegevens na een update | zie beperking hieronder |
+| 10 | Uitleg en Darters openen | geen wit scherm; Darters offline met nette melding |
+
+**Testmodus (alleen Debug).** De tests starten de app met `-OKKIEUITest` (`SceneDelegate.swift`, `UITestMode`, binnen
+`#if DEBUG`): opslag van de app in de simulator gewist, vaste verzonnen testdata (`tools/ios/uitest-fixture.mjs` →
+`Fixture.swift`, speler "Testspeler"), geen enkel netwerkverzoek buiten de app (fetch/XHR/beacon/WebSocket mislukken
+zoals zonder internet; de productie-API wordt nooit benaderd) en elke JavaScript-fout laat de test falen.
+Bewaakt door: `tools/ios/check-release.sh` (Release-build zonder testmodus, tegenproef op Debug, in CI) en unittests
+in `tests/unit/ios.test.js`.
+
+**De build faalt** bij een gefaalde of overgeslagen test, bij minder dan `UITEST_MIN` tests en als een scenario uit
+`UITEST_REQUIRED` ontbreekt of niet slaagt (`tools/ios/check-tests.sh`). Resultaten (`uitests.xcresult` met een
+schermafbeelding per test), logs en de rooktest staan altijd als artefact *ios-simulator-rooktest* bij de run.
+
+**Gevonden en opgelost met deze tests:** in de app openden de uitleg en Darters als wit scherm (Capacitor gaf voor
+`/uitleg/` de hoofd-`index.html`). `OKKIERouter` laadt nu de `index.html` van de map.
+
+**Beperkingen (eerlijk):**
+- *Update*: XCUITest kan geen oudere build installeren. Getest is wat bij een update gebeurt: dezelfde container met
+  de gegevens van eerder, en een gewiste webviewopslag waarna alles uit de duurzame kopie terugkomt. Een echte
+  update van build 11 naar een nieuwere build is niet automatisch getest.
+- Niet automatisch: trillen, geluid en spraak, delen (WhatsApp, Bestanden), echte netwerkuitval op een toestel,
+  Darters online (bewust: geen productie-API in tests), Dynamic Island en thuisbalk op echte toestellen.
+- **Bekende instabiliteit rooktest:** de eerste start na het opstarten van de simulator bleef in CI één keer hangen
+  (run 41287820322, poging 1: app niet op de voorgrond, daarna webview niet geladen). `smoke.sh` probeert een
+  hangende start nu één keer opnieuw en meldt dat als waarschuwing. Dat maskeert de oorzaak (onbekend, vermoedelijk
+  trage simulator) en is dus **niet opgelost**; een tweede mislukte poging laat de build wel falen. In de groene run
+  41293721810 (1 november) slaagde de rooktest **alleen dankzij die herpoging**.
+
+### Met de hand op de iPhone (kort)
+
+1. Installeren via TestFlight en openen.
+2. Overzetten vanuit Safari/beginscherm (overzetcode): aantallen kloppen, niets dubbel.
+3. Trillen, geluid en spraak tijdens een training.
+4. Back-up naar Bestanden en terugzetten; scorekaart delen.
+5. Statusbalk/Dynamic Island in licht en donker thema.
+6. Na een volgende TestFlight-build: bijwerken over build 11 heen, alles nog daar.
 
 ## Server (Darters, Hulp & feedback, dagteller)
 
@@ -114,7 +169,8 @@ Tot dan werkt de app volledig, alleen Darters/feedback/dagteller geven in de app
 ### Elke push (automatisch)
 
 `.github/workflows/ios.yml` → job **Compileren en rooktest**: `npm ci`, `build-ios-web`, `cap sync ios`, `xcodebuild`
-voor de simulator en `tools/ios/smoke.sh`. Schermafbeeldingen en logs staan als artefact bij de run.
+voor de simulator, `tools/ios/smoke.sh`, de XCUITests (zie *Automatische UI-tests*) en de Release-controle op de
+testmodus. Schermafbeeldingen, logs en `uitests.xcresult` staan als artefact bij de run.
 
 ### TestFlight
 
@@ -142,7 +198,7 @@ voor de simulator en `tools/ios/smoke.sh`. Schermafbeeldingen en logs staan als 
 3. Actions → **OKKIE iPhone-app** → *Run workflow* → *Use workflow from*: **claude/ios-app** → vinkje **TestFlight** → Run.
 4. App Store Connect → TestFlight → interne testgroep → jezelf toevoegen; op de iPhone de app TestFlight.
 
-### Testlijst op je iPhone (TestFlight)
+### Uitgebreide testlijst op je iPhone (TestFlight, optioneel)
 
 1. Installeren, openen: startscherm OKKIE., daarna welkomstscherm met **Trainingen ophalen** bovenaan.
 2. Overzetten: in Safari/beginscherm-OKKIE. *Overzetcode maken* → in de app plakken. Aantallen per speler vergelijken.
@@ -179,23 +235,19 @@ Indienen voor review en publiceren doet de eigenaar zelf in App Store Connect; d
 - **Worker-deploy** (origin `capacitor://localhost`) wacht op akkoord.
 - **Privacyverklaring** op okkiedarts.nl (paragraaf 2a, melden) is bijgewerkt in de bron; publiceren van de website
   wacht op akkoord (`node tools/build-public-site.mjs` → okkiedarts-site).
-- Op een echte iPhone nog niet getest (geen toestel beschikbaar in deze omgeving): zie de testlijst.
+- Op een echte iPhone nog niet getest (geen toestel beschikbaar in deze omgeving): zie *Met de hand op de iPhone*.
+- Rooktest: bekende instabiliteit bij de eerste start (zie *Automatische UI-tests*, beperkingen).
 - Geen iPad-versie (bewust; iPhone-app draait op iPad in iPhone-formaat).
 - Webversie 1.8.0 (boot.js, Darters melden/verbergen) is nog niet gepubliceerd op app.okkiedarts.nl.
 
-## Resterende handelingen eigenaar (eerste TestFlight-upload)
+## Stand TestFlight (1 november 2026)
 
-1. **App Store Connect → Gebruikers en toegang → Integraties → App Store Connect API → Team Keys → +**
-   Naam `OKKIE GitHub`, toegang **Admin**. Download `AuthKey_XXXXXXXXXX.p8` (kan maar één keer). Noteer Key ID en
-   Issuer ID (staat boven de lijst).
-2. **App Store Connect → Apps → + → Nieuwe app**: platform iOS, naam `OKKIE. Darttrainer`, primaire taal Nederlands,
-   bundle-ID `nl.denckh.okkie`, SKU `okkie-ios`, volledige toegang.
-   Staat het bundle-ID niet in de lijst? developer.apple.com → Certificates, IDs & Profiles → Identifiers → + →
-   App IDs → App → beschrijving `OKKIE`, Explicit `nl.denckh.okkie`, geen extra capabilities → Register. Daarna stap 2.
-3. **GitHub → MartijndBesten/dartlog → Settings → Environments → testflight** (bestaat na de testrun; anders *New
-   environment* `testflight`) → *Deployment branches and tags*: *Selected* → `claude/ios-app` en `release/*` →
-   *Environment secrets* → `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (hele .p8-inhoud inclusief BEGIN/END-regels).
-4. **GitHub → Actions → OKKIE iPhone-app → Run workflow** → *Use workflow from*: `claude/ios-app` → vinkje
-   **TestFlight** → Run. ±25 minuten (simulatortest + archief + upload).
-5. **App Store Connect → OKKIE. → TestFlight**: na verwerking (5–30 min) → *Interne testers* → groep → jezelf
-   toevoegen. Op de iPhone **TestFlight** installeren en de uitnodiging openen.
+- API-sleutel (rol App Manager), app *OKKIE. Darttrainer* (`nl.denckh.okkie`, team `GUAS9KT7W3`) en de secrets in
+  environment `testflight` zijn ingericht. Toegestane branches: `claude/ios-app`, `main`, `release/*`.
+- **Build 11 (1.8.0)** staat in TestFlight, alleen interne test, groep *OKKIE intern* (toegang tot alle builds).
+  Tester: `info@deegh.nl` (status: uitgenodigd).
+- Build 11 is gemaakt vóór de router-reparatie (uitleg/Darters wit scherm); die zit pas in een volgende build.
+
+**Nog te doen door de eigenaar:** de TestFlight-uitnodiging op de iPhone openen (mail aan info@deegh.nl), de app
+TestFlight installeren en daarin OKKIE. installeren. Een nieuwe build (met de router-reparatie) maken kan via
+Actions → OKKIE iPhone-app → Run workflow → `main` → vinkje TestFlight; dat is een upload en gebeurt alleen op verzoek.
