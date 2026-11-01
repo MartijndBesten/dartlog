@@ -36,12 +36,14 @@ class OKKIEBridgeViewController: CAPBridgeViewController {
         OKKIERouter()
     }
 
-    override func webViewConfiguration(for instanceConfiguration: InstanceConfiguration) -> WKWebViewConfiguration {
-        let configuration = super.webViewConfiguration(for: instanceConfiguration)
+    // Het testscript hier toevoegen en NIET in webViewConfiguration(for:): Capacitor vervangt daarna de
+    // userContentController door die van de bridge (CAPBridgeViewController.prepareWebView), waardoor een script dat
+    // daar is toegevoegd nooit geladen wordt. Gevonden op 1 november 2026: de netwerkblokkade werkte daardoor niet.
+    override func webView(with frame: CGRect, configuration: WKWebViewConfiguration) -> WKWebView {
         #if DEBUG
         UITestMode.install(into: configuration)
         #endif
-        return configuration
+        return super.webView(with: frame, configuration: configuration)
     }
 }
 
@@ -133,6 +135,14 @@ enum UITestMode {
             };
             if (document.documentElement) add(); else document.addEventListener('DOMContentLoaded', add);
           };
+          // Bewijs voor de tests dat dit script echt geladen is (zie OKKIEUITests.launch): zonder dit label faalt elke test.
+          var mark = function () {
+            var m = document.createElement('div');
+            m.setAttribute('role', 'note'); m.setAttribute('aria-label', 'okkie-uitest-actief');
+            m.style.cssText = 'position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:0.02;pointer-events:none;z-index:2147483646';
+            document.documentElement.appendChild(m);
+          };
+          if (document.documentElement) mark(); else document.addEventListener('DOMContentLoaded', mark);
           window.addEventListener('error', function (e) { show(e.message || 'onbekende fout'); });
           window.addEventListener('unhandledrejection', function (e) { show('promise: ' + (e.reason && (e.reason.message || e.reason) || 'onbekend')); });
         })();
