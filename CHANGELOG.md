@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.10.0 — Gericht oefenen en Vandaag oefenen
+
+- **Gericht oefenen** onder Trainen, precies drie kaarten (`js/drills.js`, `js/drill-views.js`):
+  - **Bob's 27**: groot doel en vier knoppen (0, 1, 2 of 3 keer raak), één tik per ronde. Start 27, D1 t/m D20 en de
+    bull; de score zakt nooit onder 0 en je speelt alle 21 rondes uit.
+  - **121 Checkout**: X01-invoer met uitgooi-advies, 9 pijlen (3 beurten) per doel, dubbel uit. Gelukt: doel + 1;
+    niet gelukt: terug naar het laatst gehaalde doel (begin: 121). 10 doelen per keer; resultaat = hoogste niveau.
+  - **Rond de klok**: kies alles, alleen dubbels (D1–D20 en bull) of alleen triples (T1–T20).
+  - Per beurt (Bob's 27, 121) of per pijl (klokvarianten) wordt het **doel** opgeslagen, in een eigen lijst
+    `data.drills`. Oudere versies (web 1.9.0, iOS 1.8.0/1.9.0) keuren een back-up of overzetcode daardoor niet af.
+  - **Record en trendlijn per week** per oefening onder Statistieken, met een dubbeltabel (alleen pijlen met een vast doel).
+- **Vandaag oefenen** op het startscherm (`js/coach.js`): een coach zonder AI met vaste regels, alles op het toestel.
+  Zwakke dubbels pas vanaf 30 pijlen per dubbel (anders eerlijk "nog te weinig gegooid"), nooit een geraden mikpunt,
+  altijd een "Waarom?" met de getallen.
+- **Weekdoel** (standaard 3 trainingen per week, aanpasbaar 1–7, week begint op maandag) als hoofdmotivatie. De
+  dagteller op het startscherm is weg; de badges voor dagen op rij blijven. Geen "reeks verloren"-meldingen, geen confetti.
+- **Eerdere beurt aanpassen** tijdens een training of wedstrijd (knop *Beurt aanpassen*).
+- **Beurttotaal** in X01-wedstrijden (keuze bij de start; trainingen blijven per pijl). Bij precies uitgooien vraagt de
+  app in hoeveel pijlen. Zo'n wedstrijd telt niet mee voor de trefferkaart of badges per vak.
+- **OKKIE. Club:** de beheerder kiest ook Bob's 27 of 121 Checkout als weekoefening; het resultaat komt uit de oefening
+  (alleen de eindscore naar de server), met een **clubrecord** per oefening. Migratie 0011 (`cloud/CLUB.md`).
+- **Website okkiedarts.nl:** "Gratis. Geen reclame. Geen abonnement." bovenaan, Club direct onder de hero, nieuwe pagina
+  *Over OKKIE.*; het blok over Gericht oefenen en de App Store-badge staan klaar achter schakelaars
+  (`ontdek/site-config.json`) en verschijnen pas na de release van 1.10.0 en de goedkeuring van iOS 1.8.0.
+
 ## 1.9.0 — OKKIE. Club
 
 - **OKKIE. Club** (`club/`, `cloud/src/clubs.js`, `cloud/src/club-extras.js`, migraties 0009 en 0010): besloten clubruimte

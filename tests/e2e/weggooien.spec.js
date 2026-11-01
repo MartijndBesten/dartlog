@@ -89,7 +89,7 @@ test('vrij trainen en rond de klok weggooien', async ({ page }) => {
   await discard(page, 4);
   await expect(page.locator('.hero h2')).toHaveText('Senn');
   await page.click('.action.train');
-  await page.click('[data-act=start-clock]');
+  await page.getByTestId('start-clock').click();   // 1.10.0: kaart Rond de klok onder Gericht oefenen (keuze: alles)
   await expect(page.locator('.clock-track')).toBeVisible();
   for (const c of ['S1', 'S2', 'M', 'S3', 'S4']) await dart(page, c);
   await discard(page, 5);

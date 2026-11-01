@@ -8,21 +8,39 @@ import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rulesPage } from '../js/rules.js';
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
-const dest = join(root, 'dist');
+// OKKIE_SITE_OUT: andere uitvoermap (tests bouwen zo naast dist/, zonder elkaar te storen).
+const dest = process.env.OKKIE_SITE_OUT ? resolve(process.env.OKKIE_SITE_OUT) : join(root, 'dist');
 const APP = 'https://app.okkiedarts.nl/';
+// Schakelaars (ontdek/site-config.json): delen van de site die pas zichtbaar worden na een release of goedkeuring.
+// In de bron staan ze tussen <!--IF:naam--> ... <!--END:naam--> (of IF:!naam voor 'zolang het nog niet zo is').
+// OKKIE_SITE_PREVIEW=1 (alleen voor staging) zet alles aan.
+const CONFIG = JSON.parse(readFileSync(join(root, 'ontdek', 'site-config.json'), 'utf8'));
+const PREVIEW = process.env.OKKIE_SITE_PREVIEW === '1';
+const FLAGS = { release110: PREVIEW || CONFIG.release110 === true, appstore: PREVIEW || CONFIG.appStoreApproved === true };
+export function applyFlags(html, flags = FLAGS) {
+  const out = html.replace(/<!--IF:(!?)(\w+)-->([\s\S]*?)<!--END:\1\2-->/g, (_, not, name, body) => {
+    if (!(name in flags)) throw new Error('Onbekende schakelaar: ' + name);
+    return (not ? !flags[name] : flags[name]) ? body : '';
+  }).replaceAll('{{APPSTORE_URL}}', CONFIG.appStoreUrl);
+  if (/<!--(IF|END):/.test(out)) throw new Error('Schakelaar niet goed afgesloten');
+  return out;
+}
 rmSync(dest, {recursive: true, force:true});
 mkdirSync(dest,{recursive:true});
 // Merkbestanden uit icons/ komen op okkiedarts.nl in de root (/logo.svg, /og-image.jpg, ...).
 // Het Denckh-signatuurlogo (met krul) is ongewijzigd overgenomen uit de Denckh-merkassets.
 const BRAND_FILES = ['favicon.ico','favicon.svg','favicon-16.png','favicon-32.png','favicon-48.png','apple-touch-icon.png','icon-192.png','icon-512.png','logo.svg','okkie-o.svg','og-image.jpg','denckh-logo-signature-light.svg'];
-for(const file of ['ontdek/pages-worker.js','ontdek/index.html','ontdek/privacy/index.html','ontdek/contact/index.html','ontdek/club/index.html','ontdek/club/uitnodiging/index.html','ontdek/dartregels/index.html','ontdek/site.css','ontdek/site.js','uitleg/index.html',...BRAND_FILES.map(f=>'icons/'+f)]) {
+for(const file of ['ontdek/pages-worker.js','ontdek/index.html','ontdek/over/index.html','icons/appstore-badge-nl.svg','ontdek/privacy/index.html','ontdek/contact/index.html','ontdek/club/index.html','ontdek/club/uitnodiging/index.html','ontdek/dartregels/index.html','ontdek/site.css','ontdek/site.js','uitleg/index.html',...BRAND_FILES.map(f=>'icons/'+f)]) {
   if(!existsSync(join(root,file))) throw new Error('Ontbrekend bestand: '+file);
 }
 for(const f of BRAND_FILES) cpSync(join(root,'icons',f),join(dest,f));
+// Officiële App Store-badge (NL, van Apple: tools.applemediaservices.com); alleen in gebruik als appStoreApproved aan staat.
+cpSync(join(root,'icons','appstore-badge-nl.svg'),join(dest,'appstore-badge-nl.svg'));
 // In de repo staan de pagina's onder ontdek/ en verwijzen ze naar ../icons/ of ../../icons/; op de site naar /.
 const rootIcons = html => html.replace(/(?:\.\.\/)+icons\//g,'/');
 let landing = readFileSync(join(root,'ontdek','index.html'),'utf8');
-landing = rootIcons(landing)
+landing = rootIcons(applyFlags(landing))
+  .replaceAll('href="./over/"','href="/over/"')
   .replaceAll('href="../community/"','href="'+APP+'community/"')
   .replaceAll('href="../uitleg/"','href="/uitleg/"')
   .replaceAll('href="../"','href="'+APP+'"')
@@ -38,9 +56,11 @@ cpSync(join(root,'ontdek','site.css'),join(dest,'site.css'));
 cpSync(join(root,'ontdek','site.js'),join(dest,'site.js'));
 // Dartregels, privacy en contact: in de repo relatief onder ontdek/, op okkiedarts.nl vanaf de root.
 // Dartregels krijgt de tekst en tekening van de app (js/rules.js), zodat website en app nooit uit elkaar lopen.
-for(const page of ['dartregels','privacy','contact','club']) {
+for(const page of ['dartregels','privacy','contact','club','over']) {
   mkdirSync(join(dest,page),{recursive:true});
-  writeFileSync(join(dest,page,'index.html'),rootIcons(readFileSync(join(root,'ontdek',page,'index.html'),'utf8'))
+  writeFileSync(join(dest,page,'index.html'),rootIcons(applyFlags(readFileSync(join(root,'ontdek',page,'index.html'),'utf8')))
+    .replaceAll('href="../over/"','href="/over/"')
+    .replaceAll('href="../../uitleg/"','href="/uitleg/"')
     .replaceAll('<!--RULES-->',page==='dartregels'?rulesPage():'')
     .replaceAll('href="../dartregels/"','href="/dartregels/"')
     .replaceAll('href="../site.css"','href="/site.css"')
@@ -57,6 +77,7 @@ for(const f of readdirSync(join(root,'ontdek','club')).filter(f=>f.endsWith('.we
 mkdirSync(join(dest,'club','uitnodiging'),{recursive:true});
 writeFileSync(join(dest,'club','uitnodiging','index.html'),rootIcons(readFileSync(join(root,'ontdek','club','uitnodiging','index.html'),'utf8'))
   .replaceAll('href="../../site.css"','href="/site.css"')
+  .replaceAll('href="../../over/"','href="/over/"')
   .replaceAll('href="../../privacy/#club"','href="/privacy/#club"')
   .replaceAll('href="../../privacy/"','href="/privacy/"')
   .replaceAll('href="../../contact/"','href="/contact/"')
@@ -73,7 +94,7 @@ writeFileSync(tutorialFile,rootIcons(readFileSync(tutorialFile,'utf8')));
 // de app (tools/build-app-site.mjs); die en de rest van de app krijgen de teller dus nooit.
 // Stuurt alleen pad (zonder querystring), herkomsthost en utm_source; geen cookies, geen persoonsgegevens.
 const COUNTER = '<script defer src="https://dashboard.denckh.nl/s.js" data-brand="okkie"></script>';
-for(const page of ['index.html','dartregels/index.html','privacy/index.html','contact/index.html','club/index.html','club/uitnodiging/index.html','uitleg/index.html']) {
+for(const page of PREVIEW ? [] : ['index.html','dartregels/index.html','privacy/index.html','contact/index.html','club/index.html','club/uitnodiging/index.html','over/index.html','uitleg/index.html']) {   // voorbeeld op staging: niet tellen
   const file = join(dest,page), html = readFileSync(file,'utf8');
   if(!html.includes('</head>')) throw new Error('Geen </head> in '+page);
   writeFileSync(file,html.replace('</head>','  '+COUNTER+'\n</head>'));
@@ -87,9 +108,13 @@ writeFileSync(join(dest,'_headers'),`/*
   X-Frame-Options: DENY
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 `);
-writeFileSync(join(dest,'robots.txt'),`User-agent: *
+writeFileSync(join(dest,'robots.txt'),PREVIEW ? `User-agent: *
+Disallow: /
+` : `User-agent: *
 Allow: /
 Sitemap: https://okkiedarts.nl/sitemap.xml
+`);
+if (PREVIEW) writeFileSync(join(dest,'_headers'),readFileSync(join(dest,'_headers'),'utf8')+`  X-Robots-Tag: noindex, nofollow
 `);
 writeFileSync(join(dest,'sitemap.xml'),`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -99,6 +124,7 @@ writeFileSync(join(dest,'sitemap.xml'),`<?xml version="1.0" encoding="UTF-8"?>
 <url><loc>https://okkiedarts.nl/privacy/</loc></url>
 <url><loc>https://okkiedarts.nl/contact/</loc></url>
 <url><loc>https://okkiedarts.nl/club/</loc></url>
+<url><loc>https://okkiedarts.nl/over/</loc></url>
 </urlset>
 `);
-console.log('OKKIE. publieke site opgebouwd in dist/. Publicatie is NIET uitgevoerd.');
+console.log(`OKKIE. publieke site opgebouwd in ${dest} (release110: ${FLAGS.release110}, App Store-badge: ${FLAGS.appstore}${PREVIEW ? ', VOORBEELD voor staging' : ''}). Publicatie is NIET uitgevoerd.`);

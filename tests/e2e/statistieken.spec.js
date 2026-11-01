@@ -294,8 +294,11 @@ test('dagen op rij: een dag met alleen een wedstrijd breekt de reeks niet; badge
   // Vandaag en drie dagen terug getraind, gisteren en eergisteren alleen een wedstrijd: 4 dagen op rij.
   await seed(page, { players: [P1, P2], trainings: [training(3), training(0)], matches: [match(2), match(1)] });
   await page.goto('/');
-  await expect(page.locator('.streak')).toHaveText(/4 dagen op rij/);
+  // 1.10.0: op het startscherm het weekdoel in plaats van een dagteller; de reeks telt nog wel voor de badges.
+  await expect(page.locator('.streak')).toHaveText(/^Deze week \d van 3$/);
+  await expect(page.locator('main')).not.toContainText('dagen op rij');
   await page.click('.tabbar [data-go=stats]');
+  await expect(page.getByTestId('badges-earned')).toContainText('Lekker bezig');
   const card = page.locator('section.card', { has: page.locator('h3', { hasText: 'Badges' }) });
   await expect(card.locator('.badge-count')).toHaveText(/^\d+\/39$/);
   const earned = card.getByTestId('badges-earned');

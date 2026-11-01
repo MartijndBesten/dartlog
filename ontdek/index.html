@@ -16,7 +16,7 @@
   <meta property="og:locale" content="nl_NL">
   <meta property="og:url" content="https://okkiedarts.nl/">
   <meta property="og:title" content="OKKIE. · de gratis dart-app vol statistieken en uitdagingen">
-  <meta property="og:description" content="Zie elke beurt terug, kies zelf je statistieken, jaag op 39 badges en houd je reeks vast. Voor jong en oud, op iPhone en Android. Zonder account, zonder reclame en zonder aankopen.">
+  <meta property="og:description" content="Zie elke beurt terug, kies zelf je statistieken, jaag op 39 badges en train samen met je club. Voor jong en oud, op iPhone en Android. Zonder account, zonder reclame en zonder aankopen.">
   <meta property="og:image" content="https://okkiedarts.nl/og-image.jpg">
   <meta property="og:image:type" content="image/jpeg">
   <meta property="og:image:width" content="1200">
@@ -24,7 +24,7 @@
   <meta property="og:image:alt" content="Het OKKIE.-logo op donkergroen met de tekst Gooi. Scoor. Word beter.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="OKKIE. · de gratis dart-app vol statistieken en uitdagingen">
-  <meta name="twitter:description" content="Zie elke beurt terug, kies zelf je statistieken, jaag op 39 badges en houd je reeks vast. Voor jong en oud, op iPhone en Android. Zonder account, zonder reclame en zonder aankopen.">
+  <meta name="twitter:description" content="Zie elke beurt terug, kies zelf je statistieken, jaag op 39 badges en train samen met je club. Voor jong en oud, op iPhone en Android. Zonder account, zonder reclame en zonder aankopen.">
   <meta name="twitter:image" content="https://okkiedarts.nl/og-image.jpg">
   <link rel="stylesheet" href="./site.css">
 </head>
@@ -38,20 +38,23 @@
       <a href="../uitleg/">Uitleg voor kids</a>
       <a href="./dartregels/">Dartregels</a>
       <a href="#darters">Darters</a>
+      <a href="./over/">Over</a>
       <a class="nav-cta" href="../">Open OKKIE. <span aria-hidden="true">↗</span></a>
     </nav>
   </header>
   <main>
     <section class="hero">
       <div class="hero-content">
-        <div class="eyebrow"><span class="pulse"></span> Gratis en zonder reclame</div>
+        <div class="eyebrow" data-testid="gratis"><span class="pulse"></span> Gratis. Geen reclame. Geen abonnement.</div>
         <h1>Elke pijl telt.<br><em>Elke training ook.</em></h1>
-        <p><strong class="lead-strong">De gratis dart-app vol statistieken en uitdagingen.</strong> Zie elke beurt terug, kies zelf welke cijfers je ziet, jaag op 39 badges en houd je reeks vast. Train alleen of speel 301 en 501 met vrienden en familie; jouw cijfers deel je alleen als je dat zelf aanzet.</p>
-        <div class="buttons">
+<!--IF:!release110-->        <p><strong class="lead-strong">De gratis dart-app vol statistieken en uitdagingen.</strong> Zie elke beurt terug, kies zelf welke cijfers je ziet, jaag op 39 badges en houd je reeks vast. Train alleen of speel 301 en 501 met vrienden en familie; jouw cijfers deel je alleen als je dat zelf aanzet.</p>
+<!--END:!release110--><!--IF:release110-->        <p><strong class="lead-strong">De gratis dart-app die zegt wat je vandaag kunt oefenen.</strong> Scoor, oefen gericht op je dubbels en je uitgooi, zie elke beurt terug en haal je weekdoel. Train alleen, met je club, of speel 301 en 501 met vrienden en familie; jouw cijfers deel je alleen als je dat zelf aanzet.</p>
+<!--END:release110-->        <div class="buttons">
           <a class="btn primary" href="../">Begin gratis met darten <span aria-hidden="true">↗</span></a>
           <a class="btn outline" href="../uitleg/">Eerst even oefenen</a>
         </div>
-        <p class="subtle">Geen reclame · Geen aankopen in de app · Geen account · Werkt op iPhone en Android, ook offline</p>
+<!--IF:appstore-->        <a class="appstore-badge" href="{{APPSTORE_URL}}" data-testid="appstore-badge"><img src="../icons/appstore-badge-nl.svg" alt="Download in de App Store" width="150" height="50"></a>
+<!--END:appstore-->        <p class="subtle">Geen reclame · Geen abonnement · Geen aankopen in de app · Geen account · Werkt op iPhone en Android, ook offline</p>
       </div>
       <div class="preview reveal" aria-label="Voorbeeld van het scorebord">
         <div class="phone" data-demo role="button" tabindex="0" aria-label="Demo: tik om de beurt opnieuw af te spelen">
@@ -64,7 +67,26 @@
         </div>
       </div>
     </section>
-    <section class="container" id="kids">
+    <section class="container" id="club">
+      <div class="split reveal">
+        <div><span class="overline">NIEUW · OKKIE. CLUB</span><h2>Train samen met je club.</h2><p>Een besloten clubruimte: iedereen gooit de weekoefening wanneer het uitkomt, met een clubranglijst die zondagavond sluit, eigen clubtrainingen en je eigen clubnaam en logo. Alleen clubgenoten zien de resultaten. Gratis.</p>
+          <a class="btn primary" href="https://app.okkiedarts.nl/club/">Start gratis een club <span aria-hidden="true">↗</span></a> <a class="btn" href="./club/">Lees meer</a></div>
+      </div>
+    </section>
+<!--IF:release110-->    <section class="container" id="gericht">
+      <div class="section-head reveal"><span class="overline">NIEUW · GERICHT OEFENEN</span><h2>Oefen waar je punten liggen.</h2><p>Alleen maar op de 20 gooien maakt je geen betere darter. Drie korte oefeningen voor je dubbels en je uitgooi, met per oefening je record en een lijn per week.</p></div>
+      <div class="features stagger">
+        <article><span class="num">01</span><h3>Bob's 27</h3><p>Drie pijlen op elke dubbel, van D1 tot en met de bull. Je tikt alleen hoe vaak je raak gooide: één tik per ronde.</p></article>
+        <article><span class="num">02</span><h3>121 Checkout</h3><p>Gooi 121 uit met negen pijlen. Gelukt? Dan gaat het doel omhoog. Met uitgooi-advies bij elke stand.</p></article>
+        <article><span class="num">03</span><h3>Rond de klok</h3><p>Alles, alleen dubbels of alleen triples. Hoe minder pijlen, hoe beter.</p></article>
+      </div>
+      <div class="split reveal coach-split">
+        <div><span class="overline">VANDAAG OEFENEN</span><h2>Een coach die zijn huiswerk laat zien.</h2><p>Op het startscherm staat elke dag één advies: welke oefening, en waarom. Tik op <strong>Waarom?</strong> en je ziet de getallen erachter, bijvoorbeeld dat je D16 2 van de 30 keer raakt. Te weinig gegooid om iets te zeggen? Dan zegt OKKIE. dat ook. Geen AI en geen account: alles wordt op je eigen telefoon uitgerekend.</p>
+          <p>Daaronder je <strong>weekdoel</strong>: standaard 3 keer trainen per week. Een dag overslaan mag gewoon.</p>
+          <a class="btn primary" href="../">Probeer het gratis <span aria-hidden="true">↗</span></a></div>
+      </div>
+    </section>
+<!--END:release110-->    <section class="container" id="kids">
       <div class="kids-invite reveal">
         <div class="kids-graphic" aria-hidden="true"><img src="../icons/okkie-o.svg" alt="" width="96" height="96"></div>
         <div>
@@ -125,7 +147,9 @@
           <p>Gewoon een paar pijlen gooien wordt vanzelf een spel. Je ziet wat je al hebt gehaald en wat er nog te verdienen valt.</p>
           <ul class="feature-list stagger">
             <li><b>39 badges</b>Van <em>Eerste pijlen</em> en <em>Drieling</em> tot <em>Big Fish</em> (170 uit) en de <em>Dubbelverzamelaar</em> (D1 tot en met D20). Ze worden berekend uit wat je al gooide.</li>
-            <li><b>Dagen op rij</b>Elke dag dat je gooit telt mee: een training, rond de klok of een wedstrijd.</li>
+<!--IF:!release110-->            <li><b>Dagen op rij</b>Elke dag dat je gooit telt mee: een training, rond de klok of een wedstrijd.</li>
+<!--END:!release110--><!--IF:release110-->            <li><b>Weekdoel</b>Standaard 3 keer trainen per week, en jij kiest zelf hoeveel. Een dag overslaan mag; de week begint op maandag.</li>
+<!--END:release110-->
             <li><b>Persoonlijk doel</b>Een doel dat met je meegroeit, op basis van je eigen trainingen. Haal je het, dan zie je dat meteen.</li>
             <li><b>Daag een vriend uit</b>Deel je score met één tik: “Kun jij dat verslaan?”</li>
             <li><b>Gooi bij een vriend</b>Met je koppelcode komt een training of wedstrijd op de telefoon van een vriend gewoon in je eigen statistieken.</li>
@@ -171,16 +195,12 @@
         </div>
       </div>
     </section>
-    <section class="container" id="club">
-      <div class="split reveal">
-        <div><span class="overline">NIEUW · OKKIE. CLUB</span><h2>Train samen met je club.</h2><p>Een besloten clubruimte: iedereen gooit de weekoefening wanneer het uitkomt, met een clubranglijst die zondagavond sluit, eigen clubtrainingen en je eigen clubnaam en logo. Alleen clubgenoten zien de resultaten. Gratis.</p>
-          <a class="btn primary" href="https://app.okkiedarts.nl/club/">Start gratis een club <span aria-hidden="true">↗</span></a> <a class="btn" href="./club/">Lees meer</a></div>
-      </div>
-    </section>
     <section class="container faq" id="vragen">
       <div class="section-head reveal"><span class="overline">VEELGESTELDE VRAGEN</span><h2>Goed om te weten</h2></div>
       <div class="faq-list">
         <details><summary>Is OKKIE. echt gratis?</summary><p>Ja. Geen reclame, geen aankopen in de app, geen abonnement en geen account nodig. Iedereen heeft dezelfde complete app.</p></details>
+<!--IF:release110-->        <details><summary>Hoe weet Vandaag oefenen wat ik moet oefenen?</summary><p>Met vaste regels, niet met AI. Een voorbeeld: heb je een week geen gerichte oefening gedaan, dan stelt OKKIE. de oefening voor die het langst geleden is. Over je dubbels zegt OKKIE. pas iets als je er minstens 30 pijlen op hebt gegooid in Bob's 27 of Rond de klok met dubbels. Onder <strong>Waarom?</strong> staan altijd de getallen. Alles wordt op je telefoon uitgerekend; er gaat niets naar een server.</p></details>
+<!--END:release110-->
         <details><summary>Welke statistieken houdt OKKIE. bij?</summary><p>Je gemiddelde per drie pijlen, elke beurt met de drie pijlen, je hoogste en laagste beurt, 100+, 140+ en 180, je totaal aan punten en pijlen, je beste en slechtste training, je ontwikkeling per dag, week of maand, een trefferkaart, records, badges en je wedstrijdcijfers. Via <strong>Statistieken → Pas mijn statistieken aan</strong> kies je zelf wat je ziet.</p></details>
         <details><summary>Ik gooi bij een vriend. Telt dat mee?</summary><p>Ja, als je Darters aan hebt staan. Maak in je eigen app bij <strong>Meer → Koppelcode maken</strong> een code en laat je vriend die invullen bij het starten van de training of wedstrijd. Na afloop komt jouw uitslag vanzelf in je eigen statistieken. Zijn of haar scores blijven van hem of haar.</p></details>
         <details><summary>Praat OKKIE. ook?</summary><p>Als je dat wilt. Zet onder <strong>Meer → Instellingen</strong> de <strong>Gesproken aanmoedigingen</strong> aan en kies <strong>Veel, met grapjes</strong> of <strong>Alleen hoogtepunten</strong>. OKKIE. gebruikt de stem van je telefoon en noemt nooit namen.</p></details>
@@ -205,7 +225,7 @@
       <a class="btn primary" href="../">Open de gratis app <span aria-hidden="true">↗</span></a>
     </section>
   </main>
-  <footer><div class="footer-inside"><strong>OKKIE.</strong><span>Gooi. Scoor. Word beter.</span><a class="maker" href="https://denckh.nl/" aria-label="Ontwikkeld door Denckh (naar denckh.nl)"><span class="maker-role">Ontwikkeld door</span><img src="../icons/denckh-logo-signature-light.svg" alt="Denckh" width="92" height="28"></a><span class="footer-links"><a href="./club/">Club</a><a href="./dartregels/">Dartregels</a><a href="./privacy/">Privacy</a><a href="./contact/">Contact</a></span></div></footer>
+  <footer><div class="footer-inside"><strong>OKKIE.</strong><span>Gooi. Scoor. Word beter.</span><a class="maker" href="https://denckh.nl/" aria-label="Ontwikkeld door Denckh (naar denckh.nl)"><span class="maker-role">Ontwikkeld door</span><img src="../icons/denckh-logo-signature-light.svg" alt="Denckh" width="92" height="28"></a><span class="footer-links"><a href="./club/">Club</a><a href="./over/">Over OKKIE.</a><a href="./dartregels/">Dartregels</a><a href="./privacy/">Privacy</a><a href="./contact/">Contact</a></span></div></footer>
   <script src="./site.js" defer></script>
 </body>
 </html>
