@@ -76,7 +76,13 @@ test('workflow: handmatig te starten, TestFlight alleen vanaf de iOS-branch, noo
   assert.match(wf, /if: >-\n\s+github\.event_name == 'workflow_dispatch' && inputs\.testflight/, 'TestFlight nooit bij een push');
   assert.match(wf, /Op branch '\$GITHUB_REF_NAME' staat geen iOS-project/);
   assert.match(wf, /cancel-in-progress: \$\{\{ github\.event_name == 'push' \}\}/, 'een push breekt een TestFlight-run niet af');
-  assert.match(wf, /<key>testFlightInternalTestingOnly<\/key><true\/>/, 'build kan niet naar de App Store of externe testers');
+  // Standaard alleen interne test; alleen met het aparte vinkje appstore mag de build aan een App Store-versie.
+  assert.match(wf, /<key>testFlightInternalTestingOnly<\/key><\$INTERNAL_ONLY\/>/);
+  assert.match(wf, /INTERNAL_ONLY: \$\{\{ inputs\.appstore && 'false' \|\| 'true' \}\}/, 'zonder vinkje appstore: alleen intern');
+  assert.match(wf, /appstore:\n\s+description: .*\n\s+type: boolean\n\s+default: false/, 'appstore staat standaard uit');
+  // Screenshots tellen niet mee bij de gewone UI-tests en draaien alleen handmatig.
+  assert.match(wf, /-skip-testing:OKKIEUITests\/AppStoreScreenshots/);
+  assert.match(wf, /if: github\.event_name == 'workflow_dispatch' && inputs\.screenshots/);
   assert.doesNotMatch(wf, /submit|appStoreVersionSubmissions|reviewSubmissions|deliver\b|altool/i);
   assert.match(wf, /asc-signing\.mjs cleanup/, 'tijdelijk certificaat wordt altijd opgeruimd');
   assert.match(wf, /select-xcode\.sh/, 'nooit met een bèta-Xcode bouwen');
@@ -146,4 +152,15 @@ test('vaste UI-testdata: verzonnen speler, wordt teruggezet met de bekende uitko
   const t = d.trainings.map(x => L.trainingTotals(x));
   assert.deepEqual(t.map(x => [x.points, x.darts, x.avg]), [[600, 30, 60], [720, 30, 72]]);
   assert.equal(L.avg3(1320, 60), 66);
+});
+
+test('App Store-screenshots: demogegevens in de simulator gelijk aan de generator, aparte testklasse', async () => {
+  const { screenshotFixtureSwift } = await import(new URL('../../tools/ios/appstore-fixture.mjs', import.meta.url));
+  assert.equal(lf(read('ios/App/OKKIEUITests/ScreenshotFixture.swift')), screenshotFixtureSwift(), 'node tools/ios/appstore-fixture.mjs opnieuw draaien');
+  const pbx = read('ios/App/App.xcodeproj/project.pbxproj');
+  for (const f of ['AppStoreScreenshots.swift in Sources', 'ScreenshotFixture.swift in Sources']) assert.ok(pbx.includes(f), f);
+  const swift = read('ios/App/OKKIEUITests/AppStoreScreenshots.swift');
+  assert.match(swift, /"-OKKIEUITest"/, 'testmodus: geen netwerk buiten de app');
+  for (const n of ['1-home', '2-training', '3-uitslag', '4-statistieken', '5-trefferkaart', '6-wedstrijd-501']) assert.ok(swift.includes(`shot("${n}")`), n);
+  assert.doesNotMatch(read('ios/App/OKKIEUITests/OKKIEUITests.swift'), /AppStoreScreenshots/);
 });
