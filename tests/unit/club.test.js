@@ -62,3 +62,15 @@ test('Darters uitzetten wist een clubprofiel niet (alleen niet meer openbaar)', 
   const app = read('community/app.js');
   assert.match(app, /if \(acct\.club\) \{[\s\S]*?request\('\/v1\/me', 'PATCH', \{ enabled: false \}/);
 });
+
+test('privacy: de Club-paragraaf staat als concept in de bron en gaat standaard niet mee naar okkiedarts.nl', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const { fileURLToPath } = await import('node:url');
+  const root = fileURLToPath(new URL('../../', import.meta.url));
+  assert.match(read('ontdek/privacy/index.html'), /<h2 id="club">6a\. OKKIE\. Club/);
+  const env = { ...process.env }; delete env.OKKIE_CLUB_PUBLIC;
+  execFileSync(process.execPath, ['tools/build-public-site.mjs'], { cwd: root, env, stdio: 'pipe' });
+  const out = read('dist/privacy/index.html');
+  assert.doesNotMatch(out, /id="club"|CONCEPT OKKIE/);
+  assert.match(out, /<h2 id="kinderen">/);
+});

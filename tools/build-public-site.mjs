@@ -37,9 +37,13 @@ cpSync(join(root,'ontdek','site.css'),join(dest,'site.css'));
 cpSync(join(root,'ontdek','site.js'),join(dest,'site.js'));
 // Dartregels, privacy en contact: in de repo relatief onder ontdek/, op okkiedarts.nl vanaf de root.
 // Dartregels krijgt de tekst en tekening van de app (js/rules.js), zodat website en app nooit uit elkaar lopen.
+// OKKIE. Club (proef, achter functievlag): de privacyparagraaf staat als concept in de bron en gaat pas mee als Club
+// publiek wordt (OKKIE_CLUB_PUBLIC=1, na akkoord van Martijn). Standaard eruit, zodat hij nooit per ongeluk live gaat.
+const clubDraft = html => process.env.OKKIE_CLUB_PUBLIC === '1' ? html.replace(/<!-- CONCEPT OKKIE\. Club[^>]*-->\r?\n/, '')
+  : html.replace(/ *<!-- CONCEPT OKKIE\. Club[\s\S]*?(?= *<h2 id="kinderen">)/, '');
 for(const page of ['dartregels','privacy','contact']) {
   mkdirSync(join(dest,page),{recursive:true});
-  writeFileSync(join(dest,page,'index.html'),rootIcons(readFileSync(join(root,'ontdek',page,'index.html'),'utf8'))
+  writeFileSync(join(dest,page,'index.html'),rootIcons(clubDraft(readFileSync(join(root,'ontdek',page,'index.html'),'utf8')))
     .replaceAll('<!--RULES-->',page==='dartregels'?rulesPage():'')
     .replaceAll('href="../dartregels/"','href="/dartregels/"')
     .replaceAll('href="../site.css"','href="/site.css"')
