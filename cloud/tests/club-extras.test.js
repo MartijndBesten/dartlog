@@ -28,8 +28,8 @@ const status = async res => { await res.arrayBuffer(); return res.status; };
 const at = (env, now) => ({ ...env, CLUB_TEST_NOW: now });
 
 async function founder(env, nickname, pilot, name) {
-  const acc = await ok(await call(env, '/v1/register', { method: 'POST', body: { nickname, pilotCode: pilot, age: 'adult' } }), 201);
-  const club = (await ok(await call(env, '/v1/clubs', { method: 'POST', token: acc.token, body: { name, pilotCode: pilot, consent: true } }), 201)).club;
+  const acc = await ok(await call(env, '/v1/register', { method: 'POST', body: { nickname, clubFounder: true, age: 'adult' } }), 201);
+  const club = (await ok(await call(env, '/v1/clubs', { method: 'POST', token: acc.token, body: { name, consent: true } }), 201)).club;
   return { ...acc, club };
 }
 async function joiner(env, nickname, admin) {
@@ -213,4 +213,29 @@ test('functievlag uit: logo en clubtrainingen bestaan niet', async () => {
   assert.equal(await status(await call(off, `/v1/clubs/${A}/logo`, { token: a.token })), 404);
   assert.equal(await status(await call(off, `/v1/clubs/${A}/exercises`, { token: a.token })), 404);
   assert.equal(resultInput({ kind: 'score', darts: 30 }, { darts: 30, points: 900 }).manual, 1);
+});
+
+test('moderatie in de besloten inbox: nieuwe clubs zichtbaar, logo/naam/training/club verwijderen; alleen met sleutel en vanaf de inbox zelf', async () => {
+  const KEY = 'inbox-sleutel-voor-de-test-0123456789abcdef';
+  const { env, a, lot, A } = await setup(env0({ FEEDBACK_KEY: KEY }));
+  await ok(await call(env, `/v1/clubs/${A}/logo`, { method: 'PUT', token: a.token, raw: jpeg(), type: 'image/jpeg' }));
+  const exId = (await ok(await call(env, `/v1/clubs/${A}/exercises`, { method: 'POST', token: a.token, body: ex({ name: 'Ongepast' }) }), 201)).exercise.id;
+  const admin = (path, opts = {}) => worker.fetch(new Request(API + path, { method: opts.method || 'GET', headers: { Authorization: 'Bearer ' + (opts.key ?? KEY), ...(opts.body ? { 'Content-Type': 'application/json' } : {}), ...(opts.origin !== undefined ? { Origin: opts.origin } : {}) }, body: opts.body ? JSON.stringify(opts.body) : undefined }), env);
+  assert.equal((await admin('/v1/feedback/admin/clubs', { key: 'fout'.repeat(10) })).status, 403);
+  const list = await ok(await admin('/v1/feedback/admin/clubs'));
+  const club = list.clubs.find(c => c.id === A);
+  assert.equal(club.name, 'DC De Pijl'); assert.equal(club.hasLogo, true); assert.equal(club.exercises[0].name, 'Ongepast');
+  assert.match((await ok(await admin(`/v1/feedback/admin/club-logo?id=${A}`))).logo, /^data:image\/jpeg;base64,/);
+  // Wijzigen alleen vanaf de inboxpagina (zelfde herkomst als de Worker).
+  assert.equal((await admin('/v1/feedback/admin/club', { method: 'POST', origin: 'https://kwaad.example', body: { id: A, action: 'logo' } })).status, 404);
+  const act = body => admin('/v1/feedback/admin/club', { method: 'POST', origin: API, body: { id: A, ...body } });
+  await ok(await act({ action: 'logo' }));
+  await ok(await act({ action: 'rename', name: 'Nette naam' }));
+  assert.equal((await act({ action: 'rename', name: '<b>' })).status, 400);
+  await ok(await act({ action: 'exercise', exerciseId: exId }));
+  const after = (await ok(await call(env, `/v1/clubs/${A}`, { token: lot.token }))).club;
+  assert.equal(after.name, 'Nette naam'); assert.equal(after.logo, null);
+  assert.equal((await ok(await call(env, `/v1/clubs/${A}/exercises`, { token: lot.token }))).exercises.length, 0);
+  await ok(await act({ action: 'delete' }));
+  assert.equal(await status(await call(env, `/v1/clubs/${A}`, { token: lot.token })), 404);
 });

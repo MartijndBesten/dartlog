@@ -9,12 +9,12 @@ const read = rel => readFileSync(new URL('../../' + rel, import.meta.url), 'utf8
 const turns = (n, darts = ['S20', 'S20', 'S20']) => Array.from({ length: n }, () => ({ darts }));
 const t = (extra) => ({ id: 'x', playerId: 'p', kind: 'score', finishedAt: '2026-11-01T10:00:00Z', ...extra });
 
-test('functievlag: CLUB_OPEN staat in productie uit en de app toont Club alleen met de vlag', async () => {
+test('Club live (1.9.0): aan in productie, op het startscherm en bij Darters, productie-API', async () => {
   const live = await import('../../community/config.js');
-  assert.equal(live.CLUB_OPEN, false); assert.equal(live.API_BASE, live.PROD_API);
+  assert.equal(live.CLUB_OPEN, true); assert.equal(live.API_BASE, live.PROD_API);
   const cfg = read('community/config.js');
   // Alleen lokaal of op het aparte staging-adres; overal anders (app.okkiedarts.nl, iPhone-app) uit en productie-API.
-  assert.match(cfg, /export const CLUB_OPEN = LOCAL \? DEV\.club === true : STAGING;/);
+  assert.match(cfg, /export const CLUB_OPEN = LOCAL \? DEV\.club === true : true;/);
   assert.match(cfg, /const STAGING = typeof location !== 'undefined' && location\.hostname === STAGING_APP;/);
   assert.match(cfg, /STAGING_APP = 'okkie-app-staging\.zaalverhuur-sion\.workers\.dev'/);
   assert.match(read('js/app.js'), /\$\{CLUB_OPEN \? `<a class="link-row" href="\.\/club\/"/);
@@ -68,14 +68,16 @@ test('Darters uitzetten wist een clubprofiel niet (alleen niet meer openbaar)', 
   assert.match(app, /if \(acct\.club\) \{[\s\S]*?request\('\/v1\/me', 'PATCH', \{ enabled: false \}/);
 });
 
-test('privacy: de Club-paragraaf staat als concept in de bron en gaat standaard niet mee naar okkiedarts.nl', async () => {
+test('privacy: de Club-paragraaf staat in de gepubliceerde privacyverklaring; startscherm en Darters verwijzen naar Club', async () => {
   const { execFileSync } = await import('node:child_process');
   const { fileURLToPath } = await import('node:url');
   const root = fileURLToPath(new URL('../../', import.meta.url));
-  assert.match(read('ontdek/privacy/index.html'), /<h2 id="club">6a\. OKKIE\. Club/);
-  const env = { ...process.env }; delete env.OKKIE_CLUB_PUBLIC;
-  execFileSync(process.execPath, ['tools/build-public-site.mjs'], { cwd: root, env, stdio: 'pipe' });
+  execFileSync(process.execPath, ['tools/build-public-site.mjs'], { cwd: root, stdio: 'pipe' });
   const out = read('dist/privacy/index.html');
-  assert.doesNotMatch(out, /id="club"|CONCEPT OKKIE/);
-  assert.match(out, /<h2 id="kinderen">/);
+  assert.match(out, /<h2 id="club">6a\. OKKIE\. Club/);
+  assert.doesNotMatch(out, /CONCEPT/);
+  assert.match(read('js/app.js'), /data-testid="club-home"/);
+  assert.match(read('community/index.html'), /href="\.\.\/club\/" data-testid="darters-club"/);
+  assert.match(read('club/club.js'), /INVITE_PAGE = 'https:\/\/okkiedarts\.nl\/club\/uitnodiging\/'/);
+  assert.match(read('club/club.js'), /data-testid="report-exercise"/);
 });

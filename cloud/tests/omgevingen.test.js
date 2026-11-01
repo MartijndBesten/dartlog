@@ -46,9 +46,9 @@ test('wrangler.toml: registratie en groepen staan in beide omgevingen dicht', ()
   }
 });
 
-test('wrangler.toml: OKKIE. Club alleen op staging aan, in productie uit; nooit een testtijd of proefcode in de config', () => {
+test('wrangler.toml: OKKIE. Club aan op staging en productie; nooit een testtijd of proefcode in de config', () => {
   assert.deepEqual(field(stagingPart, 'CLUBS_ENABLED'), ['true']);
-  assert.deepEqual(field(productionPart, 'CLUBS_ENABLED'), ['false']);
+  assert.deepEqual(field(productionPart, 'CLUBS_ENABLED'), ['true'], 'OKKIE. Club live sinds 1.9.0');
   assert.doesNotMatch(toml, /CLUB_TEST_NOW|CLUB_PILOT_CODES\s*=/, 'testtijd en proefclubcodes horen niet in wrangler.toml (codes zijn een secret)');
 });
 

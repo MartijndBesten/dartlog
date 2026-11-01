@@ -3,7 +3,6 @@ import { test, expect } from '@playwright/test';
 // OKKIE. Club in de afgeschermde testomgeving (tools/dev-api.mjs): echte Worker-code, tijdelijke database, alleen
 // fictieve spelers. Twee browsercontexten zijn twee telefoons. In productie staat Club uit (CLUB_OPEN / CLUBS_ENABLED).
 const DEV = { api: 'http://127.0.0.1:8799', club: true };
-const PILOT = (info, t) => `okkie-proefclub-${info.project.name}-${t}-2026`;
 
 function seed(name) {
   const now = new Date().toISOString();
@@ -26,7 +25,7 @@ async function phone(browser, info, data, dev = DEV) {
   return { context, page, errors };
 }
 
-test('standaard uit: zonder vlag geen Club in de app en de clubpagina zegt dat het nog niet beschikbaar is', async ({ browser }, info) => {
+test('lokaal zonder testinstelling: geen Club (zoals een toestel zonder API)', async ({ browser }, info) => {
   const P = await phone(browser, info, seed('Sem'), null);
   await P.page.goto('/');
   await P.page.click('#tabbar [data-go=more]');
@@ -38,16 +37,14 @@ test('standaard uit: zonder vlag geen Club in de app en de clubpagina zegt dat h
   await P.context.close();
 });
 
-test('club oprichten met proefclubcode, lid via QR-link, goedkeuren, weekoefening, feed, verbergen/melden en verlaten', async ({ browser }, info) => {
+test('club oprichten (gratis, 16+), lid via uitnodigingslink, goedkeuren, weekoefening, feed, verbergen/melden en verlaten', async ({ browser }, info) => {
   const A = await phone(browser, info, seed('Anja'));
   const B = await phone(browser, info, seed('Bas'));
 
-  // 1. Beheerder richt een proefclub op.
+  // 1. Beheerder richt gratis een club op (formulier staat open als je nog geen club hebt).
   await A.page.goto('/club/');
-  await A.page.getByText('Een club oprichten (proefclub)').click();
   const create = A.page.locator('#create');
   await create.getByLabel('Naam van de club').fill('DC De Pijl ' + info.project.name);
-  await create.getByLabel('Proefclubcode').fill(PILOT(info, 'club'));
   await create.locator('input[name=consent]').check();
   await create.getByRole('button', { name: 'Club oprichten' }).click();
   await expect(A.page.locator('#status')).toContainText('Jij bent beheerder');
@@ -110,9 +107,7 @@ test('clubprofiel en eigen clubtrainingen: naam en logo (alleen leden), doel-oef
   const A = await phone(browser, info, seed('Anja'));
   const B = await phone(browser, info, seed('Bas'));
   await A.page.goto('/club/');
-  await A.page.getByText('Een club oprichten (proefclub)').click();
   await A.page.locator('#create input[name=name]').fill('Pijl ' + info.project.name);
-  await A.page.locator('#create input[name=pilot]').fill(PILOT(info, 'extra'));
   await A.page.locator('#create input[name=consent]').check();
   await A.page.locator('#create button').click();
   await expect(A.page.locator('.club-qr svg')).toBeVisible();
@@ -122,6 +117,8 @@ test('clubprofiel en eigen clubtrainingen: naam en logo (alleen leden), doel-oef
   await A.page.locator('#profile input[name=name]').fill('DC De Pijl ' + info.project.name);
   await A.page.locator('#profile button').click();
   await expect(A.page.locator('#status')).toContainText('Clubnaam opgeslagen');
+  await expect(A.page.locator('.club-head h2')).toContainText('DC De Pijl ' + info.project.name);   // scherm opnieuw opgebouwd
+  await A.page.waitForLoadState('networkidle');
   await A.page.locator('#logo-file').setInputFiles('tests/e2e/fixtures/clublogo.png');
   await expect(A.page.locator('#status')).toContainText('Logo opgeslagen');
   await expect(A.page.locator('#club-logo img')).toBeVisible();

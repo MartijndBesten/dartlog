@@ -31,8 +31,8 @@ const status = async res => { await res.text(); return res.status; };
 const at = (env, now) => ({ ...env, CLUB_TEST_NOW: now });
 
 async function founder(env, nickname, pilot, clubName) {
-  const acc = await ok(await call(env, '/v1/register', { method: 'POST', body: { nickname, pilotCode: pilot, age: 'adult' } }), 201);
-  const club = (await ok(await call(env, '/v1/clubs', { method: 'POST', token: acc.token, body: { name: clubName, pilotCode: pilot, consent: true } }), 201)).club;
+  const acc = await ok(await call(env, '/v1/register', { method: 'POST', body: { nickname, clubFounder: true, age: 'adult' } }), 201);
+  const club = (await ok(await call(env, '/v1/clubs', { method: 'POST', token: acc.token, body: { name: clubName, consent: true } }), 201)).club;
   return { ...acc, club };
 }
 async function joiner(env, nickname, code, admin, clubId, approve = true) {
@@ -66,7 +66,7 @@ test('functievlag standaard uit: zonder CLUBS_ENABLED="true" bestaat Club niet e
     const env = env0({ CLUBS_ENABLED: v });
     assert.equal(await status(await call(env, '/v1/clubs')), 404);
     assert.equal(await status(await call(env, '/v1/clubs/preview', { method: 'POST', body: { code: 'ABCDEFGH' } })), 404);
-    assert.equal(await status(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Test', pilotCode: PILOTS[0], age: 'adult' } })), 403);
+    assert.equal(await status(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Test', clubFounder: true, age: 'adult' } })), 403);
     assert.equal(await status(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Test', clubCode: 'ABCDEFGH', age: 'adult' } })), 403);
     assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM members').get().n, 0);
     assert.equal((await (await call(env, '/v1/health')).json()).clubs, false);
@@ -74,35 +74,50 @@ test('functievlag standaard uit: zonder CLUBS_ENABLED="true" bestaat Club niet e
   assert.equal((await (await call(env0(), '/v1/health')).json()).clubs, true);
 });
 
-test('proefclubs: alleen met een geldige proefclubcode, elke code één keer; zonder code geen club', async () => {
+test('oprichten: iedereen van 16+ zonder code; misbruiklimieten per speler, per dag en voor aanmeldingen', async () => {
   const env = env0();
-  const a = await founder(env, 'Anja', PILOTS[0], 'DC De Pijl');
+  const a = await founder(env, 'Anja', null, 'DC De Pijl');
   assert.match(a.club.inviteCode, /^[A-HJKMNP-Z2-9]{8}$/);
-  // Zelfde code nog een keer: geweigerd (registreren én club maken).
-  assert.equal(await status(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Kees', pilotCode: PILOTS[0], age: 'adult' } })), 403);
-  assert.equal(await status(await call(env, '/v1/clubs', { method: 'POST', token: a.token, body: { name: 'Tweede club', pilotCode: PILOTS[0], consent: true } })), 403);
-  assert.equal(await status(await call(env, '/v1/clubs', { method: 'POST', token: a.token, body: { name: 'Nep', pilotCode: 'verzonnen-code-123456789', consent: true } })), 403);
-  assert.equal(await status(await call(env, '/v1/clubs', { method: 'POST', token: a.token, body: { name: 'Zonder', consent: true } })), 403);
+  // Tweede club binnen 30 dagen mag, derde niet.
+  await ok(await call(env, '/v1/clubs', { method: 'POST', token: a.token, body: { name: 'Tweede club', consent: true } }), 201);
+  const r3 = await call(env, '/v1/clubs', { method: 'POST', token: a.token, body: { name: 'Derde club', consent: true } });
+  assert.equal(r3.status, 429); assert.match((await r3.json()).error, /30 dagen/);
   // Zonder bevestiging van wat je deelt: geen club.
-  assert.equal(await status(await call(env, '/v1/clubs', { method: 'POST', token: a.token, body: { name: 'Club C', pilotCode: PILOTS[2] } })), 400);
-  // Te korte codes in de configuratie tellen nooit.
-  const weak = env0({ CLUB_PILOT_CODES: 'kort' });
-  assert.equal(await status(await call(weak, '/v1/register', { method: 'POST', body: { nickname: 'Kees', pilotCode: 'kort', age: 'adult' } })), 403);
-  assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM clubs').get().n, 1);
+  const b = await founder(env, 'Bram', null, 'Darts Oost');
+  assert.equal(await status(await call(env, '/v1/clubs', { method: 'POST', token: b.token, body: { name: 'Zonder ja' } })), 400);
+  // Beheerder van hoogstens 3 clubs (ook als clubs ouder zijn dan 30 dagen).
+  env.DB.raw.exec("UPDATE clubs SET created_at = datetime('now','-40 days')");
+  await ok(await call(env, '/v1/clubs', { method: 'POST', token: a.token, body: { name: 'Club drie', consent: true } }), 201);
+  env.DB.raw.exec("UPDATE clubs SET created_at = datetime('now','-40 days')");
+  const r4 = await call(env, '/v1/clubs', { method: 'POST', token: a.token, body: { name: 'Club vier', consent: true } });
+  assert.equal(r4.status, 409); assert.match((await r4.json()).error, /beheerder van 3/);
+  // Noodrem: hoogstens 100 nieuwe clubs per dag voor heel OKKIE.
+  const stmt = env.DB.raw.prepare("INSERT INTO clubs(id,name,invite_code,created_at,updated_at) VALUES(?,?,?,datetime('now'),datetime('now'))");
+  for (let i = 0; i < 100; i++) stmt.run('f'.repeat(24) + String(i).padStart(8, '0'), 'Vul ' + i, 'V' + String(i).padStart(7, '0').replace(/\d/g, d => 'ABCDEFGHJK'[d]));
+  const c = await founder(env, 'Cor', null, 'Club van Cor').catch(e => e);
+  assert.match(String(c.message || c), /429|erg veel clubs/);
+  // Openstaande aanmeldingen: hoogstens 3 per speler.
+  const codes = env.DB.raw.prepare("SELECT invite_code AS c FROM clubs WHERE name LIKE 'Vul %' LIMIT 4").all().map(r => r.c);
+  const p = await ok(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Piet', clubCode: codes[0], age: 'adult' } }), 201);
+  for (const code of codes.slice(0, 3)) await ok(await call(env, '/v1/clubs/join', { method: 'POST', token: p.token, body: { code, consent: true } }), 201);
+  const j4 = await call(env, '/v1/clubs/join', { method: 'POST', token: p.token, body: { code: codes[3], consent: true } });
+  assert.equal(j4.status, 429); assert.match((await j4.json()).error, /3 aanmeldingen/);
+  // Proefclubcodes zijn niet meer nodig en geven ook geen voorrang.
+  assert.equal(await status(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Oud', pilotCode: PILOTS[0], age: 'adult' } })), 403);
 });
 
 test('alleen 16+: jonger dan 16 kan geen account via een club maken, geen club maken en niet lid worden', async () => {
   const env = env0();
   const a = await founder(env, 'Anja', PILOTS[0], 'DC De Pijl');
   assert.equal(await status(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Kind', clubCode: a.club.inviteCode, age: 'minor' } })), 403);
-  assert.equal(await status(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Kind', pilotCode: PILOTS[1], age: 'minor' } })), 403);
+  assert.equal(await status(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Kind', clubFounder: true, age: 'minor' } })), 403);
   // Bestaand minderjarig profiel (bijv. uit Mijn vrienden) kan ook niet lid worden.
   env.DB.raw.prepare("INSERT INTO members(id,handle,nickname,token_hash,recovery_hash,visible,age_group,created_at,updated_at) VALUES('m1','kindkindkind','Kind',?,?,0,'minor',datetime('now'),datetime('now'))")
     .run('x'.repeat(64), 'y'.repeat(64));
   const acc = await ok(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Volwassen', clubCode: a.club.inviteCode, age: 'adult' } }), 201);
   env.DB.raw.prepare("UPDATE members SET age_group = 'minor' WHERE handle = ?").run(acc.account.handle);
   assert.equal(await status(await call(env, '/v1/clubs/join', { method: 'POST', token: acc.token, body: { code: a.club.inviteCode, consent: true } })), 403);
-  assert.equal(await status(await call(env, '/v1/clubs', { method: 'POST', token: acc.token, body: { name: 'Jeugd', pilotCode: PILOTS[1], consent: true } })), 403);
+  assert.equal(await status(await call(env, '/v1/clubs', { method: 'POST', token: acc.token, body: { name: 'Jeugd', consent: true } })), 403);
 });
 
 test('lid worden: code geeft alleen een aanvraag; wachtend lid ziet niets tot de beheerder goedkeurt; afwijzen wist de aanvraag', async () => {

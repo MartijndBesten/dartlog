@@ -7,7 +7,8 @@
 // - Rollen: beheerder (alles), captain (teamoverzicht van het eigen team), lid.
 // - Alleen 16+ in deze eerste versie (members.age_group = 'adult').
 // - Staat standaard UIT: CLUBS_ENABLED moet exact "true" zijn. Een club aanmaken kan daarnaast alleen met een
-//   proefclubcode (secret CLUB_PILOT_CODES, komma-gescheiden, min. 16 tekens, elke code werkt één keer).
+//   Iedereen van 16+ mag een club oprichten, met misbruiklimieten (CLUB_LIMITS: nieuwe clubs per speler per 30 dagen,
+//   clubs als beheerder, nieuwe clubs per dag voor heel OKKIE., openstaande aanmeldingen per speler, plus IP-limiet).
 import { weekKey } from './groups.js';
 import { handleClubExtras } from './club-extras.js';
 
@@ -20,6 +21,10 @@ export const CLUB_LIMITS = {
   feedItems: 50,
   formWeeks: 4,
   closeDay: 7, closeHour: 22,   // zondag 22:00 Europe/Amsterdam
+  createdPer30Days: 2,          // nieuwe clubs per speler per 30 dagen
+  adminClubs: 3,                // clubs waar je beheerder van bent
+  newClubsPerDay: 100,          // nieuwe clubs per dag (UTC) voor heel OKKIE.: noodrem tegen massaal aanmaken
+  pendingPerMember: 3,          // openstaande aanmeldingen per speler
 };
 export const clubsOpen = env => env.CLUBS_ENABLED === 'true';
 export const CLUB_ADULTS_ONLY = 'OKKIE. Club is voorlopig alleen voor spelers van 16 jaar en ouder.';
@@ -205,7 +210,7 @@ export async function handleClubs(request, env, path, h, cors) {
     return h.json({ clubs: (rows.results || []).map(r => r.status === 'active' ? r : { id: r.id, name: r.name, status: r.status }),
       me: { adult }, limits: CLUB_LIMITS }, 200, cors);
   }
-  // Club aanmaken (proefclub): eenmalige proefclubcode, maker wordt beheerder.
+  // Club aanmaken: iedereen van 16+, binnen de misbruiklimieten; de maker wordt beheerder.
   if (path === '/v1/clubs' && method === 'POST') {
     if (!adult) return h.fail(CLUB_ADULTS_ONLY, 403, cors);
     const body = await h.bodyJson(request);
@@ -214,13 +219,12 @@ export async function handleClubs(request, env, path, h, cors) {
     if (body.consent !== true) return h.fail('Bevestig wat je met de club deelt.', 400, cors);
     if (await countMine(env, member.id) >= CLUB_LIMITS.clubsPerMember) return h.fail(`Je zit al in ${CLUB_LIMITS.clubsPerMember} clubs.`, 409, cors);
     if (await ipLimited()) return h.fail('Te veel pogingen. Probeer het over een minuut opnieuw.', 429, cors);
-    const given = typeof body.pilotCode === 'string' ? await h.hash(body.pilotCode.trim()) : '';
-    const codes = String(env.CLUB_PILOT_CODES || '').split(',').map(c => c.trim()).filter(c => c.length >= 16);
-    let ok = false;
-    for (const c of codes) if (await h.hash(c) === given) ok = true;
-    if (!ok) return h.fail('Deze proefclubcode klopt niet.', 403, cors);
-    const claimed = await env.DB.prepare("INSERT INTO app_flags(key, value, at) VALUES(?, NULL, datetime('now')) ON CONFLICT(key) DO NOTHING").bind('clubpilot:' + given).run();
-    if (!claimed.meta?.changes) return h.fail('Deze proefclubcode is al gebruikt.', 403, cors);
+    const recent = (await env.DB.prepare("SELECT COUNT(*) AS n FROM clubs WHERE created_by = ? AND created_at >= datetime('now', '-30 days')").bind(member.id).first()).n;
+    if (recent >= CLUB_LIMITS.createdPer30Days) return h.fail(`Je hebt de afgelopen 30 dagen al ${CLUB_LIMITS.createdPer30Days} clubs opgericht. Probeer het later opnieuw.`, 429, cors);
+    const admins = (await env.DB.prepare("SELECT COUNT(*) AS n FROM club_members WHERE member_id = ? AND role = 'admin'").bind(member.id).first()).n;
+    if (admins >= CLUB_LIMITS.adminClubs) return h.fail(`Je bent al beheerder van ${CLUB_LIMITS.adminClubs} clubs.`, 409, cors);
+    const today = (await env.DB.prepare("SELECT COUNT(*) AS n FROM clubs WHERE created_at >= date('now')").first()).n;
+    if (today >= CLUB_LIMITS.newClubsPerDay) return h.fail('Er zijn vandaag erg veel clubs opgericht. Probeer het morgen opnieuw.', 429, cors);
     const id = newId();
     let code = newInviteCode();
     while (await clubByCode(env, code)) code = newInviteCode();
@@ -242,6 +246,8 @@ export async function handleClubs(request, env, path, h, cors) {
     if (!club) return h.fail('Deze clubcode klopt niet. Vraag de beheerder van je club om de code.', 404, cors);
     const existing = await env.DB.prepare('SELECT status FROM club_members WHERE club_id = ? AND member_id = ?').bind(club.id, member.id).first();
     if (existing) return h.json({ club: { name: club.name }, status: existing.status, already: true }, 200, cors);
+    const myPending = (await env.DB.prepare("SELECT COUNT(*) AS n FROM club_members WHERE member_id = ? AND status = 'pending'").bind(member.id).first()).n;
+    if (myPending >= CLUB_LIMITS.pendingPerMember) return h.fail(`Je hebt al ${CLUB_LIMITS.pendingPerMember} aanmeldingen open staan. Wacht tot een beheerder ze bekijkt.`, 429, cors);
     if (await countMine(env, member.id) >= CLUB_LIMITS.clubsPerMember) return h.fail(`Je zit al in ${CLUB_LIMITS.clubsPerMember} clubs.`, 409, cors);
     const pending = (await env.DB.prepare("SELECT COUNT(*) AS n FROM club_members WHERE club_id = ? AND status = 'pending'").bind(club.id).first()).n;
     if (pending >= CLUB_LIMITS.pendingPerClub) return h.fail('Er staan al veel aanvragen open bij deze club. Probeer het later opnieuw.', 409, cors);

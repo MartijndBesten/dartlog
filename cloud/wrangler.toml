@@ -73,8 +73,8 @@ REGISTRATION_ENABLED = "false"
 GROUPS_ENABLED = "false"
 # Darters: openbaar overzicht, één schakelaar per speler; jonger dan 16 pas na "ja" van een ouder (src/darters.js).
 DARTERS_ENABLED = "true"
-# OKKIE. Club: in productie UIT tot akkoord van Martijn (migratie 0009 is daar niet uitgevoerd).
-CLUBS_ENABLED = "false"
+# OKKIE. Club: live sinds 1.9.0 (migraties 0009 en 0010). Uitzetten: "false" en opnieuw deployen.
+CLUBS_ENABLED = "true"
 EMPTY_ACCOUNT_DAYS = "30"
 INACTIVE_DAYS = "730"
 

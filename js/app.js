@@ -26,7 +26,7 @@ import * as N from './native.js';
 
 FB.captureErrors();
 
-export const APP_VERSION = '1.8.0';
+export const APP_VERSION = '1.9.0';
 // "Nodig een vriend uit": altijd de website als link. Die blijft geldig, ook na de verhuizing van de app.
 export const INVITE_URL = 'https://okkiedarts.nl/';
 export const INVITE_TEXT = 'Ik train mijn darts met OKKIE. 🎯 Gratis, werkt gewoon op je telefoon en je ziet meteen of je beter wordt. Doe je mee?';
@@ -381,6 +381,9 @@ VIEWS.home = () => {
       <button class="action stats" data-go="stats">
         <span class="a-icon">${icon('stats')}</span><span><b>Mijn statistieken</b><small>Word ik beter?</small></span>
       </button>
+      ${CLUB_OPEN ? `<a class="action club" href="./club/" aria-label="Open OKKIE. Club" data-testid="club-home">
+        <span class="a-icon">${icon('group')}</span><span><b>OKKIE. Club <em class="new-tag">nieuw</em></b><small>Train samen met je club: weekoefening en clubranglijst</small></span>
+      </a>` : ''}
       <a class="action stats" href="./community/" aria-label="Open Darters" data-testid="darters-link">
         <span class="a-icon">${icon('trophy')}</span><span><b>Darters</b><small>Bekijk andere darters en deel zelf je cijfers</small></span>
       </a>

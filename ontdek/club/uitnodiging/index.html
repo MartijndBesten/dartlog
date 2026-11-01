@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07120d">
+  <!-- Persoonlijke uitnodigingslinks: niet in zoekmachines. De clubcode staat achter # en gaat niet mee naar deze website. -->
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="Je bent uitgenodigd voor een club in OKKIE., de gratis darttrainer.">
+  <title>Uitnodiging voor OKKIE. Club — OKKIE.</title>
+  <link rel="icon" href="../../../icons/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../../../icons/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="../../../icons/apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="OKKIE.">
+  <meta property="og:locale" content="nl_NL">
+  <meta property="og:url" content="https://okkiedarts.nl/club/uitnodiging/">
+  <meta property="og:title" content="Je bent uitgenodigd voor OKKIE. Club">
+  <meta property="og:description" content="Train samen met je club: weekoefening op eigen tijd en een clubranglijst die alleen clubgenoten zien.">
+  <meta property="og:image" content="https://okkiedarts.nl/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Het OKKIE.-logo op donkergroen met de tekst Gooi. Scoor. Word beter.">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="../../site.css">
+  <style>
+    .invite { max-width: 640px; margin: 0 auto; padding-top: 24px; padding-bottom: 40px; }
+    .invite h1 { overflow-wrap: break-word; }
+    .invite .clubname { color: #b8ff3c; }
+    .invite .steps { margin: 18px 0; padding-left: 20px; }
+    .invite .steps li { margin: 6px 0; }
+    .invite .code { font: 700 1.3rem/1 ui-monospace, Menlo, monospace; letter-spacing: .15em; }
+    @media (max-width: 760px) { .invite h1 { font-size: clamp(1.7rem, 8.4vw, 2.6rem); } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="wordmark" href="../../" aria-label="OKKIE, beginpagina"><img class="logo-img" src="../../../icons/logo.svg" alt="OKKIE." width="112" height="30"></a>
+    <nav>
+      <a href="../">Club</a>
+      <a class="nav-cta" href="https://app.okkiedarts.nl/">Open OKKIE. <span aria-hidden="true">↗</span></a>
+    </nav>
+  </header>
+  <main class="container invite">
+    <span class="overline">OKKIE. CLUB · UITNODIGING</span>
+    <h1 id="title">Je bent uitgenodigd voor een club</h1>
+    <p class="lead" id="lead">Train samen met je club in OKKIE., de gratis darttrainer: iedereen gooit de weekoefening wanneer het uitkomt, en alleen clubgenoten zien de clubranglijst.</p>
+    <p><a class="btn primary" id="open" href="https://app.okkiedarts.nl/club/">Open de uitnodiging in OKKIE. <span aria-hidden="true">↗</span></a></p>
+    <ol class="steps">
+      <li>Open OKKIE. en maak je speler aan (een bijnaam is genoeg).</li>
+      <li>De clubcode staat al ingevuld; vraag lid worden aan.</li>
+      <li>De beheerder van de club laat je toe. Daarna zie je de weekoefening en de clubranglijst.</li>
+    </ol>
+    <p class="small" id="codeline" hidden>Clubcode: <span class="code" id="code"></span></p>
+    <p class="small">Gratis en zonder reclame. Je trainingen blijven op je telefoon; met je club deel je alleen samengevatte resultaten. Voor spelers van 16 jaar en ouder. <a href="../">Meer over OKKIE. Club</a> · <a href="../../privacy/#club">Privacy</a></p>
+  </main>
+  <footer><div class="footer-inside"><strong>OKKIE.</strong><span>Gooi. Scoor. Word beter.</span><a class="maker" href="https://denckh.nl/" aria-label="Ontwikkeld door Denckh (naar denckh.nl)"><span class="maker-role">Ontwikkeld door</span><img src="../../../icons/denckh-logo-signature-light.svg" alt="Denckh" width="92" height="28"></a><span class="footer-links"><a href="../../dartregels/">Dartregels</a><a href="../../privacy/">Privacy</a><a href="../../contact/">Contact</a></span></div></footer>
+  <script>
+  // De clubcode staat achter # (gaat niet naar deze website). Alleen de clubnaam en het aantal leden worden opgehaald
+  // bij de OKKIE.-server (zelfde als in de app, alleen-lezen); geen gegevens van leden.
+  (function () {
+    var m = location.hash.match(/club=([A-Za-z0-9-]{8,10})/);
+    if (!m) return;
+    var code = m[1].toUpperCase().replace(/-/g, '');
+    if (!/^[A-HJKMNP-Z2-9]{8}$/.test(code)) return;
+    document.getElementById('open').href = 'https://app.okkiedarts.nl/club/#club=' + code;
+    document.getElementById('code').textContent = code;
+    document.getElementById('codeline').hidden = false;
+    fetch('https://okkie-api.zaalverhuur-sion.workers.dev/v1/clubs/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code }) })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.club) { document.getElementById('lead').textContent = 'Deze uitnodiging lijkt niet (meer) geldig. Vraag de beheerder van je club om een nieuwe link. Je kunt OKKIE. natuurlijk altijd gewoon gebruiken.'; return; }
+        var t = document.getElementById('title');
+        t.textContent = 'Je bent uitgenodigd voor ';
+        var s = document.createElement('span'); s.className = 'clubname'; s.textContent = d.club.name; t.appendChild(s);
+        document.title = 'Uitnodiging: ' + d.club.name + ' — OKKIE. Club';
+        var n = d.club.members;
+        document.getElementById('lead').textContent = d.club.name + ' (' + n + (n === 1 ? ' lid' : ' leden') + ') traint samen in OKKIE. Club: iedereen gooit de weekoefening wanneer het uitkomt, en alleen clubgenoten zien de clubranglijst.';
+      })
+      .catch(function () {});
+  })();
+  </script>
+</body>
+</html>

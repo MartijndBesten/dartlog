@@ -213,9 +213,9 @@ export default {
         const nickname = cleanNickname(body.nickname);
         const viaInvite = typeof body.inviteToken === 'string';
         const viaFounder = !viaInvite && typeof body.founderCode === 'string';
-        // OKKIE. Club (clubs.js, achter CLUBS_ENABLED): met een clubcode (lid worden) of een proefclubcode (club oprichten).
-        // Alleen 16+, nooit een openbaar profiel. De proefclubcode wordt pas verbruikt bij het aanmaken van de club.
-        const viaClub = !viaInvite && !viaFounder && (typeof body.clubCode === 'string' || typeof body.pilotCode === 'string');
+        // OKKIE. Club (clubs.js, achter CLUBS_ENABLED): met een clubcode (lid worden) of om zelf een club op te richten
+        // (clubFounder: true). Alleen 16+, nooit een openbaar profiel; registratie per IP beperkt (RL_REGISTER).
+        const viaClub = !viaInvite && !viaFounder && (typeof body.clubCode === 'string' || body.clubFounder === true);
         let ageGroup = 'adult', consent = null;
         if (viaClub) {
           if (!clubsOpen(env)) return fail('Registratie is nog gesloten.', 403, cors);
@@ -223,13 +223,6 @@ export default {
           if (!nickname) return fail('Vul je voornaam of bijnaam in (2 tot 24 tekens).', 400, cors);
           if (typeof body.clubCode === 'string') {
             if (!await clubCodeValid(env, body.clubCode)) return fail('Deze clubcode klopt niet. Vraag de beheerder van je club om de code.', 403, cors);
-          } else {
-            const given = await hash(body.pilotCode.trim());
-            const codes = String(env.CLUB_PILOT_CODES || '').split(',').map(c => c.trim()).filter(c => c.length >= 16);
-            let pilotOk = false;
-            for (const c of codes) if (await hash(c) === given) pilotOk = true;
-            const used = pilotOk && await env.DB.prepare('SELECT 1 AS ok FROM app_flags WHERE key = ?').bind('clubpilot:' + given).first();
-            if (!pilotOk || used) return fail('Deze proefclubcode klopt niet of is al gebruikt.', 403, cors);
           }
           consent = 'zelf';
         } else if (viaInvite || viaFounder) {

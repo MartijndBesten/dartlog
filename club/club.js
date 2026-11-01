@@ -15,6 +15,8 @@ const fmt = (x, d = 2) => x == null ? '–' : Number(x).toLocaleString('nl-NL', 
 const PREFS = 'okkie.club.v1';
 const HIDDEN = 'okkie.club.verborgen';   // verbergen op dit toestel, per club: { clubId: [handle, ...] }
 const REPORT_TO = 'info@denckh.nl';
+// Uitnodigingslink en QR-code: landingspagina op okkiedarts.nl ("Je bent uitgenodigd voor …") met knop naar de app.
+const INVITE_PAGE = 'https://okkiedarts.nl/club/uitnodiging/';
 const ROLE = { admin: 'beheerder', captain: 'captain', member: 'lid' };
 const leden = n => `${n} ${n === 1 ? 'lid' : 'leden'}`;
 // "2026-11-08 22:00" → "zondag 8 november, 22:00"
@@ -90,6 +92,8 @@ const reportClubLink = club => 'mailto:' + REPORT_TO + '?subject=' + encodeURICo
   '&body=' + encodeURIComponent(`Ik meld de naam of het logo van een club in OKKIE. Club:\n\nClub: ${club.name}\nClubcode-ID: ${club.id}\n\nWaarom (bijv. ongepaste naam of afbeelding):\n`);
 
 // ---------- clubtrainingen ----------
+const reportExerciseLink = (club, e) => 'mailto:' + REPORT_TO + '?subject=' + encodeURIComponent('Melding OKKIE. Club: clubtraining') +
+  '&body=' + encodeURIComponent(`Ik meld een clubtraining in OKKIE. Club:\n\nClub: ${club.name}\nClub-ID: ${club.id}\nTraining: ${e.name}\n\nWaarom:\n`);
 const EX_KIND = { score: 'Scoretraining', clock: 'Rond de klok', target: 'Doel-oefening', checkout: 'Checkout-reeks' };
 const dutchDate = d => new Date(d + 'T12:00:00Z').toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 function exSettings(e) {
@@ -132,6 +136,7 @@ async function exercisesHtml() {
     cards.push(`<section class="card ex-card"><div class="ex-head"><h3>${esc(e.name)}</h3><span class="tag">${esc(EX_KIND[e.kind])}${e.teamName ? ' · ' + esc(e.teamName) : ''}</span></div>
       ${e.description ? `<p>${esc(e.description)}</p>` : ''}<p class="help">${esc(exSettings(e))} · ${esc(dutchDate(e.startsOn))} t/m ${esc(dutchDate(e.endsOn))} (22:00)${e.open ? '' : ' · gesloten'}</p>
       ${rows.length ? `<ol class="board">${rows.map(x => boardRow(x, exValue(e, x), x.manual ? 'zelf ingevoerd' : '')).join('')}</ol>` : '<p class="help">Nog geen resultaten.</p>'}
+      <p class="help"><a href="${esc(reportExerciseLink(state.club.club, e))}" data-testid="report-exercise">Meld deze training</a> als de naam of uitleg ongepast is.</p>
       ${form}${e.canManage ? `<p><button class="btn danger" type="button" data-delex="${esc(e.id)}">Training verwijderen</button></p>` : ''}</section>`);
   }
   const teams = r.canCreate.teams === 'all' ? state.club.teams : state.club.teams.filter(t => r.canCreate.teams.includes(t.id));
@@ -180,10 +185,9 @@ function startView() {
         <label class="check"><input type="checkbox" name="consent" required><span>${esc(CONSENT_TEXT)}</span></label>
         <button class="btn primary">Aanvraag versturen</button>
         <p class="help">De beheerder van de club keurt je aanvraag goed. Tot die tijd zie je niets van de club en ziet de club niets van jou.</p></form></section>
-    <details class="card"><summary><b>Een club oprichten (proefclub)</b></summary>
-      <form id="create"><p class="help">OKKIE. Club is in de proeffase. Met een proefclubcode van Denckh. maak je een club aan en word je beheerder.</p>
+    <details class="card"${mine.length ? '' : ' open'}><summary><b>Gratis een club oprichten</b></summary>
+      <form id="create"><p class="help">Voor je dartvereniging, team of vaste groep. Jij wordt beheerder: je laat leden toe, kiest de weekoefening en maakt eigen clubtrainingen. Gratis.</p>
         <label class="field">Naam van de club<input name="name" required maxlength="40"></label>
-        <label class="field">Proefclubcode<input name="pilot" required autocomplete="off"></label>
         <label class="check"><input type="checkbox" name="consent" required><span>${esc(CONSENT_TEXT)}</span></label>
         <button class="btn primary">Club oprichten</button></form></details>`;
   if (state.code) previewCode(state.code);
@@ -306,7 +310,7 @@ function qrSvg(text) {
 }
 async function adminHtml() {
   const id = state.club.id, c = state.club.club;
-  const link = publicUrl('club/') + '#club=' + c.inviteCode;
+  const link = INVITE_PAGE + '#club=' + c.inviteCode;
   const reqs = (await api(`/v1/clubs/${id}/requests`)).requests;
   const next = await api(`/v1/clubs/${id}/challenge?week=next`);
   const kinds = Object.entries(CLUB_KIND_LABELS).filter(([k]) => k !== 'free');
@@ -424,10 +428,9 @@ document.addEventListener('submit', e => {
     await home();
   });
   else if (f.id === 'create') busy(btn, async () => {
-    const pilotCode = f.elements.pilot.value.trim();
     if (!f.elements.consent.checked) throw new Error('Bevestig eerst wat je met de club deelt.');
-    await ensureAccount('pilotCode', pilotCode);
-    const r = await api('/v1/clubs', 'POST', { name: f.elements.name.value, pilotCode, consent: true });
+    await ensureAccount('clubFounder', true);
+    const r = await api('/v1/clubs', 'POST', { name: f.elements.name.value, consent: true });
     await markClub();
     status(`${r.club.name} is aangemaakt. Jij bent beheerder.`);
     state.tab = 'admin';
