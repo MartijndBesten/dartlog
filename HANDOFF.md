@@ -70,7 +70,7 @@ Kandidaat voor de bibliotheek (eigen `bibliotheek/*`-PR, nog niet gedaan): "XCUI
 Debug-only testmodus met netwerkblokkade en JS-foutmelder, controle op aantal + verplichte scenario's, Release-check
 met tegenproef, en de Capacitor-router voor map-pagina's.
 
-## OKKIE. Club (branch `claude/okkie-club`, proef, achter functievlag)
+## OKKIE. Club: LIVE sinds 1 november 2026 (1.9.0); hieronder eerst de geschiedenis van de proef
 
 Stand 1 november 2026. Concept: Claude Doc *OKKIE. Club – onderzoek en concept*. Technisch: `cloud/CLUB.md`.
 
@@ -129,3 +129,19 @@ Stand 1 november 2026. Concept: Claude Doc *OKKIE. Club – onderzoek en concept
   - `check-release.sh` controleert ook op het nieuwe kenmerk.
 - **Bewijs:** run 41323444069 had 10/10 tests geslaagd, met de testmodus per test aangetoond. De dagteller liep
   tijdens die run niet op met testtoestellen (+3 in een uur, passend bij echte gebruikers van de 1.8.0-webversie).
+
+## OKKIE. Club live (1 november 2026)
+
+- **API:**
+  - productie-Worker `2c08abdf`, `CLUBS_ENABLED="true"`, migraties 0009 en 0010;
+  - vooraf een export en een Time Travel-bookmark (zie `cloud/CLUB.md`, Terugzetten);
+  - live getest met tijdelijke accounts en een tijdelijke club, daarna opgeruimd; tellingen gelijk aan vooraf.
+- **Webapp 1.9.0** op app.okkiedarts.nl (okkie-app `a97eb29`, terug: tag `live-1.8.0`):
+  - kaart Club op het startscherm en verwijzing bij Darters;
+  - bestaande gegevens blijven bewaard (live gecontroleerd).
+- **Website:**
+  - privacyverklaring 6a, Club in de navigatie, beginpagina, /club/ live, /club/uitnodiging/;
+  - terugzet-tags `live-voor-club-privacy` en `live-voor-club-live`.
+- **iOS 1.9.0:** App Store-geschikte TestFlight-build gemaakt. Indienen pas na goedkeuring van 1.8.0 (die wachtte
+  op 1 november nog op review). Teksten en App Privacy-wijzigingen staan in `appstore/APPSTORE-TEKSTEN.md`.
+- **Blokkade:** een e-mail bij elke nieuwe club kan pas met een maildienst. Nu: sectie Clubs in de besloten inbox.
