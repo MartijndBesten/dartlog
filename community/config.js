@@ -6,7 +6,12 @@
 const LOCAL = typeof location !== 'undefined' && /^https?:$/.test(location.protocol) && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 const DEV = LOCAL ? (() => { try { return JSON.parse(localStorage.getItem('okkie.dev') || '{}') || {}; } catch { return {}; } })() : {};
 export const PROD_API = 'https://okkie-api.zaalverhuur-sion.workers.dev';
-export const API_BASE = LOCAL ? (DEV.api || '') : PROD_API;
+// STAGING-webapp (alleen om OKKIE. Club te proberen, cloud/CLUB.md): eigen adres, praat alleen met de staging-API en
+// de staging-database. Op elk ander adres verandert er niets.
+export const STAGING_APP = 'okkie-app-staging.zaalverhuur-sion.workers.dev';
+export const STAGING_API = 'https://okkie-api-staging.zaalverhuur-sion.workers.dev';
+const STAGING = typeof location !== 'undefined' && location.hostname === STAGING_APP;
+export const API_BASE = LOCAL ? (DEV.api || '') : STAGING ? STAGING_API : PROD_API;
 export const TURNSTILE_SITE_KEY = '';
 // Openbare registratie: pas op true na privacyverklaring en ouderlijke toestemming (<16). De API weigert
 // registratie daarnaast zelf zolang REGISTRATION_ENABLED in de Worker niet "true" is.
@@ -19,4 +24,4 @@ export const DARTERS_OPEN = LOCAL ? !!DEV.api : true;
 export const MINORS_OPEN = LOCAL ? DEV.minors === true : false;
 // OKKIE. Club (proef, cloud/CLUB.md): standaard UIT. Pas aanzetten na akkoord van Martijn, samen met CLUBS_ENABLED
 // en migratie 0009 op de productie-API. Lokaal testen: 'okkie.dev' = {"api":"…","club":true}.
-export const CLUB_OPEN = LOCAL ? DEV.club === true : false;
+export const CLUB_OPEN = LOCAL ? DEV.club === true : STAGING;

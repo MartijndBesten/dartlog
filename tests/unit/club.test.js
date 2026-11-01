@@ -9,9 +9,14 @@ const read = rel => readFileSync(new URL('../../' + rel, import.meta.url), 'utf8
 const turns = (n, darts = ['S20', 'S20', 'S20']) => Array.from({ length: n }, () => ({ darts }));
 const t = (extra) => ({ id: 'x', playerId: 'p', kind: 'score', finishedAt: '2026-11-01T10:00:00Z', ...extra });
 
-test('functievlag: CLUB_OPEN staat in productie uit en de app toont Club alleen met de vlag', () => {
+test('functievlag: CLUB_OPEN staat in productie uit en de app toont Club alleen met de vlag', async () => {
+  const live = await import('../../community/config.js');
+  assert.equal(live.CLUB_OPEN, false); assert.equal(live.API_BASE, live.PROD_API);
   const cfg = read('community/config.js');
-  assert.match(cfg, /export const CLUB_OPEN = LOCAL \? DEV\.club === true : false;/);
+  // Alleen lokaal of op het aparte staging-adres; overal anders (app.okkiedarts.nl, iPhone-app) uit en productie-API.
+  assert.match(cfg, /export const CLUB_OPEN = LOCAL \? DEV\.club === true : STAGING;/);
+  assert.match(cfg, /const STAGING = typeof location !== 'undefined' && location\.hostname === STAGING_APP;/);
+  assert.match(cfg, /STAGING_APP = 'okkie-app-staging\.zaalverhuur-sion\.workers\.dev'/);
   assert.match(read('js/app.js'), /\$\{CLUB_OPEN \? `<a class="link-row" href="\.\/club\/"/);
   assert.match(read('club/club.js'), /if \(!CLUB_OPEN \|\| !apiAvailable\(\)\) unavailable\(/);
   assert.ok(PARTS.includes('club'), 'club/ hoort bij de app-bestanden');

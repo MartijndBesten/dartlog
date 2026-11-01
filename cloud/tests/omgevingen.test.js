@@ -72,5 +72,12 @@ test('app: PROD_API wijst naar de productieworker, niet naar staging', () => {
   const m = appConfig.match(/PROD_API\s*=\s*'https:\/\/([^.']+)\.([^.']+)\.workers\.dev'/);
   assert.ok(m, 'PROD_API niet gevonden of geen workers.dev-adres');
   assert.equal(m[1], 'okkie-api');
-  assert.doesNotMatch(appConfig, /okkie-api-staging|okkie-community-api/);
+  assert.doesNotMatch(appConfig, /okkie-community-api/);
+  // Staging alleen op het aparte staging-adres van de webapp (OKKIE. Club proberen); nergens anders.
+  const stagingLines = appConfig.split('\n').filter(l => /okkie-api-staging/.test(l));
+  assert.deepEqual(stagingLines, ["export const STAGING_API = 'https://okkie-api-staging.zaalverhuur-sion.workers.dev';"]);
+  assert.match(appConfig, /const STAGING = typeof location !== 'undefined' && location\.hostname === STAGING_APP;/);
+  assert.match(appConfig, /export const API_BASE = LOCAL \? \(DEV\.api \|\| ''\) : STAGING \? STAGING_API : PROD_API;/);
+  assert.match(appConfig, /STAGING_APP = 'okkie-app-staging\.[^']+\.workers\.dev'/);
+  assert.doesNotMatch(appConfig, /STAGING_APP = '[^']*okkiedarts\.nl/, 'het echte app-adres is nooit staging');
 });

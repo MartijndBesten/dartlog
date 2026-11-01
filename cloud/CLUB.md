@@ -19,6 +19,15 @@ tests `tests/clubs.test.js`.
   Martijn geeft per proefclub één code aan de contactpersoon.
 - `CLUB_TEST_NOW` bestaat alleen voor tests (vaste tijd) en staat nooit in `wrangler.toml` (dat bewaakt `tests/omgevingen.test.js`).
 
+## Staging om te proberen
+
+- **Webapp:** https://okkie-app-staging.zaalverhuur-sion.workers.dev, een statische Worker (`tools/staging-app/wrangler.toml`,
+  bouwen met `OKKIE_APP_STAGE=test`). Hij praat alleen met `okkie-api-staging` en de staging-D1; op dat adres staat
+  `CLUB_OPEN` aan. Gegevens op dit adres staan los van app.okkiedarts.nl.
+- **API:** `okkie-api-staging` (Club-branch), migraties tot en met 0010; secret `CLUB_PILOT_CODES` gezet (codes lokaal bij
+  Martijn, niet in git).
+- **Back-up vóór 0010:** `okkie-backups/okkie-community-staging-2026-11-01-voor-0010.sql`.
+
 ## Datamodel (D1)
 
 | Tabel | Inhoud |
