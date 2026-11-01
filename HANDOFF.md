@@ -35,6 +35,20 @@ Staging (alleen proef, niet vindbaar):
 - API: `okkie-api-staging` versie `6d5887d9` (terug: `96725587`); staging-D1 migratie 0011, back-up vooraf
   `C:\Users\matty\okkie-backups\okkie-community-staging-2026-11-01-voor-0011.sql`.
 
+Getest (werkelijk gedraaid, 1-2 november 2026):
+| Suite | Waar | Resultaat |
+|---|---|---|
+| Unit-tests app (`npm test`, o.a. drills 12, coach 9, compatibiliteit 7, website 3) | lokaal Windows, Node 24 | 198 geslaagd, 0 mislukt |
+| Cloud/Worker-tests (`cloud: npm run check`, o.a. migratie 0011 en Club-oefeningen) | lokaal | 98 geslaagd, 0 mislukt |
+| Browsertests (Playwright, iPhone/Android/desktop, incl. `gericht.spec.js`) | CI op PR #16 | 282 geslaagd, 0 mislukt, 51 bewust overgeslagen |
+| Browsertests lokaal: gericht, club, regressie, statistieken, weggooien, site (3 profielen) | lokaal Windows | 125 geslaagd, 0 mislukt, 7 overgeslagen |
+| Staging-app doorloop (23 controles: oefeningen, beurt aanpassen, beurttotaal, coach, weekdoel) | mobiel en desktop | alles OK, geen JS-fouten |
+| Staging-API Club (tijdelijke club en accounts, daarna verwijderd) | okkie-api-staging | OK; ranglijst/clubrecord live niet te zien omdat de week zondag 22:00 dicht ging (wel in de cloudtests) |
+| Websitevoorbeeld staging (noindex, volgorde, badge, Over OKKIE., footer) | mobiel en desktop | OK |
+
+Bouwstenen: gebruikt B45, B47, B49, B50, B51, B52, B55, B57, B59, B97; bijgewerkt B45, B50, B51, B57 (workbench PR #104,
+gemerged en op `main` gecontroleerd); nieuw: geen kaart.
+
 **Nog niet gedaan, wacht op akkoord van Martijn:** productie-API (back-up + bookmark, migratie 0011, Worker),
 webapp 1.10.0 op app.okkiedarts.nl, website publiceren (daarna `release110` aan zodra 1.10.0 live is;
 `appStoreApproved` pas na goedkeuring van 1.8.0), iOS 1.10.0.
