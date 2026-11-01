@@ -9,6 +9,7 @@
 // - Staat standaard UIT: CLUBS_ENABLED moet exact "true" zijn. Een club aanmaken kan daarnaast alleen met een
 //   proefclubcode (secret CLUB_PILOT_CODES, komma-gescheiden, min. 16 tekens, elke code werkt één keer).
 import { weekKey } from './groups.js';
+import { handleClubExtras } from './club-extras.js';
 
 export const CLUB_LIMITS = {
   clubsPerMember: 5,
@@ -100,6 +101,7 @@ async function wipeFromClub(env, clubId, memberId) {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM club_results WHERE club_id = ? AND member_id = ?').bind(clubId, memberId),
     env.DB.prepare('DELETE FROM club_feed WHERE club_id = ? AND member_id = ?').bind(clubId, memberId),
+    env.DB.prepare('DELETE FROM club_exercise_results WHERE club_id = ? AND member_id = ?').bind(clubId, memberId),
     env.DB.prepare('UPDATE club_teams SET captain_id = NULL WHERE club_id = ? AND captain_id = ?').bind(clubId, memberId),
     env.DB.prepare('DELETE FROM club_members WHERE club_id = ? AND member_id = ?').bind(clubId, memberId),
   ]);
@@ -262,13 +264,17 @@ export async function handleClubs(request, env, path, h, cors) {
   if (!me) return notFound();
   const isAdmin = me.role === 'admin';
   const forbidden = (who = 'de beheerder') => h.fail(`Alleen ${who} van de club kan dit.`, 403, cors);
+  // Clublogo en eigen clubtrainingen (club-extras.js), pas na de lidmaatschapscontrole hierboven.
+  const extra = await handleClubExtras(request, env, rest, { me, member, clubId, now, h, cors });
+  if (extra) return extra;
 
   if (rest === '' && method === 'GET') {
     const teams = (await env.DB.prepare(
       'SELECT t.id, t.name, mc.handle AS captain FROM club_teams t LEFT JOIN members mc ON mc.id = t.captain_id WHERE t.club_id = ? ORDER BY t.name'
     ).bind(clubId).all()).results || [];
     const pending = isAdmin ? (await env.DB.prepare("SELECT COUNT(*) AS n FROM club_members WHERE club_id = ? AND status = 'pending'").bind(clubId).first()).n : undefined;
-    return h.json({ club: { id: clubId, name: me.name, role: me.role, teamId: me.teamId, maxMembers: me.maxMembers, ...(isAdmin ? { inviteCode: me.inviteCode, pending } : {}) },
+    const logo = await env.DB.prepare('SELECT updated_at AS at FROM club_logos WHERE club_id = ?').bind(clubId).first();
+    return h.json({ club: { id: clubId, name: me.name, role: me.role, teamId: me.teamId, maxMembers: me.maxMembers, logo: logo ? logo.at : null, ...(isAdmin ? { inviteCode: me.inviteCode, pending } : {}) },
       members: await clubMembers(env, clubId, member.id), teams, thisWeek: await challengeView(env, clubId, clubWeek(now), member.id, now) }, 200, cors);
   }
   if (rest === '' && method === 'PATCH') {

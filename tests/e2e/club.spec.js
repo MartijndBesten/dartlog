@@ -105,3 +105,65 @@ test('club oprichten met proefclubcode, lid via QR-link, goedkeuren, weekoefenin
   expect(B.errors).toEqual([]);
   await A.context.close(); await B.context.close();
 });
+
+test('clubprofiel en eigen clubtrainingen: naam en logo (alleen leden), doel-oefening maken, insturen en ranglijst', async ({ browser }, info) => {
+  const A = await phone(browser, info, seed('Anja'));
+  const B = await phone(browser, info, seed('Bas'));
+  await A.page.goto('/club/');
+  await A.page.getByText('Een club oprichten (proefclub)').click();
+  await A.page.locator('#create input[name=name]').fill('Pijl ' + info.project.name);
+  await A.page.locator('#create input[name=pilot]').fill(PILOT(info, 'extra'));
+  await A.page.locator('#create input[name=consent]').check();
+  await A.page.locator('#create button').click();
+  await expect(A.page.locator('.club-qr svg')).toBeVisible();
+  // Standaardlogo (initialen) zolang er geen logo is.
+  await expect(A.page.locator('#club-logo svg')).toHaveAttribute('aria-label', /Standaardlogo/);
+  // Naam wijzigen en logo uploaden (wordt vierkant en klein gemaakt).
+  await A.page.locator('#profile input[name=name]').fill('DC De Pijl ' + info.project.name);
+  await A.page.locator('#profile button').click();
+  await expect(A.page.locator('#status')).toContainText('Clubnaam opgeslagen');
+  await A.page.locator('#logo-file').setInputFiles('tests/e2e/fixtures/clublogo.png');
+  await expect(A.page.locator('#status')).toContainText('Logo opgeslagen');
+  await expect(A.page.locator('#club-logo img')).toBeVisible();
+  const size = await A.page.locator('.logo-edit img').evaluate(i => [i.naturalWidth, i.naturalHeight]);
+  expect(size).toEqual([256, 256]);
+  // Te groot of verkeerd bestand: nette melding.
+  await A.page.locator('#logo-file').setInputFiles({ name: 'logo.gif', mimeType: 'image/gif', buffer: Buffer.from('GIF89a') });
+  await expect(A.page.locator('#status')).toContainText('JPG- of PNG');
+  const code = (await A.page.locator('.club-code').textContent()).trim();
+
+  // Clubtraining: doel-oefening "30 pijlen op D16" voor de hele club.
+  await A.page.getByRole('tab', { name: 'Trainingen' }).click();
+  await A.page.getByText('Nieuwe clubtraining').click();
+  const f = A.page.locator('#exercise');
+  await f.locator('input[name=name]').fill('Dubbel 16');
+  await f.locator('textarea[name=description]').fill('Gooi 30 pijlen op dubbel 16 en tel hoeveel er raak zijn.');
+  await f.locator('select[name=kind]').selectOption('target');
+  await expect(f.locator('input[name=checkouts]')).toBeHidden();
+  await f.locator('input[name=target]').fill('D16');
+  await f.getByRole('button', { name: 'Clubtraining toevoegen' }).click();
+  await expect(A.page.locator('#status')).toContainText('Clubtraining toegevoegd');
+  await expect(A.page.locator('.ex-card')).toContainText('30 pijlen op D16');
+
+  // Lid wordt toegelaten, ziet logo en training, en stuurt een resultaat in.
+  await B.page.goto('/club/#club=' + code);
+  await B.page.locator('#join input[name=consent]').check();
+  await B.page.locator('#join button').click();
+  await A.page.getByRole('tab', { name: /Beheer/ }).click();
+  await A.page.getByRole('button', { name: 'Toelaten' }).click();
+  await B.page.reload();
+  await B.page.getByRole('button', { name: 'Openen' }).click();
+  await expect(B.page.locator('#club-logo img')).toBeVisible();
+  await B.page.getByRole('tab', { name: 'Trainingen' }).click();
+  await expect(B.page.getByText('Nieuwe clubtraining')).toHaveCount(0);   // lid mag geen trainingen maken
+  await B.page.locator('form[data-ex] input[name=hits]').fill('9');
+  await B.page.locator('form[data-ex] button').click();
+  await expect(B.page.locator('#status')).toContainText('beste resultaat');
+  await expect(B.page.locator('.ex-card .board')).toContainText('Bas (jij)');
+  await expect(B.page.locator('.ex-card .board')).toContainText('9/30');
+  // Melden van clubnaam/logo.
+  await B.page.getByRole('tab', { name: 'Leden' }).click();
+  await expect(B.page.getByTestId('report-club')).toHaveAttribute('href', /^mailto:info@denckh\.nl\?subject=Melding%20OKKIE\.%20Club%3A%20clubnaam%20of%20logo/);
+  expect(A.errors).toEqual([]); expect(B.errors).toEqual([]);
+  await A.context.close(); await B.context.close();
+});

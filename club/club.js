@@ -1,7 +1,7 @@
 // OKKIE. Club (proef). Besloten clubruimte; alle rechten worden door de server gecontroleerd (cloud/src/clubs.js).
 // Lokale trainingen blijven op dit toestel: per training kiest de speler zelf of de samenvatting naar de clubfeed en/of
 // de weekoefening gaat. Staat standaard uit (CLUB_OPEN in community/config.js en CLUBS_ENABLED op de server).
-import { CLUB_OPEN } from '../community/config.js';
+import { CLUB_OPEN, API_BASE } from '../community/config.js';
 import { apiAvailable, getAccount, upsertAccount, dropAccount, syncAccount, request } from '../js/community-sync.js';
 import { shareableTrainings, CLUB_KIND_LABELS, clubAverage } from '../js/club-share.js';
 import { prepare, publicUrl, isNative } from '../js/native.js';
@@ -51,6 +51,111 @@ async function busy(btn, fn) {
   if (btn) btn.disabled = true;
   try { await fn(); } catch (e) { status(e.message, true); } finally { if (btn?.isConnected) btn.disabled = false; }
 }
+// ---------- clublogo ----------
+// Standaardlogo: initialen van de club op een groene schijf (geen afbeelding nodig).
+function defaultLogo(name) {
+  const ini = String(name || '?').split(/\s+/).filter(w => /^[\p{L}\p{N}]/u.test(w)).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?';
+  return `<svg class="club-logo" viewBox="0 0 64 64" role="img" aria-label="Standaardlogo ${esc(name)}"><circle cx="32" cy="32" r="32" fill="#1f3b2a"/><text x="32" y="40" text-anchor="middle" font-size="22" font-weight="700" fill="#b8ff3c" font-family="system-ui,sans-serif">${esc(ini)}</text></svg>`;
+}
+const logoUrls = new Map();
+async function loadLogo(clubId, version) {
+  if (!version) return null;
+  const key = clubId + '@' + version;
+  if (logoUrls.has(key)) return logoUrls.get(key);
+  const res = await fetch(API_BASE.replace(/\/$/, '') + `/v1/clubs/${clubId}/logo`, { headers: { Authorization: 'Bearer ' + acct()?.token }, cache: 'no-store' }).catch(() => null);
+  if (!res?.ok) return null;
+  const url = URL.createObjectURL(await res.blob());
+  logoUrls.set(key, url);
+  return url;
+}
+// Alleen JPG/PNG tot 1 MB; verkleinen en vierkant bijsnijden naar 256 × 256 in de browser. Opnieuw opslaan als JPEG
+// haalt ook EXIF/GPS-gegevens weg (zoals bouwsteen B71).
+async function squareLogo(file) {
+  if (!['image/jpeg', 'image/png'].includes(file.type)) throw new Error('Kies een JPG- of PNG-afbeelding.');
+  if (file.size > 1_000_000) throw new Error('Deze afbeelding is groter dan 1 MB. Kies een kleinere.');
+  const img = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => { throw new Error('Deze afbeelding kan niet worden gelezen.'); });
+  const s = Math.min(img.width, img.height), size = 256;
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, size, size);   // doorzichtige PNG: witte achtergrond
+  ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size);
+  return new Promise((ok, fail) => c.toBlob(b => b ? ok(b) : fail(new Error('Verkleinen is niet gelukt.')), 'image/jpeg', 0.85));
+}
+async function uploadLogo(clubId, blob) {
+  const res = await fetch(API_BASE.replace(/\/$/, '') + `/v1/clubs/${clubId}/logo`, { method: 'PUT', headers: { Authorization: 'Bearer ' + acct()?.token, 'Content-Type': 'image/jpeg' }, body: blob });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || 'Uploaden is niet gelukt.');
+}
+const reportClubLink = club => 'mailto:' + REPORT_TO + '?subject=' + encodeURIComponent('Melding OKKIE. Club: clubnaam of logo') +
+  '&body=' + encodeURIComponent(`Ik meld de naam of het logo van een club in OKKIE. Club:\n\nClub: ${club.name}\nClubcode-ID: ${club.id}\n\nWaarom (bijv. ongepaste naam of afbeelding):\n`);
+
+// ---------- clubtrainingen ----------
+const EX_KIND = { score: 'Scoretraining', clock: 'Rond de klok', target: 'Doel-oefening', checkout: 'Checkout-reeks' };
+const dutchDate = d => new Date(d + 'T12:00:00Z').toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+function exSettings(e) {
+  if (e.kind === 'score') return `${e.darts} pijlen, zoveel mogelijk punten`;
+  if (e.kind === 'clock') return '1 t/m 20 en de bull, zo min mogelijk pijlen';
+  if (e.kind === 'target') return `${e.darts} pijlen op ${e.target === 'DB' ? 'de bull' : e.target === 'SB' ? '25' : e.target}, zoveel mogelijk raak`;
+  return `Uitgooien: ${e.checkouts.join(', ')}`;
+}
+function exValue(e, r) {
+  if (e.kind === 'score') return fmt(r.average);
+  if (e.kind === 'clock') return `${r.value} pijlen`;
+  return `${r.value}/${e.kind === 'target' ? e.darts : e.checkouts.length}`;
+}
+// Echte trainingen op deze telefoon die bij een score- of klokoefening passen.
+function matchingTrainings(e) {
+  const list = shareableTrainings(localData(), state.playerId, 60).filter(({ t }) => t.finishedAt.slice(0, 10) >= e.startsOn && t.finishedAt.slice(0, 10) <= e.endsOn);
+  return list.filter(({ c }) => e.kind === 'clock' ? c.kind === 'clock' : c.kind !== 'clock' && c.darts === e.darts);
+}
+async function exercisesHtml() {
+  const id = state.club.id;
+  const r = await api(`/v1/clubs/${id}/exercises`);
+  const cards = [];
+  for (const e of r.exercises) {
+    const d = await api(`/v1/clubs/${id}/exercises/${e.id}`);
+    const hidden = hiddenFor(id);
+    const rows = d.ranking.filter(x => !hidden.has(x.handle));
+    let form = '';
+    if (e.open && e.canSubmit) {
+      if (e.kind === 'score' || e.kind === 'clock') {
+        const m = matchingTrainings(e);
+        form = m.length ? `<form class="share-row" data-ex="${esc(e.id)}"><label class="field">Training op deze telefoon<select name="training">${m.map(({ t, c }) =>
+          `<option value="${esc(t.id)}">${esc(String(t.finishedAt).slice(0, 10))} · ${c.kind === 'clock' ? `${c.darts} pijlen` : fmt(clubAverage(c.points, c.darts))}</option>`).join('')}</select></label><button class="btn primary">Insturen</button></form>`
+          : `<p class="help">Gooi in OKKIE. een ${e.kind === 'clock' ? 'training rond de klok' : `scoretraining van ${e.darts} pijlen (eigen aantal beurten: ${e.darts / 3})`}; daarna kun je hem hier insturen.</p>`;
+      } else {
+        const max = e.kind === 'target' ? e.darts : e.checkouts.length;
+        form = `<form class="share-row" data-ex="${esc(e.id)}"><label class="field">${e.kind === 'target' ? `Aantal raak (van ${max})` : `Aantal uitgegooid (van ${max})`}<input name="hits" type="number" inputmode="numeric" min="0" max="${max}" required></label><button class="btn primary">Insturen</button></form>
+          <p class="help">Zelf ingevoerd; in de ranglijst staat erbij dat het handmatig is.</p>`;
+      }
+    }
+    cards.push(`<section class="card ex-card"><div class="ex-head"><h3>${esc(e.name)}</h3><span class="tag">${esc(EX_KIND[e.kind])}${e.teamName ? ' · ' + esc(e.teamName) : ''}</span></div>
+      ${e.description ? `<p>${esc(e.description)}</p>` : ''}<p class="help">${esc(exSettings(e))} · ${esc(dutchDate(e.startsOn))} t/m ${esc(dutchDate(e.endsOn))} (22:00)${e.open ? '' : ' · gesloten'}</p>
+      ${rows.length ? `<ol class="board">${rows.map(x => boardRow(x, exValue(e, x), x.manual ? 'zelf ingevoerd' : '')).join('')}</ol>` : '<p class="help">Nog geen resultaten.</p>'}
+      ${form}${e.canManage ? `<p><button class="btn danger" type="button" data-delex="${esc(e.id)}">Training verwijderen</button></p>` : ''}</section>`);
+  }
+  const teams = r.canCreate.teams === 'all' ? state.club.teams : state.club.teams.filter(t => r.canCreate.teams.includes(t.id));
+  const canCreate = r.canCreate.club || teams.length;
+  const today = new Date().toISOString().slice(0, 10), inWeek = new Date(Date.now() + 6 * 864e5).toISOString().slice(0, 10);
+  const create = canCreate ? `<details class="card"><summary><b>Nieuwe clubtraining</b></summary><form id="exercise">
+      <label class="field">Naam<input name="name" required maxlength="40" placeholder="Bijv. Dubbel 16 trainen"></label>
+      <label class="field">Korte uitleg<textarea name="description" maxlength="200" rows="2" placeholder="Wat moeten de leden doen?"></textarea></label>
+      <label class="field">Type<select name="kind"><option value="score">Scoretraining (eigen aantal pijlen)</option><option value="clock">Rond de klok</option><option value="target">Doel-oefening (pijlen op één vak)</option><option value="checkout">Checkout-reeks</option></select></label>
+      <label class="field" data-for="score target">Aantal pijlen<input name="darts" type="number" min="3" max="300" step="3" value="30"></label>
+      <label class="field" data-for="target">Doelvak<input name="target" value="D16" maxlength="3" placeholder="D16, T20, DB"></label>
+      <label class="field" data-for="checkout">Uitgooiwaarden (komma's)<input name="checkouts" value="40, 81, 121" placeholder="40, 81, 121"></label>
+      <div class="row"><label class="field">Start<input name="startsOn" type="date" value="${today}" required></label><label class="field">Einde<input name="endsOn" type="date" value="${inWeek}" required></label></div>
+      <label class="field">Voor<select name="teamId">${r.canCreate.club ? '<option value="">De hele club</option>' : ''}${teams.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('')}</select></label>
+      <button class="btn primary">Clubtraining toevoegen</button></form></details>` : '';
+  return (cards.join('') || '<section class="card"><p class="help">Er lopen geen clubtrainingen.</p></section>') + create;
+}
+function syncExerciseForm() {
+  const f = $('#exercise'); if (!f) return;
+  const k = f.elements.kind.value;
+  // style.display i.p.v. hidden: de stijl van .field (display) zou het hidden-attribuut overschrijven.
+  f.querySelectorAll('[data-for]').forEach(el => { el.style.display = el.dataset.for.split(' ').includes(k) ? '' : 'none'; });
+}
+
 const hiddenFor = clubId => new Set(readJson(HIDDEN, {})[clubId] || []);
 function setHidden(clubId, set) { const all = readJson(HIDDEN, {}); if (set.size) all[clubId] = [...set].slice(-500); else delete all[clubId]; writeJson(HIDDEN, all); }
 const reportLink = (club, r) => 'mailto:' + REPORT_TO + '?subject=' + encodeURIComponent('Melding OKKIE. Club: ' + r.handle) +
@@ -172,10 +277,12 @@ async function tabBody() {
         ${isAdmin ? `<select data-role="${esc(m.handle)}" aria-label="Rol van ${esc(m.nickname)}">${Object.entries(ROLE).map(([k, t]) => `<option value="${k}"${m.role === k ? ' selected' : ''}>${t}</option>`).join('')}</select>
         <select data-team="${esc(m.handle)}" aria-label="Team van ${esc(m.nickname)}"><option value="">Geen team</option>${state.club.teams.map(t => `<option value="${esc(t.id)}"${m.teamId === t.id ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}</select>
         <button class="btn danger" type="button" data-remove="${esc(m.handle)}">Verwijderen</button>` : ''}</span>`}</li>`).join('')}</ol>
-      <p class="help">Verbergen geldt alleen op dit toestel. Ongepaste naam of verdachte score? Meld het; we kijken er binnen een paar dagen naar. De beheerder kan resultaten en leden verwijderen.</p></section>
+      <p class="help">Verbergen geldt alleen op dit toestel. Ongepaste naam of verdachte score? Meld het; we kijken er binnen een paar dagen naar. De beheerder kan resultaten en leden verwijderen.</p>
+      <p class="help">Ongepaste clubnaam of clublogo? <a href="${esc(reportClubLink(state.club.club))}" data-testid="report-club">Meld de clubnaam of het logo</a>.</p></section>
       <section class="card"><h3>Club verlaten</h3><p class="help">Je lidmaatschap, je weekresultaten en je berichten in de feed van deze club worden gewist. Je trainingen op deze telefoon blijven.</p>
         <button class="btn danger" type="button" data-leave>Club verlaten</button></section>`;
   }
+  if (state.tab === 'exercises') return exercisesHtml();
   if (state.tab === 'admin') return adminHtml();
   return '';
 }
@@ -203,7 +310,14 @@ async function adminHtml() {
   const reqs = (await api(`/v1/clubs/${id}/requests`)).requests;
   const next = await api(`/v1/clubs/${id}/challenge?week=next`);
   const kinds = Object.entries(CLUB_KIND_LABELS).filter(([k]) => k !== 'free');
-  return `<section class="card"><h3>Aanvragen (${reqs.length})</h3>${reqs.length ? `<ol class="board">${reqs.map(r => `<li><span class="who"><b>${esc(r.nickname)}</b><small>aangevraagd ${esc(r.requestedAt)}</small></span><span></span>
+  const logo = await loadLogo(id, c.logo);
+  return `<section class="card"><h3>Clubprofiel</h3>
+      <form id="profile" class="row"><label class="field">Clubnaam<input name="name" required maxlength="40" value="${esc(c.name)}"></label><button class="btn primary">Naam opslaan</button></form>
+      <div class="logo-edit">${logo ? `<img class="club-logo" src="${esc(logo)}" alt="Logo van ${esc(c.name)}">` : defaultLogo(c.name)}
+        <div><label class="btn outline file-btn">Logo kiezen<input type="file" id="logo-file" accept="image/jpeg,image/png" hidden></label>
+        ${logo ? '<button class="btn outline" type="button" data-dellogo>Logo verwijderen</button>' : ''}
+        <p class="help">JPG of PNG, hoogstens 1 MB. OKKIE. maakt het vierkant en klein (256 × 256). Alleen leden van de club zien het logo; zonder logo tonen we de initialen.</p></div></div></section>
+    <section class="card"><h3>Aanvragen (${reqs.length})</h3>${reqs.length ? `<ol class="board">${reqs.map(r => `<li><span class="who"><b>${esc(r.nickname)}</b><small>aangevraagd ${esc(r.requestedAt)}</small></span><span></span>
       <span><button class="btn primary" type="button" data-approve="${esc(r.handle)}">Toelaten</button> <button class="btn outline" type="button" data-reject="${esc(r.handle)}">Afwijzen</button></span></li>`).join('')}</ol>` : '<p class="help">Geen openstaande aanvragen.</p>'}</section>
     <section class="card"><h3>Uitnodigen</h3><p class="help">Laat leden deze QR-code scannen of geef ze de code. Een aanvraag moet jij altijd nog goedkeuren.</p>
       <div class="club-qr">${qrSvg(link)}</div><p class="club-code">${esc(c.inviteCode)}</p>
@@ -222,13 +336,14 @@ async function adminHtml() {
 }
 async function renderClub() {
   const c = state.club.club;
-  const tabs = [['week', 'Weekoefening'], ['form', 'Vorm'], ['feed', 'Feed'], ...(c.role !== 'member' ? [['team', 'Team']] : []), ['members', 'Leden'], ...(c.role === 'admin' ? [['admin', `Beheer${c.pending ? ` (${c.pending})` : ''}`]] : [])];
+  const tabs = [['week', 'Weekoefening'], ['exercises', 'Trainingen'], ['form', 'Vorm'], ['feed', 'Feed'], ...(c.role !== 'member' ? [['team', 'Team']] : []), ['members', 'Leden'], ...(c.role === 'admin' ? [['admin', `Beheer${c.pending ? ` (${c.pending})` : ''}`]] : [])];
   if (!tabs.some(([k]) => k === state.tab)) state.tab = 'week';
   $('#vr').innerHTML = `<p><button class="back btn outline" type="button" data-home>← Mijn clubs</button></p>
-    <header class="g-head"><h2>${esc(c.name)}</h2><p class="muted small">${leden(state.club.members.length)} · jij bent ${ROLE[c.role]}</p></header>
+    <header class="g-head club-head"><span id="club-logo">${defaultLogo(c.name)}</span><span><h2>${esc(c.name)}</h2><p class="muted small">${leden(state.club.members.length)} · jij bent ${ROLE[c.role]}</p></span></header>
     <div class="tabs" role="tablist" aria-label="Onderdelen">${tabs.map(([k, t]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${state.tab === k}">${t}</button>`).join('')}</div>
     <div role="tabpanel" id="panel"><p class="muted">Laden…</p></div>`;
-  try { $('#panel').innerHTML = await tabBody(); } catch (e) { $('#panel').innerHTML = `<p class="help">${esc(e.message)}</p>`; }
+  loadLogo(state.club.id, c.logo).then(url => { if (url && $('#club-logo')) $('#club-logo').innerHTML = `<img class="club-logo" src="${esc(url)}" alt="Logo van ${esc(c.name)}">`; });
+  try { $('#panel').innerHTML = await tabBody(); syncExerciseForm(); } catch (e) { $('#panel').innerHTML = `<p class="help">${esc(e.message)}</p>`; }
 }
 async function home() {
   state.club = null;
@@ -272,6 +387,11 @@ document.addEventListener('click', e => {
     if (navigator.share) await navigator.share({ text }).catch(() => {}); else { await navigator.clipboard?.writeText(text); status('Link gekopieerd.'); }
   });
   else if (d.unresult) busy(b, async () => { await api(`/v1/clubs/${id}/results/${d.unresult}`, 'DELETE'); await after('Resultaat verwijderd.'); });
+  else if (d.dellogo !== undefined) busy(b, async () => { await api(`/v1/clubs/${id}/logo`, 'DELETE'); await after('Logo verwijderd.'); });
+  else if (d.delex) {
+    if (!confirm('Deze clubtraining verwijderen? De ranglijst ervan verdwijnt ook.')) return;
+    busy(b, async () => { await api(`/v1/clubs/${id}/exercises/${d.delex}`, 'DELETE'); status('Clubtraining verwijderd.'); await renderClub(); });
+  }
   else if (d.delteam) busy(b, async () => { await api(`/v1/clubs/${id}/teams/${d.delteam}`, 'DELETE'); await after('Team verwijderd.'); });
   else if (d.delclub !== undefined) {
     if (!confirm('Club opheffen? Alles van deze club wordt gewist, voor alle leden.')) return;
@@ -280,6 +400,11 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('change', e => {
   const t = e.target, id = state.club?.id;
+  if (t.name === 'kind' && t.form?.id === 'exercise') { syncExerciseForm(); return; }
+  if (t.id === 'logo-file' && t.files?.[0]) {
+    busy(null, async () => { await uploadLogo(id, await squareLogo(t.files[0])); status('Logo opgeslagen.'); await openClub(id); });
+    return;
+  }
   if (t.id === 'player') { state.playerId = t.value; writeJson(PREFS, { playerId: t.value }); busy(null, home); }
   else if (t.dataset.role) busy(null, async () => { await api(`/v1/clubs/${id}/members/${t.dataset.role}`, 'PATCH', { role: t.value }); status('Rol gewijzigd.'); await openClub(id); });
   else if (t.dataset.team !== undefined && t.matches('select[data-team]')) busy(null, async () => { await api(`/v1/clubs/${id}/members/${t.dataset.team}`, 'PATCH', { teamId: t.value || null }); status('Team gewijzigd.'); await openClub(id); });
@@ -320,6 +445,29 @@ document.addEventListener('submit', e => {
   else if (f.id === 'challenge' || f.id === 'challenge-next') busy(btn, async () => {
     await api(`/v1/clubs/${id}/challenge`, 'PUT', { kind: f.elements.kind.value, ...(f.id === 'challenge-next' ? { week: 'next' } : {}) });
     status('Weekoefening opgeslagen.'); await openClub(id);
+  });
+  else if (f.id === 'profile') busy(btn, async () => { await api(`/v1/clubs/${id}`, 'PATCH', { name: f.elements.name.value }); status('Clubnaam opgeslagen.'); await openClub(id); });
+  else if (f.id === 'exercise') busy(btn, async () => {
+    const el = f.elements, kind = el.kind.value;
+    const body = { name: el.name.value, description: el.description.value, kind, startsOn: el.startsOn.value, endsOn: el.endsOn.value, teamId: el.teamId.value || null };
+    if (kind === 'score' || kind === 'target') body.darts = Number(el.darts.value);
+    if (kind === 'target') body.target = el.target.value.trim().toUpperCase();
+    if (kind === 'checkout') body.checkouts = el.checkouts.value.split(/[,;\s]+/).filter(Boolean).map(Number);
+    await api(`/v1/clubs/${id}/exercises`, 'POST', body);
+    status('Clubtraining toegevoegd; de leden zien hem bij Trainingen.'); await renderClub();
+  });
+  else if (f.dataset.ex) busy(btn, async () => {
+    const r = await api(`/v1/clubs/${id}/exercises/${f.dataset.ex}`);
+    const e = r.exercise;
+    let body;
+    if (f.elements.hits) body = { hits: Number(f.elements.hits.value) };
+    else {
+      const m = matchingTrainings(e).find(x => String(x.t.id) === f.elements.training.value);
+      if (!m) throw new Error('Training niet gevonden.');
+      body = { trainingId: m.c.trainingId, darts: m.c.darts, points: m.c.points };
+    }
+    const res = await api(`/v1/clubs/${id}/exercises/${f.dataset.ex}/results`, 'POST', body);
+    status(res.best ? 'Ingestuurd: dit is je beste resultaat.' : 'Ingestuurd; je eerdere resultaat was beter en blijft staan.'); await renderClub();
   });
   else if (f.id === 'team') busy(btn, async () => { await api(`/v1/clubs/${id}/teams`, 'POST', { name: f.elements.name.value }); status('Team toegevoegd.'); await openClub(id); });
 });

@@ -44,6 +44,34 @@ pijlen. De vormranglijst gebruikt de weekcijfers die de app al synchroniseert (`
 - Captain: het overzicht van zijn eigen team (vorm over 4 weken, trainingen, resultaat van de weekoefening).
 - Lid: club, ranglijsten en feed bekijken, eigen trainingen delen, eigen resultaat of bericht verwijderen.
 
+## Clubprofiel en eigen clubtrainingen (`src/club-extras.js`, migratie 0010)
+
+- **Clubnaam:** alleen de beheerder wijzigt hem (`PATCH /v1/clubs/:id`), met dezelfde naamcontrole.
+- **Clublogo:**
+  - de app accepteert alleen JPG of PNG tot 1 MB, snijdt vierkant bij, verkleint naar 256 × 256 en slaat op als
+    JPEG (dat haalt EXIF en GPS weg, zoals B71);
+  - de server accepteert alleen echte JPEG/PNG (gecontroleerd op de eerste bytes en de opgegeven soort), hoogstens
+    200 kB, PNG hoogstens 512 px;
+  - opslag in D1 (`club_logos`): geen extra Cloudflare-dienst nodig; R2 kan later achter dezelfde routes;
+  - `GET /v1/clubs/:id/logo` werkt alleen met het token van een actief lid (`Cache-Control: private`);
+  - zonder logo toont de app de initialen van de club;
+  - clubnaam en logo zijn te melden via "Meld de clubnaam of het logo" (Leden).
+- **Clubtrainingen** (`/v1/clubs/:id/exercises`):
+  - aanmaken: de beheerder voor de hele club of een team; een captain alleen voor zijn eigen team;
+  - velden: naam, uitleg (hoogstens 200 tekens), type, instellingen, start- en einddatum (hoogstens 56 dagen,
+    sluit op de einddatum om 22:00 Amsterdam), en hele club of team; hoogstens 10 lopende per club;
+  - typen:
+    - `score`: eigen aantal pijlen, 9 tot 300;
+    - `clock`: rond de klok;
+    - `target`: N pijlen op één vak, bijv. D16;
+    - `checkout`: 1 tot 10 uitgooibare waarden;
+  - score en klok stuurt de speler in vanuit een echte training op de telefoon; doel en checkout voert hij zelf in
+    als aantal treffers, en de ranglijst toont dat dat handmatig is;
+  - zichtbaarheid: een clubbrede training ziet elk lid; een teamtraining alleen dat team, zijn captain en de
+    beheerders; andere clubs zien niets (404);
+  - per training een eigen ranglijst met het beste resultaat per lid;
+  - club verlaten wist ook deze resultaten.
+
 ## Verlaten en verwijderen
 
 - **Club verlaten** (`DELETE /v1/clubs/:id/me`): lidmaatschap, weekresultaten en feedberichten in die club worden

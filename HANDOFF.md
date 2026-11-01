@@ -92,6 +92,12 @@ Stand 1 november 2026. Concept: Claude Doc *OKKIE. Club – onderzoek en concept
   - app-unit 163/163;
   - browser 261 geslaagd, 0 mislukt, 51 bewust overgeslagen (inclusief 6 Club-tests);
   - mutatietest: zonder de clubfilters falen de tests.
+- **Uitbreiding (1 november 2026):**
+  - clubprofiel: naam en logo (in de app verkleind tot 256 × 256, opslag in D1, alleen voor leden, standaardlogo
+    met initialen, te melden);
+  - eigen clubtrainingen: score met eigen aantal pijlen, rond de klok, doel-oefening en checkout-reeks, met een
+    periode, voor de hele club of een team en met een eigen ranglijst;
+  - migratie 0010 (nog niet op staging uitgevoerd).
 - **Nog open vóór een proefclub:**
   1. privacyverklaring: paragraaf over OKKIE. Club;
   2. de app synchroniseert de weekcijfers voor de vorm alleen als het profiel bestaat, dus checkout-percentages
