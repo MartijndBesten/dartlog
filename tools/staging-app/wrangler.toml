@@ -1,0 +1,12 @@
+# STAGING-webapp om OKKIE. Club te proberen (cloud/CLUB.md). Alleen statische bestanden, geen code, geen database.
+# Bouwen: OKKIE_APP_STAGE=test node tools/build-app-site.mjs   (niet vindbaar: noindex + robots.txt)
+# Uitrollen: npx wrangler deploy --config tools/staging-app/wrangler.toml
+# Adres: https://okkie-app-staging.<account-subdomein>.workers.dev; praat alleen met okkie-api-staging (community/config.js).
+name = "okkie-app-staging"
+compatibility_date = "2026-10-10"
+workers_dev = true
+
+[assets]
+directory = "../../dist-app"
+html_handling = "auto-trailing-slash"
+not_found_handling = "404-page"

@@ -5,6 +5,7 @@ import { handleGroups, groupsOpen, minorsOpen, MINORS_CLOSED, inviteValid, relea
 import { handleDarters, dartersOpen, publicConsentOk } from './darters.js';
 import { handleFeedback, handleFeedbackAdmin, cleanupFeedback } from './feedback.js';
 import { handleUsage, usageOverview } from './usage.js';
+import { handleClubs, clubsOpen, clubCodeValid, releaseClubMemberships, cleanupClubs, CLUB_ADULTS_ONLY } from './clubs.js';
 
 // Cloudflare Worker + D1 API voor OKKIE. Community.
 // De database bewaart uitsluitend een nickname, account-credentials (gehasht) en geaggregeerde statistieken.
@@ -156,7 +157,7 @@ export default {
     if (request.method === 'OPTIONS') {
       return originAllowed(request, env) ? new Response(null, { status: 204, headers: { ...SECURITY_HEADERS, ...cors } }) : fail('Niet toegestaan.', 403);
     }
-    if (path === '/v1/health' && request.method === 'GET') return json({ ok: true, version: 1, registration: registrationOpen(env), groups: groupsOpen(env), darters: dartersOpen(env) }, 200, cors);
+    if (path === '/v1/health' && request.method === 'GET') return json({ ok: true, version: 1, registration: registrationOpen(env), groups: groupsOpen(env), darters: dartersOpen(env), clubs: clubsOpen(env) }, 200, cors);
     if (!env.DB) return fail('Database niet geconfigureerd.', 503, cors);
     // Besloten inbox voor Hulp & feedback: staat op het adres van de Worker zelf, dus vóór de Origin-controle.
     if (path.startsWith('/v1/feedback/')) {
@@ -206,14 +207,25 @@ export default {
       if (path === '/v1/register' && request.method === 'POST') {
         // Twee wegen: openbare registratie (REGISTRATION_ENABLED) of, als Mijn vrienden aanstaat, alleen met een geldige
         // uitnodiging voor een besloten groep. Beide staan standaard uit.
-        if (!registrationOpen(env) && !groupsOpen(env)) return fail('Registratie is nog gesloten.', 403, cors);
+        if (!registrationOpen(env) && !groupsOpen(env) && !clubsOpen(env)) return fail('Registratie is nog gesloten.', 403, cors);
         if (await limited(env.RL_REGISTER, clientIp(request))) return fail('Te veel registraties vanaf dit adres. Probeer het over een minuut opnieuw.', 429, cors);
         const body = await bodyJson(request);
         const nickname = cleanNickname(body.nickname);
         const viaInvite = typeof body.inviteToken === 'string';
         const viaFounder = !viaInvite && typeof body.founderCode === 'string';
+        // OKKIE. Club (clubs.js, achter CLUBS_ENABLED): met een clubcode (lid worden) of om zelf een club op te richten
+        // (clubFounder: true). Alleen 16+, nooit een openbaar profiel; registratie per IP beperkt (RL_REGISTER).
+        const viaClub = !viaInvite && !viaFounder && (typeof body.clubCode === 'string' || body.clubFounder === true);
         let ageGroup = 'adult', consent = null;
-        if (viaInvite || viaFounder) {
+        if (viaClub) {
+          if (!clubsOpen(env)) return fail('Registratie is nog gesloten.', 403, cors);
+          if (body.age !== 'adult') return fail(CLUB_ADULTS_ONLY, 403, cors);
+          if (!nickname) return fail('Vul je voornaam of bijnaam in (2 tot 24 tekens).', 400, cors);
+          if (typeof body.clubCode === 'string') {
+            if (!await clubCodeValid(env, body.clubCode)) return fail('Deze clubcode klopt niet. Vraag de beheerder van je club om de code.', 403, cors);
+          }
+          consent = 'zelf';
+        } else if (viaInvite || viaFounder) {
           // Besloten groep, voor alle leeftijden: nooit een openbaar profiel (visible = 0). Alleen leeftijdsgroep, geen geboortedatum.
           // 16+: zelf toestemming. Jonger dan 16: per groep eerst een ouder/verzorger via een link (zie groups.js), tenzij
           // MINOR_CONSENT = "dienst" na een juridisch besluit over een andere grondslag.
@@ -246,8 +258,8 @@ export default {
         const token = randomKey(), recovery = randomKey();
         await env.DB.prepare("INSERT INTO members(id,handle,nickname,token_hash,recovery_hash,visible,age_group,consent_at,consent_method,created_at,updated_at) " +
           "VALUES(?,?,?,?,?,?,?,CASE WHEN ? IS NULL THEN NULL ELSE datetime('now') END,?,datetime('now'),datetime('now'))")
-          .bind(id,handle,nickname,await hash(token),await hash(recovery),viaInvite || viaFounder ? 0 : 1,ageGroup,consent,consent).run();
-        return json({ account: { id, handle, nickname }, token, recovery, public: !(viaInvite || viaFounder), needsParent: consent === null && ageGroup === 'minor' }, 201, cors);
+          .bind(id,handle,nickname,await hash(token),await hash(recovery),viaInvite || viaFounder || viaClub ? 0 : 1,ageGroup,consent,consent).run();
+        return json({ account: { id, handle, nickname }, token, recovery, public: !(viaInvite || viaFounder || viaClub), needsParent: consent === null && ageGroup === 'minor' }, 201, cors);
       }
       if (path === '/v1/recover' && request.method === 'POST') {
         if (await limited(env.RL_REGISTER, clientIp(request))) return fail('Te veel herstelpogingen. Probeer het over een minuut opnieuw.', 429, cors);
@@ -308,6 +320,7 @@ export default {
           // Stats verdwijnen via ON DELETE CASCADE (PRAGMA foreign_keys aan in D1); expliciet voor de zekerheid.
           // Eerst groepseigenaarschap doorgeven, zodat een vriendengroep niet zonder eigenaar achterblijft.
           await releaseMemberships(env, member.id);
+          await releaseClubMemberships(env, member.id);
           await env.DB.batch([
             env.DB.prepare('DELETE FROM stats WHERE member_id = ?').bind(member.id),
             env.DB.prepare('DELETE FROM entitlements WHERE member_id = ?').bind(member.id),
@@ -384,6 +397,7 @@ export default {
           const member = await env.DB.prepare('SELECT id FROM members WHERE handle = ?').bind(target).first();
           if (!member) return fail('Profiel niet gevonden.', 404, cors);
           await releaseMemberships(env, member.id);
+          await releaseClubMemberships(env, member.id);
           await env.DB.batch([
             env.DB.prepare('DELETE FROM stats WHERE member_id = ?').bind(member.id),
             env.DB.prepare('DELETE FROM entitlements WHERE member_id = ?').bind(member.id),
@@ -398,6 +412,8 @@ export default {
         }
         return fail('Onbekende beheerroute.', 404, cors);
       }
+      const clubs = await handleClubs(request, env, path, H, cors);
+      if (clubs) return clubs;
       const groups = await handleGroups(request, env, path, H, cors);
       if (groups) return groups;
       const guest = await handleGuest(request, env, path, H, cors, null);
@@ -422,11 +438,12 @@ export default {
     const inactiveDays = Math.max(30, Number(env.INACTIVE_DAYS || 730));
     const empty = await env.DB.prepare(
       // updated_at (niet created_at): wie net zijn statistieken op nul zette, houdt zijn profiel nog EMPTY_ACCOUNT_DAYS.
-      "DELETE FROM members WHERE id IN (SELECT m.id FROM members m LEFT JOIN stats s ON s.member_id = m.id WHERE s.member_id IS NULL AND m.updated_at < datetime('now', ?) AND NOT EXISTS (SELECT 1 FROM group_members gm WHERE gm.member_id = m.id))"
+      "DELETE FROM members WHERE id IN (SELECT m.id FROM members m LEFT JOIN stats s ON s.member_id = m.id WHERE s.member_id IS NULL AND m.updated_at < datetime('now', ?) AND NOT EXISTS (SELECT 1 FROM group_members gm WHERE gm.member_id = m.id) AND NOT EXISTS (SELECT 1 FROM club_members cm WHERE cm.member_id = m.id))"
     ).bind(`-${emptyDays} days`).run();
     const stale = await env.DB.prepare('SELECT id FROM members WHERE updated_at < datetime(\'now\', ?)').bind(`-${inactiveDays} days`).all();
     for (const row of stale.results || []) {
       await releaseMemberships(env, row.id);
+      await releaseClubMemberships(env, row.id);
       await env.DB.batch([
         env.DB.prepare('DELETE FROM stats WHERE member_id = ?').bind(row.id),
         env.DB.prepare('DELETE FROM entitlements WHERE member_id = ?').bind(row.id),
@@ -437,6 +454,7 @@ export default {
     await env.DB.prepare("DELETE FROM guest_passes WHERE expires_at < datetime('now', '-1 day')").run();
     await env.DB.prepare("DELETE FROM guest_inbox WHERE received_at < datetime('now', '-60 days')").run();
     await cleanupFeedback(env);
+    await cleanupClubs(env);
     console.log(`OKKIE opschoning: ${empty.meta?.changes || 0} lege accounts, ${(stale.results || []).length} inactieve accounts verwijderd.`);
   },
 };

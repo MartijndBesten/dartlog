@@ -82,6 +82,25 @@ export async function handleFeedbackAdmin(request, env, path, h) {
     const rows = await env.DB.prepare('SELECT id, created_at AS createdAt, kind, message, contact, meta, handled, screenshot IS NOT NULL AS hasShot FROM feedback ORDER BY created_at DESC LIMIT 200').all();
     return h.json({ items: (rows.results || []).map(r => ({ ...r, meta: r.meta ? JSON.parse(r.meta) : null, handled: !!r.handled, hasShot: !!r.hasShot })) }, 200, headers);
   }
+  // OKKIE. Club: elke nieuwe club verschijnt hier (melding voor de beheerder van OKKIE.) en kan worden gemodereerd.
+  if (request.method === 'GET' && path === '/v1/feedback/admin/clubs') {
+    const rows = await env.DB.prepare(
+      "SELECT c.id, c.name, c.created_at AS createdAt, (SELECT COUNT(*) FROM club_members m WHERE m.club_id = c.id AND m.status = 'active') AS members, " +
+      "(SELECT COUNT(*) FROM club_members m WHERE m.club_id = c.id AND m.status = 'pending') AS pending, " +
+      "(SELECT 1 FROM club_logos l WHERE l.club_id = c.id) AS hasLogo FROM clubs c ORDER BY c.created_at DESC LIMIT 300"
+    ).all().catch(() => ({ results: [] }));
+    const ex = await env.DB.prepare('SELECT id, club_id AS clubId, name, description, kind, ends_on AS endsOn FROM club_exercises ORDER BY created_at DESC LIMIT 500').all().catch(() => ({ results: [] }));
+    const byClub = new Map();
+    for (const e of ex.results || []) { if (!byClub.has(e.clubId)) byClub.set(e.clubId, []); byClub.get(e.clubId).push(e); }
+    return h.json({ clubs: (rows.results || []).map(c => ({ ...c, hasLogo: !!c.hasLogo, exercises: byClub.get(c.id) || [] })) }, 200, headers);
+  }
+  if (request.method === 'GET' && path === '/v1/feedback/admin/club-logo') {
+    const row = await env.DB.prepare('SELECT mime, data FROM club_logos WHERE club_id = ?').bind(new URL(request.url).searchParams.get('id') || '').first();
+    if (!row) return h.fail('Niet gevonden.', 404, headers);
+    const bytes = row.data instanceof Uint8Array ? row.data : new Uint8Array(row.data);
+    let bin = ''; for (const b of bytes) bin += String.fromCharCode(b);
+    return h.json({ logo: 'data:' + row.mime + ';base64,' + btoa(bin) }, 200, headers);
+  }
   if (request.method === 'GET' && path === '/v1/feedback/admin/shot') {
     const row = await env.DB.prepare('SELECT screenshot FROM feedback WHERE id = ?').bind(new URL(request.url).searchParams.get('id') || '').first();
     return row?.screenshot ? h.json({ screenshot: row.screenshot }, 200, headers) : h.fail('Niet gevonden.', 404, headers);
@@ -92,6 +111,20 @@ export async function handleFeedbackAdmin(request, env, path, h) {
     const id = typeof body.id === 'string' ? body.id : '';
     if (path === '/v1/feedback/admin/handled') {
       await env.DB.prepare('UPDATE feedback SET handled = ? WHERE id = ?').bind(body.handled ? 1 : 0, id).run();
+      return h.json({ ok: true }, 200, headers);
+    }
+    // Clubmoderatie (na een melding): logo weg, naam wijzigen, clubtraining weg, of de hele club opheffen.
+    if (path === '/v1/feedback/admin/club') {
+      const club = await env.DB.prepare('SELECT id FROM clubs WHERE id = ?').bind(id).first();
+      if (!club) return h.fail('Club niet gevonden.', 404, headers);
+      if (body.action === 'logo') await env.DB.prepare('DELETE FROM club_logos WHERE club_id = ?').bind(id).run();
+      else if (body.action === 'rename') {
+        const name = typeof body.name === 'string' ? body.name.trim().replace(/\s+/g, ' ') : '';
+        if (!/^[\p{L}\p{N} ._'!&()+-]{2,40}$/u.test(name)) return h.fail('Ongeldige naam.', 400, headers);
+        await env.DB.prepare("UPDATE clubs SET name = ?, updated_at = datetime('now') WHERE id = ?").bind(name, id).run();
+      } else if (body.action === 'exercise' && typeof body.exerciseId === 'string') await env.DB.prepare('DELETE FROM club_exercises WHERE id = ? AND club_id = ?').bind(body.exerciseId, id).run();
+      else if (body.action === 'delete') await env.DB.prepare('DELETE FROM clubs WHERE id = ?').bind(id).run();
+      else return h.fail('Onbekende actie.', 400, headers);
       return h.json({ ok: true }, 200, headers);
     }
     if (path === '/v1/feedback/admin/delete') {
@@ -137,6 +170,7 @@ table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}td,th{te
 <table><thead><tr><th>Versie</th><th>7 dagen</th><th>30 dagen</th><th>Nieuw (30 d)</th></tr></thead><tbody id="u-versions"></tbody></table>
 <ul class="notes" id="u-notes"></ul>
 <p class="muted" id="u-status"></p></section>
+<section id="clubs-sec" hidden><h2>Clubs <span class="muted" style="font-weight:400;font-size:13px">OKKIE. Club · nieuw = laatste 7 dagen</span></h2><div id="clubs"></div></section>
 <h2>Meldingen uit Hulp &amp; feedback</h2><div id="list"></div></main>
 <script>
 const st=document.getElementById('st'),list=document.getElementById('list');
@@ -176,5 +210,22 @@ list.addEventListener('click',async e=>{const it=e.target.closest('.item');if(!i
   if(e.target.matches('[data-done]')){await api('/v1/feedback/admin/handled',{method:'POST',body:JSON.stringify({id,handled:!it.classList.contains('done')})});load();}
   if(e.target.matches('[data-del]')&&confirm('Deze melding definitief verwijderen?')){await api('/v1/feedback/admin/delete',{method:'POST',body:JSON.stringify({id})});load();}
 });
-load();usage();
+async function clubs(){
+  if(!k)return;
+  try{const {clubs:cs}=await api('/v1/feedback/admin/clubs');$('clubs-sec').hidden=false;
+    const week=Date.now()-7*864e5;
+    $('clubs').innerHTML=cs.length?cs.map(c=>{const t=new Date(c.createdAt.replace(' ','T')+'Z');return '<div class="item" data-club="'+esc(c.id)+'"><div class="head">'+(t.getTime()>week?'<span class="tag">nieuw</span>':'')+'<b>'+esc(c.name)+'</b><span class="muted">'+esc(t.toLocaleString('nl-NL'))+' · '+f(c.members)+' leden · '+f(c.pending)+' wachtend</span></div>'
+      +(c.exercises.length?'<pre>'+c.exercises.map(e=>esc(e.name+' ('+e.kind+', t/m '+e.endsOn+')'+(e.description?': '+e.description:''))).join('\\n')+'</pre>':'')
+      +(c.hasLogo?'<button data-logo>Logo tonen</button><button data-dellogo>Logo verwijderen</button>':'')+'<button data-rename>Naam wijzigen</button>'
+      +c.exercises.map(e=>'<button data-delex="'+esc(e.id)+'">Training “'+esc(e.name)+'” verwijderen</button>').join('')+'<button data-delclub>Club opheffen</button></div>';}).join(''):'<p class="muted">Nog geen clubs.</p>';
+  }catch(e){if(e!==403)$('clubs').textContent='Clubs laden mislukt ('+e+').';}
+}
+$('clubs').addEventListener('click',async e=>{const it=e.target.closest('[data-club]');if(!it)return;const id=it.dataset.club;const act=(b)=>api('/v1/feedback/admin/club',{method:'POST',body:JSON.stringify(Object.assign({id},b))}).then(clubs);
+  if(e.target.matches('[data-logo]')){const r=await api('/v1/feedback/admin/club-logo?id='+encodeURIComponent(id));const img=new Image();img.src=r.logo;img.style.maxWidth='120px';e.target.replaceWith(img);}
+  if(e.target.matches('[data-dellogo]')&&confirm('Logo van deze club verwijderen?'))act({action:'logo'});
+  if(e.target.matches('[data-rename]')){const n=prompt('Nieuwe clubnaam (2-40 tekens):');if(n)act({action:'rename',name:n});}
+  if(e.target.matches('[data-delex]')&&confirm('Deze clubtraining verwijderen?'))act({action:'exercise',exerciseId:e.target.dataset.delex});
+  if(e.target.matches('[data-delclub]')&&confirm('Deze club met alle gegevens opheffen? Dit kan niet ongedaan worden.'))act({action:'delete'});
+});
+load();usage();clubs();
 </script></body></html>`;

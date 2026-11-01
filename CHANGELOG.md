@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.9.0 — OKKIE. Club
+
+- **OKKIE. Club** (`club/`, `cloud/src/clubs.js`, `cloud/src/club-extras.js`, migraties 0009 en 0010): besloten clubruimte
+  voor dartverenigingen. Iedereen van 16+ richt gratis een club op en wordt beheerder.
+  - Lid worden met een clubcode, QR-code of uitnodigingslink; de beheerder keurt goed.
+  - Weekoefening die zondag 22:00 sluit, vormranglijst over 4 weken, teams met captain-overzicht, clubfeed (per
+    training opt-in).
+  - Eigen clubnaam en logo (alleen voor leden).
+  - Eigen clubtrainingen: score, rond de klok, doel-oefening, checkout-reeks.
+  - Melden van naam, logo, trainingen en leden; verbergen op het toestel.
+  - Misbruiklimieten: nieuwe clubs per speler en per dag, clubs als beheerder, openstaande aanmeldingen, IP-limiet.
+  - Nieuwe clubs en moderatie staan in de besloten inbox.
+- **Startscherm:** kaart *OKKIE. Club*. **Darters:** verwijzing naar Club.
+- **Uitnodigingslinks** gaan via okkiedarts.nl/club/uitnodiging/ ("Je bent uitgenodigd voor …") naar de app.
+- **Privacyverklaring:** paragraaf 6a over OKKIE. Club.
+
 ## 1.8.0 — OKKIE. als echte iPhone-app (TestFlight)
 
 - **iPhone-app: uitleg en Darters openden als wit scherm** (gevonden met de nieuwe UI-tests). De app laadt voor

@@ -27,12 +27,14 @@ crons = ["30 3 * * *"]
 
 [vars]
 # Meerdere origins gescheiden met komma; de bestaande PWA-origin blijft altijd nodig.
-ALLOWED_ORIGINS = "https://app.okkiedarts.nl,https://martijndbesten.github.io,https://okkiedarts.nl,https://www.okkiedarts.nl,capacitor://localhost,http://localhost:4173,http://127.0.0.1:4173"
+ALLOWED_ORIGINS = "https://app.okkiedarts.nl,https://martijndbesten.github.io,https://okkiedarts.nl,https://www.okkiedarts.nl,capacitor://localhost,http://localhost:4173,http://127.0.0.1:4173,https://okkie-app-staging.zaalverhuur-sion.workers.dev"
 # Openbare registratie dicht tot privacyverklaring + ouderlijke toestemming (<16) geregeld zijn. Alleen "true" opent.
 REGISTRATION_ENABLED = "false"
 # Mijn vrienden (besloten groepen) uit sinds 1.5.0; gegevens blijven bewaard. Darters (openbaar, één schakelaar) aan.
 GROUPS_ENABLED = "false"
 DARTERS_ENABLED = "true"
+# OKKIE. Club (cloud/CLUB.md): op staging aan om te testen; aanmaken alleen met een proefclubcode (secret CLUB_PILOT_CODES).
+CLUBS_ENABLED = "true"
 EMPTY_ACCOUNT_DAYS = "30"
 INACTIVE_DAYS = "730"
 
@@ -71,6 +73,8 @@ REGISTRATION_ENABLED = "false"
 GROUPS_ENABLED = "false"
 # Darters: openbaar overzicht, één schakelaar per speler; jonger dan 16 pas na "ja" van een ouder (src/darters.js).
 DARTERS_ENABLED = "true"
+# OKKIE. Club: live sinds 1.9.0 (migraties 0009 en 0010). Uitzetten: "false" en opnieuw deployen.
+CLUBS_ENABLED = "true"
 EMPTY_ACCOUNT_DAYS = "30"
 INACTIVE_DAYS = "730"
 
