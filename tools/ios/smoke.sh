@@ -15,14 +15,25 @@ xcrun simctl install "$DEV" "$APP_PATH"
 DATA=$(xcrun simctl get_app_container "$DEV" "$BUNDLE" data)
 KOPIE="$DATA/Library/OKKIE"
 
+launch_once() { # $1 = logbestand; wacht tot de webview geladen is (max. 40 s), daarna nog 15 s voor de app zelf
+  xcrun simctl launch --console-pty --terminate-running-process "$DEV" "$BUNDLE" > "$1" 2>&1 &
+  LPID=$!
+  for _ in $(seq 1 40); do grep -aq "WebView loaded" "$1" && break; sleep 1; done
+  grep -aq "WebView loaded" "$1" || return 1
+  sleep 15
+}
 run() { # $1 = naam
   local log="$OUT/$1.log"
-  xcrun simctl launch --console-pty --terminate-running-process "$DEV" "$BUNDLE" > "$log" 2>&1 &
-  local pid=$!
-  sleep 20
+  # Eerste start na het opstarten van de simulator blijft soms hangen (gezien in CI: app niet op de voorgrond of
+  # webview niet geladen). Eén nieuwe poging, en dat staat dan in het log; een tweede keer is wél een fout.
+  if ! launch_once "$log"; then
+    echo "::warning::$1: webview niet geladen bij de eerste start, nieuwe poging"
+    xcrun simctl terminate "$DEV" "$BUNDLE" || true; kill "$LPID" 2>/dev/null || true; sleep 3
+    launch_once "$log" || { xcrun simctl io "$DEV" screenshot "$OUT/$1.png" >/dev/null || true; echo "::error::$1: webview niet geladen"; exit 1; }
+  fi
   xcrun simctl io "$DEV" screenshot "$OUT/$1.png" >/dev/null
   xcrun simctl terminate "$DEV" "$BUNDLE" || true
-  sleep 2; kill "$pid" 2>/dev/null || true
+  sleep 2; kill "$LPID" 2>/dev/null || true
   echo "::group::Console $1"; grep -a "⚡️" "$log" | cut -c1-300 || true; echo "::endgroup::"
   sips -Z 520 -s format jpeg -s formatOptions 55 "$OUT/$1.png" --out "$OUT/$1.jpg" >/dev/null
   echo "SCREENSHOT-$1-BEGIN"; base64 -i "$OUT/$1.jpg" | fold -w 900; echo "SCREENSHOT-$1-END"

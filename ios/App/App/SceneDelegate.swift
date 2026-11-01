@@ -54,7 +54,8 @@ struct OKKIERouter: Router {
     func route(for path: String) -> String {
         guard URL(fileURLWithPath: path).pathExtension.isEmpty else { return basePath + path }
         let trimmed = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        if !trimmed.isEmpty, !trimmed.contains(".."), path.hasSuffix("/") {
+        // Let op: URL.path laat de slash aan het eind weg ("/uitleg/" komt hier binnen als "/uitleg").
+        if !trimmed.isEmpty, !trimmed.contains("..") {
             let page = basePath + "/" + trimmed + "/index.html"
             if FileManager.default.fileExists(atPath: page) { return page }
         }

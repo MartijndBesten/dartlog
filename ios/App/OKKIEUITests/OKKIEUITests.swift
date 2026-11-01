@@ -90,19 +90,32 @@ final class OKKIEUITests: XCTestCase {
         expectVisible("Mijn statistieken", in: app)
     }
 
+    /// Een toets van het scoretoetsenbord. Alleen echte knoppen en schakelknoppen (DOUBLE/TRIPLE hebben aria-pressed):
+    /// na een pijl staat dezelfde tekst ook in het vakje "Pijl 1" en bij "Deze beurt"; tikken daarop is corrigeren.
+    private func key(_ label: String, in app: XCUIApplication, _ file: StaticString = #filePath, _ line: UInt = #line) {
+        let p = NSPredicate(format: "label == %@ AND elementType != %@", label, NSNumber(value: XCUIElement.ElementType.staticText.rawValue))
+        let el = app.webViews.descendants(matching: .any).matching(p).firstMatch
+        let deadline = Date().addingTimeInterval(wait)
+        while Date() < deadline {
+            if el.exists && el.isHittable { el.tap(); return }
+            usleep(200_000)
+        }
+        XCTFail("toets niet gevonden: \(label)", file: file, line: line)
+    }
+
     /// Eén pijl: "T20", "D10", "S20" of "M" (mis). Kort tikritme vanwege het spook-tikfilter van het toetsenbord.
     private func dart(_ code: String, in app: XCUIApplication) {
         if code == "M" {
-            tap("MIS", in: app, exact: true)
+            key("MIS", in: app)
         } else {
             let n = String(code.dropFirst())
             switch code.first {
-            case "T": tap("TRIPLE", in: app, exact: true); tap("T" + n, in: app, exact: true)
-            case "D": tap("DOUBLE", in: app, exact: true); tap("D" + n, in: app, exact: true)
-            default: tap(n, in: app, exact: true)
+            case "T": key("TRIPLE", in: app); key("T" + n, in: app)
+            case "D": key("DOUBLE", in: app); key("D" + n, in: app)
+            default: key(n, in: app)
             }
         }
-        usleep(200_000)
+        usleep(250_000)
     }
 
     private func startTraining(_ app: XCUIApplication) {
