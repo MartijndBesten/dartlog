@@ -10,6 +10,7 @@ dist/
 .site-dryrun/
 dist-app/
 dist-ios/
+dist-site-staging/
 ios/App/App/public/
 ios/App/App/capacitor.config.json
 ios/App/App/config.xml

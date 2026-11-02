@@ -61,7 +61,7 @@ test('eigen trainingslengte: 5 beurten', async ({ page }) => {
 test('rond de klok helemaal: 1 t/m 20 en de bull, missers tellen als pijl, record bewaard', async ({ page }) => {
   await onboard(page);
   await page.click('.action.train');
-  await page.click('[data-act=start-clock]');
+  await page.getByTestId('start-clock').click();   // 1.10.0: kaart Rond de klok onder Gericht oefenen (keuze: alles)
   await expect(page.getByTestId('clock-target')).toHaveText('1');
   await dart(page, 'M');
   await dart(page, 'D1');                        // dubbel telt ook

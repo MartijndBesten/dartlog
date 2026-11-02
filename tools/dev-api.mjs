@@ -4,6 +4,7 @@
 import { createServer } from 'node:http';
 import worker from '../cloud/src/worker.js';
 import { createD1 } from '../cloud/tests/d1-shim.js';
+import { amsterdam } from '../cloud/src/clubs.js';
 
 const port = Number(process.argv[2] || 8799);
 // Eén eenmalige oprichterscode per test en per toestel (de echte server staat ook meerdere codes toe).
@@ -22,6 +23,9 @@ const env = {
   CLUBS_ENABLED: 'true',   // OKKIE. Club: alleen lokaal en op staging (cloud/CLUB.md)
   CLUB_PILOT_CODES: TEST_CLUB_PILOT_CODES.join(','),
 };
+// De clubweek sluit zondag om 22:00 (Amsterdam). Start de testserver daarna nog op zondag, dan zou elke clubtest een
+// gesloten week zien; zet de clubklok dan twee uur terug (nog steeds dezelfde zondag, week open). Anders de echte tijd.
+{ const a = amsterdam(); if (a.weekday === 7 && a.hour >= 22) env.CLUB_TEST_NOW = new Date(Date.now() - 2 * 3600e3).toISOString(); }
 
 createServer(async (req, res) => {
   const chunks = [];

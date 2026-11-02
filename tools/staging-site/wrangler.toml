@@ -1,0 +1,13 @@
+# STAGING-voorbeeld van okkiedarts.nl (1.10.0): alle schakelaars aan (Gericht oefenen, App Store-badge), niet vindbaar
+# (robots.txt Disallow + X-Robots-Tag noindex) en zonder bezoekersteller. Alleen statische bestanden, geen code.
+# Bouwen:    OKKIE_SITE_PREVIEW=1 OKKIE_SITE_OUT=dist-site-staging node tools/build-public-site.mjs
+# Uitrollen: npx wrangler deploy --config tools/staging-site/wrangler.toml
+# Links naar de app gaan naar app.okkiedarts.nl (productie); de app-staging staat op okkie-app-staging.
+name = "okkie-site-staging"
+compatibility_date = "2026-10-10"
+workers_dev = true
+
+[assets]
+directory = "../../dist-site-staging"
+html_handling = "auto-trailing-slash"
+not_found_handling = "404-page"

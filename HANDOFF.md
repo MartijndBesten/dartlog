@@ -1,4 +1,59 @@
-# Overdracht OKKIE. — iOS-testfase 1.8.0
+# Overdracht OKKIE.
+
+## Actuele stand (2 november 2026)
+| Onderdeel | Live | Terugzetten |
+|---|---|---|
+| Webapp app.okkiedarts.nl | **1.9.0** (OKKIE. Club), sinds 1 november 2026 (okkie-app `a97eb29`) | tag `live-1.8.0` in okkie-app |
+| Website okkiedarts.nl | Club live, privacy 6a (okkiedarts-site `6717bff`) | tags `live-voor-club-live`, `live-voor-club-privacy` |
+| API (Worker `okkie-api`) | versie `2c08abdf`, migraties t/m 0010 | `wrangler rollback 5d1a2c58-e29c-402e-9f64-461018b4be93 --env production` |
+| iOS | 1.8.0 *Wachten op review* (build 29); 1.9.0 = build 31, klaar, **niet ingediend** | — |
+| In ontwikkeling | **1.10.0** op branch `claude/gericht-oefenen-1.10.0`, alleen op staging (zie hieronder) | — |
+
+## 1.10.0 — Gericht oefenen, Vandaag oefenen, website (staging, wacht op akkoord)
+Wat er is gebouwd (details in CHANGELOG.md):
+- **Gericht oefenen** onder Trainen (`js/drills.js`, `js/drill-views.js`): Bob's 27, 121 Checkout, Rond de klok
+  alles/dubbels/triples. Opslag in `data.drills` met het doel per beurt of pijl; `data.trainings` blijft ongewijzigd,
+  zodat oudere versies (web 1.9.0, iOS 1.8.0/1.9.0) een back-up of overzetcode uit 1.10.0 niet afkeuren
+  (getest met de 1.9.0-code in `tests/fixtures/v1.9.0/`). Overzetcode: oefeningen hebben een eigen vingerafdruk
+  (`drillsFingerprint`), de bestaande vingerafdruk is ongewijzigd.
+- **Vandaag oefenen** (`js/coach.js`): vaste regels met drempels, altijd een *Waarom?*; **weekdoel** (standaard 3)
+  vervangt de dagteller op het startscherm. Reeks-badges blijven, geen meldingen, geen confetti. `motivation.js` bijgewerkt.
+- **Snelle fixes:** eerdere beurt aanpassen (training en wedstrijd); beurttotaal in X01-wedstrijden (`logic.totalToDarts`).
+- **Club:** Bob's 27 en 121 Checkout als weekoefening, resultaat uit de oefening (alleen de eindscore), clubrecord per
+  oefening (`record` in de weekoefening-respons). Migratie **0011** bouwt `club_challenges`, `club_results` en
+  `club_feed` opnieuw op met de nieuwe soorten (zonder cascadeverlies; `cloud/tests/migratie-0011.test.js`).
+  De clubweek liep al van maandag t/m zondag (sluit zondag 22:00); dat is zo gebleven.
+- **Website:** "Gratis. Geen reclame. Geen abonnement." bovenaan, Club direct onder de hero, pagina **Over OKKIE.**
+  (`ontdek/over/`), blok *Gericht oefenen / Vandaag oefenen* en de officiële App Store-badge achter schakelaars in
+  `ontdek/site-config.json` (`release110`, `appStoreApproved`, beide `false`).
+- **iOS:** alleen `MARKETING_VERSION` naar 1.10.0 (de releasetest eist gelijk aan package.json). Build 31 en versie
+  1.9.0 in App Store Connect zijn niet aangeraakt; niets ingediend. De code van build 31 staat op `main` `fe86a8b`.
+
+Staging (alleen proef, niet vindbaar):
+- App: https://okkie-app-staging.zaalverhuur-sion.workers.dev (praat met de staging-API)
+- Website-voorbeeld (alle schakelaars aan): https://okkie-site-staging.zaalverhuur-sion.workers.dev
+- API: `okkie-api-staging` versie `6d5887d9` (terug: `96725587`); staging-D1 migratie 0011, back-up vooraf
+  `C:\Users\matty\okkie-backups\okkie-community-staging-2026-11-01-voor-0011.sql`.
+
+Getest (werkelijk gedraaid, 1-2 november 2026):
+| Suite | Waar | Resultaat |
+|---|---|---|
+| Unit-tests app (`npm test`, o.a. drills 12, coach 9, compatibiliteit 7, website 3) | lokaal Windows, Node 24 | 198 geslaagd, 0 mislukt |
+| Cloud/Worker-tests (`cloud: npm run check`, o.a. migratie 0011 en Club-oefeningen) | lokaal | 98 geslaagd, 0 mislukt |
+| Browsertests (Playwright, iPhone/Android/desktop, incl. `gericht.spec.js`) | CI op PR #16 | 282 geslaagd, 0 mislukt, 51 bewust overgeslagen |
+| Browsertests lokaal: gericht, club, regressie, statistieken, weggooien, site (3 profielen) | lokaal Windows | 125 geslaagd, 0 mislukt, 7 overgeslagen |
+| Staging-app doorloop (23 controles: oefeningen, beurt aanpassen, beurttotaal, coach, weekdoel) | mobiel en desktop | alles OK, geen JS-fouten |
+| Staging-API Club (tijdelijke club en accounts, daarna verwijderd) | okkie-api-staging | OK; ranglijst/clubrecord live niet te zien omdat de week zondag 22:00 dicht ging (wel in de cloudtests) |
+| Websitevoorbeeld staging (noindex, volgorde, badge, Over OKKIE., footer) | mobiel en desktop | OK |
+
+Bouwstenen: gebruikt B45, B47, B49, B50, B51, B52, B55, B57, B59, B97; bijgewerkt B45, B50, B51, B57 (workbench PR #104,
+gemerged en op `main` gecontroleerd); nieuw: geen kaart.
+
+**Nog niet gedaan, wacht op akkoord van Martijn:** productie-API (back-up + bookmark, migratie 0011, Worker),
+webapp 1.10.0 op app.okkiedarts.nl, website publiceren (daarna `release110` aan zodra 1.10.0 live is;
+`appStoreApproved` pas na goedkeuring van 1.8.0), iOS 1.10.0.
+
+## Historie: iOS-testfase 1.8.0
 
 Stand: 1 november 2026 · gemerged in `main` (PR #9) · TestFlight build 20 intern, handmatig getest · zie ook IOS-APP.md (*Automatische UI-tests*).
 
@@ -41,7 +96,7 @@ of het een update over build 11 was, is niet bekend.
 - **Rooktest-herpoging** (hieronder): instabiliteit niet opgelost, alleen gemaskeerd.
 - **Echte app-update niet aantoonbaar getest:** niet automatisch (XCUITest) en ook niet bevestigd bij de handmatige
   test van build 20.
-- **Webversie 1.8.0** wacht op akkoord van Martijn (app.okkiedarts.nl blijft 1.7.5).
+- ~~Webversie 1.8.0 wacht op akkoord~~ — opgelost: web 1.8.0 en daarna 1.9.0 zijn live (zie *Actuele stand*).
 
 ## Bekende instabiliteit (niet opgelost)
 - **Rooktest, eerste start na het opstarten van de simulator:** in run 41287820322 (poging 1) startte de app niet op
@@ -59,7 +114,7 @@ SpringBoard) en de herpoging daarna weer verwijderen.
   Korte handmatige lijst: IOS-APP.md, *Met de hand op de iPhone*.
 
 ## Niet gedaan (bewust)
-Geen webrelease 1.8.0 (app.okkiedarts.nl blijft 1.7.5), geen externe TestFlight-test of App Store-review (wel build 20
+(Destijds:) geen webrelease 1.8.0 — inmiddels live, zie *Actuele stand*. Geen externe TestFlight-test of App Store-review (wel build 20
 intern, op verzoek van Martijn), niets aan productie-API,
 stagingworker of PR #7, geen betaalde diensten.
 

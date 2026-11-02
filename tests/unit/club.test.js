@@ -81,3 +81,22 @@ test('privacy: de Club-paragraaf staat in de gepubliceerde privacyverklaring; st
   assert.match(read('club/club.js'), /INVITE_PAGE = 'https:\/\/okkiedarts\.nl\/club\/uitnodiging\/'/);
   assert.match(read('club/club.js'), /data-testid="report-exercise"/);
 });
+
+test("club 1.10.0: Bob's 27 en 121 gaan als eindscore naar de club, nooit met rondes of pijlen", async () => {
+  const { clubDrill, shareableTrainings, clubValue } = await import('../../js/club-share.js');
+  const { BOBS_TARGETS } = await import('../../js/drills.js');
+  const at = new Date().toISOString();
+  const bobs = { id: 'd1', playerId: 'p', kind: 'bobs27', startedAt: at, finishedAt: at, turns: BOBS_TARGETS.map(target => ({ at, target, hits: 1 })) };
+  const s = clubDrill(bobs);
+  assert.deepEqual(Object.keys(s).sort(), ['darts', 'kind', 'points', 'trainingId']);
+  assert.equal(s.darts, 63); assert.equal(s.kind, 'bobs27');
+  assert.equal(clubDrill({ ...bobs, turns: bobs.turns.slice(0, 20) }), null, 'niet afgemaakt: niet delen');
+  const c = clubDrill({ id: 'd2', playerId: 'p', kind: 'c121', startedAt: at, finishedAt: at, turns: [{ target: 121, darts: ['T20', 'T11', 'D14'] }, { target: 122, darts: ['S1', 'S1', 'S1'] }] });
+  assert.deepEqual(c, { trainingId: 'd2', kind: 'c121', darts: 6, points: 121 });
+  assert.equal(clubDrill({ id: 'd3', playerId: 'p', kind: 'c121', startedAt: at, finishedAt: at, turns: [{ target: 121, darts: ['S1'] }] }), null, 'niets uitgegooid');
+  assert.equal(clubDrill({ ...bobs, kind: 'clockD' }), null, 'klokvarianten niet');
+  const list = shareableTrainings({ trainings: [], drills: [bobs] }, 'p');
+  assert.equal(list.length, 1);
+  assert.equal(clubValue('bobs27', { points: 412 }), '412 punten');
+  assert.equal(clubValue('c121', { points: 124 }), 'niveau 124');
+});

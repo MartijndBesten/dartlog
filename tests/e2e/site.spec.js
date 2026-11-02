@@ -233,7 +233,8 @@ test('privacy en contact: bereikbaar vanaf homepage en uitleg, e-mailadres kopi�
 
 test('gratis en reclamevrij staat op de homepage; nergens een steun- of betaalknop', async ({ page, request }) => {
   await page.goto(SITE + '/');
-  await expect(page.locator('.hero .subtle')).toContainText('Geen reclame · Geen aankopen in de app');
+  await expect(page.locator('.hero .subtle')).toContainText('Geen reclame · Geen abonnement · Geen aankopen in de app');
+  await expect(page.getByTestId('gratis')).toHaveText(/Gratis. Geen reclame. Geen abonnement./i);   // 1.10.0: bovenaan de hero
   const q = page.locator('details', { hasText: 'Is OKKIE. echt gratis?' });
   await q.locator('summary').click();
   await expect(q).toContainText('geen aankopen in de app');
