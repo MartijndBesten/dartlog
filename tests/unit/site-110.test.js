@@ -16,20 +16,23 @@ const build = (env = {}) => execFileSync(process.execPath, ['tools/build-public-
 const dist = p => readFileSync(join(out, p), 'utf8');
 process.on('exit', () => rmSync(out, { recursive: true, force: true }));
 
-test('site-config: release110 en de App Store-badge staan uit tot de release en de goedkeuring', () => {
+test('site-config: release110 aan (1.10.0 live sinds 2-11-2026), App Store-badge uit tot de app openbaar in de App Store staat', () => {
   const cfg = JSON.parse(readFileSync(join(root, 'ontdek/site-config.json'), 'utf8'));
-  assert.equal(cfg.release110, false, 'pas aanzetten als 1.10.0 live staat');
-  assert.equal(cfg.appStoreApproved, false, 'pas aanzetten na goedkeuring door Apple');
+  assert.equal(cfg.release110, true, '1.10.0 staat live');
+  assert.equal(cfg.appStoreApproved, false, 'pas aanzetten als de app openbaar in de App Store staat');
   assert.match(cfg.appStoreUrl, /^https:\/\/apps\.apple\.com\/nl\/app\/id6829301399$/);
 });
 
-test('website (productie-build): gratis-belofte bovenaan, Club direct onder de hero, Over OKKIE., geen voorbarige onderdelen', () => {
+test('website (productie-build): gratis-belofte bovenaan, Club direct onder de hero, Over OKKIE., Gericht oefenen, geen App Store-badge', () => {
   try {
-    assert.match(build(), /release110: false, App Store-badge: false/);
+    assert.match(build(), /release110: true, App Store-badge: false/);
     const home = dist('index.html');
     assert.match(home, /data-testid="gratis"><span class="pulse"><\/span> Gratis\. Geen reclame\. Geen abonnement\.<\/div>/);
-    assert.doesNotMatch(home, /id="gericht"|appstore-badge|Vandaag oefenen|<!--(IF|END):|\{\{APPSTORE_URL\}\}/);
-    assert.match(home, /houd je reeks vast/, 'tekst van 1.9.0 blijft tot de release');
+    assert.doesNotMatch(home, /appstore-badge|apps\.apple\.com|<!--(IF|END):|\{\{APPSTORE_URL\}\}/);
+    assert.match(home, /id="gericht"/);
+    for (const t of ["Bob's 27", '121 Checkout', 'Rond de klok', 'Vandaag oefenen', 'Waarom?', 'weekdoel']) assert.ok(home.includes(t), t);
+    assert.doesNotMatch(home, /houd je reeks vast/);
+    assert.ok(home.indexOf('id="club"') < home.indexOf('id="gericht"'), 'Club blijft vóór Gericht oefenen');
     assert.ok(home.indexOf('id="club"') < home.indexOf('id="kids"'), 'Club staat direct onder de hero');
     assert.match(home, /<nav[^>]*>\s*<a href="\/club\/">Club<\/a>/);
     const over = dist('over/index.html');
