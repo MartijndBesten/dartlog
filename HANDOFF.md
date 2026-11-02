@@ -3,13 +3,13 @@
 ## Actuele stand (2 november 2026)
 | Onderdeel | Live | Terugzetten |
 |---|---|---|
-| Webapp app.okkiedarts.nl | **1.9.0** (OKKIE. Club), sinds 1 november 2026 (okkie-app `a97eb29`) | tag `live-1.8.0` in okkie-app |
-| Website okkiedarts.nl | Club live, privacy 6a (okkiedarts-site `6717bff`) | tags `live-voor-club-live`, `live-voor-club-privacy` |
-| API (Worker `okkie-api`) | versie `2c08abdf`, migraties t/m 0010 | `wrangler rollback 5d1a2c58-e29c-402e-9f64-461018b4be93 --env production` |
-| iOS | 1.8.0 *Wachten op review* (build 29); 1.9.0 = build 31, klaar, **niet ingediend** | — |
-| In ontwikkeling | **1.10.0** op branch `claude/gericht-oefenen-1.10.0`, alleen op staging (zie hieronder) | — |
+| Webapp app.okkiedarts.nl | **1.10.0**, sinds 2 november 2026 (okkie-app `d142ea9`, uit dartlog `99f4fd3`) | tag `live-1.9.0` in okkie-app (`a97eb29`) |
+| Oude adres martijndbesten.github.io/dartlog | 1.10.0 (= `main` van dartlog) | tag `live-1.9.0` in dartlog (`d1f1ca0`) |
+| Website okkiedarts.nl | 1.10.0: gratis-belofte, Gericht/Vandaag oefenen, /over/ (okkiedarts-site `119b0ed`, PR #7); App Store-badge **uit** | tag `live-voor-1.10.0` in okkiedarts-site (`6717bff`) |
+| API (Worker `okkie-api`) | versie `ac052b34`, migraties t/m 0011 | `wrangler rollback 2c08abdf-966a-4486-8b0f-3209fd1a58a7 --env production` |
+| iOS | 1.8.0 *Wachten op review* (build 29); 1.9.0 = build 31, klaar, **niet ingediend**; iOS 1.10.0 later | — |
 
-## 1.10.0 — Gericht oefenen, Vandaag oefenen, website (staging, wacht op akkoord)
+## 1.10.0 — Gericht oefenen, Vandaag oefenen, website (live sinds 2 november 2026)
 Wat er is gebouwd (details in CHANGELOG.md):
 - **Gericht oefenen** onder Trainen (`js/drills.js`, `js/drill-views.js`): Bob's 27, 121 Checkout, Rond de klok
   alles/dubbels/triples. Opslag in `data.drills` met het doel per beurt of pijl; `data.trainings` blijft ongewijzigd,
@@ -49,9 +49,28 @@ Getest (werkelijk gedraaid, 1-2 november 2026):
 Bouwstenen: gebruikt B45, B47, B49, B50, B51, B52, B55, B57, B59, B97; bijgewerkt B45, B50, B51, B57 (workbench PR #104,
 gemerged en op `main` gecontroleerd); nieuw: geen kaart.
 
-**Nog niet gedaan, wacht op akkoord van Martijn:** productie-API (back-up + bookmark, migratie 0011, Worker),
-webapp 1.10.0 op app.okkiedarts.nl, website publiceren (daarna `release110` aan zodra 1.10.0 live is;
-`appStoreApproved` pas na goedkeuring van 1.8.0), iOS 1.10.0.
+### Livegang 2 november 2026 (akkoord Martijn)
+1. PR #16 volledig groen (6/6 checks, ook na de laatste commit `acc21bd` met de nieuwe tekst Over OKKIE.).
+2. **Productieback-up vóór 0011:** `C:Usersmattyokkie-backupsokkie-community-production-2026-11-02-voor-0011.sql`
+   (21.450 bytes, sha256 `01b629e7…e55e8c3`), lokaal volledig ingelezen: 24 tabellen, aantallen gelijk, integrity_check ok.
+   Time Travel-bookmark vooraf: `00000116-00000000-00005117-532360620414f194af837586cdb5ff44`.
+3. **Aantallen vóór → na migratie → na live Club-test (opgeruimd):** clubs 0/0/0, club_members 0/0/0,
+   club_challenges 0/0/0, club_results 0/0/0, club_feed 0/0/0, members 4/4/4, stats (gedeelde trainingscijfers)
+   13/13/13, usage_days 19/19/19, public_consents 1/1/1, admin_audit 4/4/4, app_flags 9/9/9; alle overige tabellen 0;
+   d1_migrations 10 → 11. Inhoud-hash van clubs, club_members, club_challenges, club_results, club_feed, members en
+   stats ongewijzigd; foreign_key_check leeg, quick_check ok. Er stonden op productie nog geen clubs.
+4. **Productie-API** `ac052b34` (vorige `2c08abdf`). Live Club-test met tijdelijke accounts en club (24/24 OK):
+   Bob's 27 als weekoefening, foute invoer geweigerd, ranglijst en clubrecord (412) live, 121 Checkout in de feed,
+   buiten 121-130 geweigerd, 121 voor volgende week, niet-leden 404, daarna alles verwijderd.
+5. **Webapp** gepubliceerd; live gecontroleerd (27 controles, mobiel met bestaand profiel uit 1.9.0 en desktop):
+   update opgehaald, bestaande gegevens byte-gelijk (eerste run), Vandaag oefenen met *Waarom?*, weekdoel, Bob's 27
+   helemaal gespeeld en opgeslagen, 121 Checkout met uitgooi-advies, klok dubbels, scoretraining met beurt aanpassen,
+   clubpagina, geen JS-fouten.
+6. **Website:** `release110` aan (dartlog PR #17) na de live controle van app en API; `appStoreApproved` uit, want
+   de app staat nog niet openbaar in de App Store (iTunes-lookup 0 resultaten, App Store-pagina 404). Live
+   gecontroleerd op mobiel en desktop (Over OKKIE., footer, privacy-link, geen badge, geen JS-fouten).
+7. **Nog open:** `appStoreApproved` aanzetten zodra de app openbaar staat; iOS 1.10.0; iOS 1.9.0 indienen na 1.8.0;
+   maildienst voor nieuwe clubs; besluit dagteller.
 
 ## Historie: iOS-testfase 1.8.0
 
