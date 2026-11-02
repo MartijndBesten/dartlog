@@ -1,6 +1,6 @@
 // Controleert de lengtes in appstore/APPSTORE-TEKSTEN.md tegen de grenzen van App Store Connect.
 import { readFileSync } from 'node:fs';
-const md = readFileSync(new URL('../../appstore/APPSTORE-TEKSTEN.md', import.meta.url), 'utf8');
+const md = readFileSync(new URL('../../appstore/APPSTORE-TEKSTEN.md', import.meta.url), 'utf8').replace(/\r\n/g, '\n');   // ook met Windows-regeleinden
 const block = title => (md.split('## ' + title)[1] || '').match(/```\n([\s\S]*?)\n```/)?.[1] ?? null;
 const cell = label => (md.match(new RegExp('\\| ' + label + '[^|]*\\| `([^`]+)`')) || [])[1] ?? null;
 export const checks = [

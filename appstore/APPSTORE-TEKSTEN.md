@@ -38,13 +38,22 @@ OKKIE. is je persoonlijke darttrainer. Gooi drie pijlen, tik ze in en zie meteen
 TRAINEN
 • Scoretraining van 30, 60 of 99 pijlen, vrij trainen of een eigen aantal beurten
 • Grote knoppen: DOUBLE, TRIPLE, 1–20, 25, BULL en MIS, of typ je worp (T20 5 D10)
-• Rond de klok: 1 tot en met 20 en de bull, in zo min mogelijk pijlen
+• Rond de klok: 1 tot en met 20 en de bull, ook alleen dubbels of alleen triples
+• Gericht oefenen: Bob's 27 voor je dubbels en 121 Checkout voor je uitgooi, met record en weektrend
+• Vandaag oefenen: een voorstel op basis van je eigen cijfers, altijd met de getallen erbij
+• Weekdoel: kies zelf hoe vaak per week je wilt trainen
 • Persoonlijk doel net boven je eigen niveau
 
 SAMEN SPELEN
 • Samen trainen met maximaal 8 spelers die om de beurt gooien, met ranglijst
 • Wedstrijd 301 of 501 voor 1 tot 4 spelers, double-out of straight-out, met uitgooi-advies
 • Iedere speler houdt zijn eigen statistieken
+
+OKKIE. CLUB
+• Richt gratis een besloten club op voor je dartvereniging of team, of word lid met een uitnodiging
+• Een beheerder laat nieuwe leden toe; alleen clubgenoten zien de club
+• Wekelijkse clubuitdaging met ranglijst en clubrecord, ook met Bob's 27 en 121 Checkout
+• Voor spelers van 16 jaar en ouder; alleen samengevatte resultaten gaan naar de server
 
 ZIEN DAT JE BETER WORDT
 • Gemiddelde per 3 pijlen, beste en slechtste training, 100+, 140+ en 180
@@ -154,3 +163,43 @@ App Privacy, aanpassen voor 1.9.0 (in App Store Connect, door Martijn of de brow
   Appfunctionaliteit, gekoppeld Ja, tracking Nee.
 - **Gameplay-inhoud** en **Naam** blijven zoals ze zijn (gekoppeld Ja). Daaronder vallen nu ook de clubresultaten en
   het lidmaatschap.
+
+## Versie 1.10.0 (volgt op 1.8.0; 1.9.0 wordt overgeslagen)
+
+Build: TestFlight-build uit dartlog `main` (workflow *OKKIE iPhone-app*, TestFlight + App Store). Bevat alles uit
+1.9.0 (OKKIE. Club) plus de trainingsfuncties van webversie 1.10.0. Build 31 (1.9.0) wordt niet ingediend.
+
+Wat is nieuw (nl):
+
+```
+Nieuw in deze versie:
+• OKKIE. Club: richt gratis een besloten club op voor je dartvereniging of team, of word lid met een uitnodiging. Met een wekelijkse clubuitdaging, ranglijst en clubrecord die alleen clubgenoten zien.
+• Gericht oefenen: Bob's 27 voor je dubbels, 121 Checkout voor je uitgooi en Rond de klok met alleen dubbels of triples. Per oefening je record en een lijn per week.
+• Vandaag oefenen: een voorstel op basis van je eigen cijfers, altijd met de getallen erbij.
+• Weekdoel in plaats van een dagteller.
+• Een eerdere beurt aanpassen, en in 301/501 desgewenst per beurt het totaal invoeren.
+```
+
+Wat is nieuw (en):
+
+```
+New in this version:
+• OKKIE. Club: start a private club for your darts association or team for free, or join with an invite. With a weekly club challenge, ranking and club record visible only to club members.
+• Targeted practice: Bob's 27 for your doubles, 121 Checkout for your finishing and Around the clock with doubles or trebles only. A record and a weekly trend line per drill.
+• Practice today: a suggestion based on your own numbers, always showing the figures behind it.
+• A weekly goal instead of a daily streak counter.
+• Edit an earlier turn, and optionally enter a turn total in 301/501.
+```
+
+Reviewnotitie 1.10.0 (vervangt de 1.9.0-aanvulling, onder de tekst van 1.8.0):
+
+```
+New in 1.10.0: (1) "OKKIE. Club" (Home > OKKIE. Club). A private space per darts club: users 16+ create a club or request to join with an invite code; a club admin approves members. Content (club name, logo, club training names, results) is visible only to members of that club. Users can report a club name, logo, training or member by e-mail (Leden tab) and hide members on their device; we review reports and can remove names, logos, trainings or whole clubs. To test: Home > OKKIE. Club > "Gratis een club oprichten", enter a club name and confirm. (2) Targeted practice drills (Trainen > Gericht oefenen) and a "Vandaag oefenen" suggestion card on Home; these work fully offline and store data only on the device. Only a drill's final score is sent if the user shares it with their club.
+```
+
+App Privacy voor 1.10.0: dezelfde aanpassingen als hierboven bij 1.9.0 (Foto's of video's gekoppeld Ja; Overige
+gebruikersinhoud nieuw; Gameplay-inhoud en Naam ongewijzigd). 1.10.0 verzamelt daarnaast niets nieuws: van een
+oefening gaat alleen de eindscore naar de club als de gebruiker die deelt (valt onder Gameplay-inhoud).
+
+Leeftijdsclassificatie: ongewijzigd (gebruikersinhoud Ja; Club voegt clubnamen, logo's en trainingsnamen toe, met
+melden en verbergen). Privacybeleid https://okkiedarts.nl/privacy/ dekt Club (6a) en de oefenresultaten.
