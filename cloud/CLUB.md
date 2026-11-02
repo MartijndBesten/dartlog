@@ -145,7 +145,7 @@ een niet-openbaar profiel.
   - webapp: tag `live-1.8.0` in okkie-app (revert van `a97eb29`);
   - website: tags `live-voor-club-privacy` en `live-voor-club-live` in okkiedarts-site.
 
-## 1.10.0: Bob's 27 en 121 Checkout als weekoefening (staging; productie wacht op akkoord)
+## 1.10.0: Bob's 27 en 121 Checkout als weekoefening (live sinds 2 november 2026)
 - **Soorten:** `CHALLENGE_KINDS` kent nu ook `bobs27` (altijd 63 pijlen, punten = eindscore 0-1437, geen hoogste beurt) en
   `c121` (1-90 pijlen, punten = hoogste uitgegooide doel 121-130). Hoger is beter; geen gemiddelde. De app stuurt alleen
   die eindscore (`js/club-share.js` → `clubDrill`); rondes, pijlen en doelen blijven op de telefoon.
@@ -159,3 +159,7 @@ een niet-openbaar profiel.
 - **Productie (na akkoord):** back-up (`wrangler d1 export … --env production`) + Time Travel-bookmark, `npm run
   migrate:production`, `npm run deploy:production`, versie en terugzetversie noteren. Terug: `wrangler rollback <vorige>
   --env production`; de nieuwe tabellen zijn een superset, de oude Worker werkt erop door.
+- **Uitgevoerd 2-11-2026:** export `okkie-community-production-2026-11-02-voor-0011.sql` (lokaal teruggelezen, aantallen
+  gelijk), bookmark `00000116-00000000-00005117-532360620414f194af837586cdb5ff44`, migratie 0011, Worker `ac052b34`.
+  Terug: `wrangler rollback 2c08abdf-966a-4486-8b0f-3209fd1a58a7 --env production`; data terug (alleen in nood):
+  `wrangler d1 time-travel restore okkie-community --bookmark=<bookmark> --env production`. Aantallen en live test: HANDOFF.md.
