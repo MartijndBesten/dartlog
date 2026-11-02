@@ -35,6 +35,12 @@ test('website (productie-build): gratis-belofte bovenaan, Club direct onder de h
     const over = dist('over/index.html');
     assert.match(over, /<h1>/); assert.match(over, /mailto:info@denckh\.nl/); assert.match(over, /Denckh/);
     assert.match(over, /href="\/contact\/"/); assert.match(over, /href="\/uitleg\/"/);
+    // Akkoord Martijn: Denckh. als maker, geen persoonsnaam; geen account nodig, wel voorwaarden voor delen en Club.
+    assert.doesNotMatch(over, /eenmanszaak|Martijn/);
+    assert.match(over, /gemaakt en ontwikkeld door <a href="https:\/\/denckh\.nl\/">Denckh\.<\/a>/);
+    assert.match(over, /Geen account nodig/); assert.match(over, /16 jaar en ouder/);
+    assert.match(over, /beheerder van de club keurt nieuwe leden goed/); assert.match(over, /samengevatte resultaten/);
+    assert.match(over, /href="\/privacy\/#club"/);
     for (const p of ['index.html', 'privacy/index.html', 'contact/index.html', 'dartregels/index.html', 'club/index.html', 'club/uitnodiging/index.html', 'over/index.html']) {
       assert.match(dist(p), /<a href="\/over\/"[^>]*>Over OKKIE\.<\/a>/, p + ': Over OKKIE. in de footer');
       assert.match(dist(p), /dashboard\.denckh\.nl\/s\.js/, p + ': bezoekersteller');
