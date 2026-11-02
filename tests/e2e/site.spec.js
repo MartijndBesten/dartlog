@@ -263,7 +263,7 @@ test('homepage: statistieken, uitdagingen en de stem; tik op een beurt in de voo
   const errors = collectErrors(page);
   await page.goto(SITE + '/');
   await expect(page).toHaveTitle('OKKIE. — gratis dart-app vol statistieken en uitdagingen');
-  await expect(page.locator('.hero-content .lead-strong')).toHaveText('De gratis dart-app vol statistieken en uitdagingen.');
+  await expect(page.locator('.hero-content .lead-strong')).toHaveText('De gratis dart-app die zegt wat je vandaag kunt oefenen.');   // 1.10.0 live (release110)
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', /vol statistieken en uitdagingen/);
   for (const id of ['statistieken', 'uitdagingen', 'stem']) await expect(page.locator('#' + id + ' h2')).toBeVisible();
   const chart = page.locator('[data-chart]');
