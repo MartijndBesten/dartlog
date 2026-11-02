@@ -7,7 +7,7 @@
 | Oude adres martijndbesten.github.io/dartlog | 1.10.0 (= `main` van dartlog) | tag `live-1.9.0` in dartlog (`d1f1ca0`) |
 | Website okkiedarts.nl | 1.10.0: gratis-belofte, Gericht/Vandaag oefenen, /over/ (okkiedarts-site `119b0ed`, PR #7); App Store-badge **uit** | tag `live-voor-1.10.0` in okkiedarts-site (`6717bff`) |
 | API (Worker `okkie-api`) | versie `ac052b34`, migraties t/m 0011 | `wrangler rollback 2c08abdf-966a-4486-8b0f-3209fd1a58a7 --env production` |
-| iOS | 1.8.0 *Wachten op review* (build 29); 1.9.0 = build 31, klaar, **niet ingediend**; iOS 1.10.0 later | — |
+| iOS | 1.8.0 *Wachten op review* (build 29, automatisch live na goedkeuring); 1.9.0 wordt **overgeslagen**; 1.10.0 = build 33, klaar, wordt ingediend na vrijgave van 1.8.0 (akkoord Martijn) | — |
 
 ## 1.10.0 — Gericht oefenen, Vandaag oefenen, website (live sinds 2 november 2026)
 Wat er is gebouwd (details in CHANGELOG.md):
@@ -69,8 +69,39 @@ gemerged en op `main` gecontroleerd); nieuw: geen kaart.
 6. **Website:** `release110` aan (dartlog PR #17) na de live controle van app en API; `appStoreApproved` uit, want
    de app staat nog niet openbaar in de App Store (iTunes-lookup 0 resultaten, App Store-pagina 404). Live
    gecontroleerd op mobiel en desktop (Over OKKIE., footer, privacy-link, geen badge, geen JS-fouten).
-7. **Nog open:** `appStoreApproved` aanzetten zodra de app openbaar staat; iOS 1.10.0; iOS 1.9.0 indienen na 1.8.0;
+7. **Nog open:** `appStoreApproved` aanzetten zodra de app openbaar staat; iOS 1.10.0 indienen na 1.8.0 (1.9.0 overgeslagen);
    maildienst voor nieuwe clubs; besluit dagteller.
+
+## iOS 1.10.0 naar de App Store (akkoord Martijn, 2 november 2026)
+- **Volgorde:** 1.8.0 (build 29) wacht op review en gaat na goedkeuring automatisch live. Daarna: openbare downloadlink
+  controleren (iTunes-lookup `id=6829301399&country=nl` geeft een resultaat, App Store-pagina 200), dan pas
+  `appStoreApproved` aan op okkiedarts.nl; daarna versie 1.10.0 aanmaken met build 33, teksten uit
+  `appstore/APPSTORE-TEKSTEN.md`, reviewgegevens van 1.8.0, en direct indienen. **1.9.0 wordt overgeslagen** (build 31
+  nooit ingediend; er bestaat geen 1.9.0-versie in App Store Connect).
+- **Tests build 33:** simulatorbuild + rooktest + 10/10 XCUITests, waaronder `test09_GegevensBehoudenNaUpdate`
+  (runs 41401573215 en 41415754166); productie-API staat `capacitor://localhost` toe.
+- **App Privacy:** gecontroleerd in App Store Connect (2-11-2026), al correct gepubliceerd. Gekoppeld: naam, foto's of
+  video's (clublogo), gameplay-inhoud, overige gebruikersinhoud (clubtrainingen), gebruikers-ID — alle voor
+  appfunctionaliteit. Niet gekoppeld: e-mailadres, klantenservice, overige diagnose (appfunctionaliteit),
+  productinteractie (analyse). Geen tracking.
+- **EU-handelaarsstatus:** geen melding over een ontbrekende status in de beschikbaarheid (ook Frankrijk niet);
+  rechtstreeks via de API niet uit te lezen.
+
+### Leeftijdsclassificatie: nieuwe vragen over social media (besluit Martijn, 2-11-2026)
+Antwoorden: **social media Nee**, **door gebruikers gemaakte inhoud Ja**, **leeftijdscontrole Nee**, classificatie blijft
+**4+**, officiële **Kids-categorie niet** activeren (4+ is iets anders dan de Kids-categorie).
+
+Redenering (gecontroleerd in `cloud/src/clubs.js`, `cloud/src/club-extras.js` en `club/club.js`):
+- OKKIE. Club is een besloten clubomgeving: alleen leden die een beheerder heeft goedgekeurd zien de club. Geen openbare
+  profielen, geen volgen, geen chat of berichten.
+- De Clubfeed bevat alleen gestructureerde trainingssamenvattingen (soort, darts, punten, hoogste). Er is geen tekstveld,
+  geen reactie- of like-functie en geen doorstuur- of deelknop bij feedberichten. Een lid kan alleen een eigen training
+  delen, een eigen bericht verwijderen of een ander lid verbergen; de beheerder kan elk bericht verwijderen. Feedberichten
+  worden na 60 dagen gewist.
+- Vrije tekst bestaat alleen als bijnaam, club- en teamnaam, en clubtrainingen en het clublogo — die laatste twee alleen
+  door beheerder of teamcaptain. Dat valt onder *door gebruikers gemaakte inhoud: Ja* (stond al zo).
+- De 16+-regel van Club is een zelfverklaring, geen leeftijdscontrole; daarom *leeftijdscontrole Nee*.
+- **Opnieuw voorleggen** aan Martijn als Club ooit reacties, berichten of vrij posten krijgt.
 
 ## Historie: iOS-testfase 1.8.0
 
