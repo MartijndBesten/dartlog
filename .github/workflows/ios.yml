@@ -45,6 +45,10 @@ on:
         description: 'App Store-screenshots maken in de simulator (6,9" en 6,5", fictieve demogegevens); geen upload'
         type: boolean
         default: false
+      updatetest:
+        description: 'Echte update testen: App Store-versie 1.8.0 (build 29) met gegevens, dan deze versie eroverheen'
+        type: boolean
+        default: false
       asc:
         description: 'App Store Connect: status (alleen lezen), voorbereiden (versie, build, teksten) of indienen voor App Review'
         type: choice
@@ -72,7 +76,7 @@ jobs:
   simulator:
     name: Compileren en rooktest (simulator)
     # Niet bij een losse App Store Connect-actie (status/voorbereiden/indienen): die bouwt niets.
-    if: github.event_name == 'push' || inputs.testflight || inputs.asc == 'geen' || inputs.asc == ''
+    if: github.event_name == 'push' || inputs.testflight || ((inputs.asc == 'geen' || inputs.asc == '') && !inputs.updatetest)
     runs-on: macos-26
     timeout-minutes: 45
     steps:
@@ -325,4 +329,47 @@ jobs:
         with:
           name: asc-${{ inputs.asc }}
           path: asc-*.json
+          retention-days: 30
+
+  updatetest:
+    name: Update 1.8.0 → deze versie (gegevensbehoud, simulator)
+    if: github.event_name == 'workflow_dispatch' && inputs.updatetest
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      OUD_COMMIT: 82c3772   # bron van build 29 = App Store-versie 1.8.0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Xcode (nieuwste niet-bèta Xcode 26)
+        run: tools/ios/select-xcode.sh
+      - name: Oude versie 1.8.0 bouwen (Release, zoals in de App Store)
+        run: |
+          git worktree add "$RUNNER_TEMP/oud" "$OUD_COMMIT"
+          node tools/ios/upgrade-seed.mjs check-old "$RUNNER_TEMP/oud"
+          cd "$RUNNER_TEMP/oud" && npm ci --no-audit --no-fund && node tools/build-ios-web.mjs && npx cap sync ios
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/build-oud" \
+            MARKETING_VERSION=1.8.0 CURRENT_PROJECT_VERSION=29 CODE_SIGNING_ALLOWED=NO build > "$RUNNER_TEMP/oud.log" 2>&1 || { tail -40 "$RUNNER_TEMP/oud.log"; exit 1; }
+      - name: Nieuwe versie bouwen (Release)
+        run: |
+          npm ci --no-audit --no-fund && node tools/build-ios-web.mjs && npx cap sync ios
+          VERSION=$(node -p "require('./package.json').version")
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build-nieuw \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION=999 CODE_SIGNING_ALLOWED=NO build > nieuw.log 2>&1 || { tail -40 nieuw.log; exit 1; }
+      - name: Update uitvoeren en gegevens controleren
+        run: tools/ios/upgrade-test.sh "$RUNNER_TEMP/build-oud/Build/Products/Release-iphonesimulator/App.app" build-nieuw/Build/Products/Release-iphonesimulator/App.app update
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-updatetest
+          path: update/
           retention-days: 30
