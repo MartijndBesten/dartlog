@@ -104,12 +104,15 @@ async function cleanup(out) {
 }
 
 // Als opdracht (node tools/ios/asc-signing.mjs …) of in de tests (done = de lopende opdracht).
-const [cmd, ...args] = process.argv.slice(2);
-const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+// Alleen als opdracht (node tools/ios/asc-signing.mjs …). Bij importeren (asc-release.mjs, tests) gebeurt niets vanzelf:
+// beide scripts kennen een "prepare", en een import mag nooit een certificaat aanvragen.
 const check = async () => { const p = checkSecrets(); if (p.length) throw new Error('GitHub-secrets: ' + p.join('; ') + '. Zie IOS-APP.md, TestFlight.'); console.log('Secrets aanwezig en geldig van vorm.'); };
-const run = cmd ? { check, prepare: () => prepare(args[0], args[1]), app, cleanup: () => cleanup(args[0]) }[cmd] : null;
-export const done = run ? run() : Promise.resolve();
-if (isMain) {
-  if (cmd && !run) { console.error('Gebruik: check | prepare <csr> <map> | app | cleanup <map>'); process.exit(2); }
-  done.catch(e => { console.error(e.message); process.exit(1); });
+export function cli(argv) {
+  const [cmd, ...args] = argv;
+  const run = { check, prepare: () => prepare(args[0], args[1]), app, cleanup: () => cleanup(args[0]) }[cmd];
+  if (!run) throw new Error('Gebruik: check | prepare <csr> <map> | app | cleanup <map>');
+  return run();
+}
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  cli(process.argv.slice(2)).catch(e => { console.error(e.message); process.exit(/Gebruik/.test(e.message) ? 2 : 1); });
 }

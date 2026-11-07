@@ -84,7 +84,14 @@ test('cleanup weigert een certificaat met een ander serienummer en een profiel m
 
 // De opdrachten draaien in hetzelfde proces (zelfde nep-fetch) via de geëxporteerde CLI-logica.
 async function importRun(cmd, ...args) {
-  const saved = process.argv;
-  process.argv = [process.execPath, script, cmd, ...args];
-  try { return await (await import(scriptUrl + '?run=' + Math.random())).done; } finally { process.argv = saved; }
+  return mod.cli([cmd, ...args]);
 }
+
+test('importeren voert niets uit (ook niet met "prepare" op de opdrachtregel van een ander script)', async () => {
+  calls = [];
+  const saved = process.argv;
+  process.argv = [process.execPath, '/elders/asc-release.mjs', 'prepare', '1.10.0', '33'];
+  try { await import(scriptUrl + '?import=' + Math.random()); } finally { process.argv = saved; }
+  await new Promise(r => setTimeout(r, 50));
+  assert.deepEqual(calls, [], 'geen enkele API-aanroep bij importeren');
+});
