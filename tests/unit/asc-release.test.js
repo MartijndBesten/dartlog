@@ -17,7 +17,7 @@ before(async () => {
     const path = decodeURIComponent(url.replace('https://api.appstoreconnect.apple.com/v1', '')), method = opt.method || 'GET';
     calls.push(method + ' ' + path);
     const r = api(method, path, opt.body ? JSON.parse(opt.body) : null) || { status: 404, body: { errors: [{ detail: 'nep: ' + path }] } };
-    return new Response(r.body == null ? '' : JSON.stringify(r.body), { status: r.status || 200 });
+    return new Response(r.body == null ? null : JSON.stringify(r.body), { status: r.status || 200 });
   };
 });
 after(() => { globalThis.fetch = realFetch; });
@@ -74,12 +74,14 @@ test('indienen als alles klopt: inzending maken, versie toevoegen, versturen', a
   let submitted = false;
   api = (m, p, b) => {
     if (p.startsWith('/apps?')) return { body: APP };
-    if (p.startsWith('/apps/APP1/appStoreVersions')) return { body: { data: [{ id: 'V1', attributes: { versionString: '1.10.0', appStoreState: submitted ? 'WAITING_FOR_REVIEW' : 'PREPARE_FOR_SUBMISSION' } }] } };
+    if (p.startsWith('/apps/APP1/appStoreVersions')) return { body: { data: [{ id: 'V1', attributes: { versionString: '1.10.0', appStoreState: submitted ? 'WAITING_FOR_REVIEW' : 'INVALID_BINARY' } }] } };
     if (p === '/appStoreVersions/V1/appStoreVersionLocalizations') return { body: { data: [{ id: 'L1', attributes: { locale: 'nl-NL', whatsNew: 'Nieuw' } }] } };
     if (p === '/appStoreVersionLocalizations/L1/appScreenshotSets') return { body: { data: [{ id: 'S1', attributes: { screenshotDisplayType: 'APP_IPHONE_67' } }] } };
     if (p === '/appScreenshotSets/S1/appScreenshots') return { body: { data: [1, 2, 3, 4, 5, 6].map(i => ({ id: 'X' + i })) } };
     if (p === '/appStoreVersions/V1/build') return { body: { data: { attributes: { version: '33' } } } };
     if (p === '/appStoreVersions/V1/appStoreReviewDetail') return { body: { data: { attributes: { notes: 'n'.repeat(500), contactEmail: 'x' } } } };
+    if (m === 'GET' && p.startsWith('/reviewSubmissions?')) return { body: { data: [{ id: 'R0', attributes: { state: 'UNRESOLVED_ISSUES' } }, { id: 'RX', attributes: { state: 'COMPLETE' } }] } };
+    if (m === 'PATCH' && p === '/reviewSubmissions/R0') { assert.equal(b.data.attributes.canceled, true); return { body: { data: { id: 'R0', attributes: { state: 'CANCELING' } } } }; }
     if (m === 'POST' && p === '/reviewSubmissions') { assert.equal(b.data.relationships.app.data.id, 'APP1'); return { status: 201, body: { data: { id: 'R1', attributes: { state: 'READY_FOR_REVIEW' } } } }; }
     if (m === 'POST' && p === '/reviewSubmissionItems') { assert.equal(b.data.relationships.appStoreVersion.data.id, 'V1'); return { status: 201, body: { data: { id: 'I1' } } }; }
     if (m === 'PATCH' && p === '/reviewSubmissions/R1') { assert.equal(b.data.attributes.submitted, true); submitted = true; return { body: { data: { id: 'R1', attributes: { state: 'WAITING_FOR_REVIEW' } } } }; }
@@ -87,5 +89,6 @@ test('indienen als alles klopt: inzending maken, versie toevoegen, versturen', a
   };
   const r = await mod.submit('1.10.0', '33');
   assert.deepEqual([r.inzendingStatus, r.versieStatus], ['WAITING_FOR_REVIEW', 'WAITING_FOR_REVIEW']);
-  assert.deepEqual(calls.filter(c => !c.startsWith('GET')), ['POST /reviewSubmissions', 'POST /reviewSubmissionItems', 'PATCH /reviewSubmissions/R1']);
+  // Open inzending met problemen (zoals na ITMS-90035) eerst ingetrokken; afgeronde inzendingen blijven staan.
+  assert.deepEqual(calls.filter(c => !c.startsWith('GET')), ['PATCH /reviewSubmissions/R0', 'POST /reviewSubmissions', 'POST /reviewSubmissionItems', 'PATCH /reviewSubmissions/R1']);
 });

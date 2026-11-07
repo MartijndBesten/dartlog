@@ -250,7 +250,7 @@ jobs:
             | tee export.log | grep -Ei "error|upload|EXPORT (SUCCEEDED|FAILED)" || true
           grep -qE "EXPORT SUCCEEDED|Upload succeeded" export.log
           echo "Build ${{ github.run_number }} staat in App Store Connect; na verwerking (5-30 min) verschijnt hij in TestFlight (alleen interne tests)." | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Opruimen (alleen het eigen tijdelijke certificaat intrekken, sleutel weg)
+      - name: Opruimen (sleutel en keychain weg; certificaat blijft geldig tot na App Review)
         if: always()
         run: |
           [ -n "${SIGN:-}" ] && node tools/ios/asc-signing.mjs cleanup "$SIGN" || true

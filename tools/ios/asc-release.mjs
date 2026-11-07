@@ -148,7 +148,7 @@ export async function prepare(version, build) {
     console.log(`Versie ${version} aangemaakt.`);
   }
   const state = v.attributes.appStoreState || v.attributes.appVersionState;
-  if (!['PREPARE_FOR_SUBMISSION', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED'].includes(state)) throw new Error(`Versie ${version} is niet te bewerken (status ${state}).`);
+  if (!['PREPARE_FOR_SUBMISSION', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED', 'INVALID_BINARY'].includes(state)) throw new Error(`Versie ${version} is niet te bewerken (status ${state}).`);
   await asc(`/appStoreVersions/${v.id}`, { method: 'PATCH', body: body('appStoreVersions', { releaseType: rel_.releaseType }, null, v.id) });
   await asc(`/appStoreVersions/${v.id}/relationships/build`, { method: 'PATCH', body: rel('builds', b.id) });
   console.log(`Build ${build} gekoppeld.`);
@@ -193,13 +193,20 @@ export async function submit(version, build) {
   const d = await versionDetails(v);
   const problems = [];
   if (String(d.build) !== String(build)) problems.push(`build ${d.build} gekoppeld, verwacht ${build}`);
-  if (d.status !== 'PREPARE_FOR_SUBMISSION') problems.push(`status ${d.status}`);
+  if (!['PREPARE_FOR_SUBMISSION', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED', 'INVALID_BINARY'].includes(d.status)) problems.push(`status ${d.status}`);
   for (const l of Array.isArray(d.lokalisaties) ? d.lokalisaties : []) {
     if (!l.wat_is_nieuw) problems.push(`${l.taal}: Wat is nieuw ontbreekt`);
     if (!Array.isArray(l.screenshots) || !l.screenshots.some(s => s.aantal >= 3)) problems.push(`${l.taal}: screenshots ontbreken`);
   }
   if (!d.review || !(d.review.notities > 100)) problems.push('reviewnotities ontbreken');
   if (problems.length) throw new Error('Niet ingediend: ' + problems.join('; '));
+  // Een open inzending (bijv. UNRESOLVED_ISSUES na een afgekeurde build) eerst intrekken; daarna een nieuwe, schone inzending.
+  for (const old of await all('/reviewSubmissions' + q({ 'filter[app]': app.id, limit: 20 }))) {
+    if (['UNRESOLVED_ISSUES', 'READY_FOR_REVIEW'].includes(old.attributes.state)) {
+      await asc(`/reviewSubmissions/${old.id}`, { method: 'PATCH', body: body('reviewSubmissions', { canceled: true }, null, old.id) });
+      console.log(`Open inzending ${old.id} (${old.attributes.state}) ingetrokken.`);
+    }
+  }
   const sub = (await asc('/reviewSubmissions', { method: 'POST', body: body('reviewSubmissions', { platform: 'IOS' }, { app: rel('apps', app.id) }) })).data;
   await asc('/reviewSubmissionItems', { method: 'POST', body: body('reviewSubmissionItems', null, { reviewSubmission: rel('reviewSubmissions', sub.id), appStoreVersion: rel('appStoreVersions', v.id) }) });
   const done = (await asc(`/reviewSubmissions/${sub.id}`, { method: 'PATCH', body: body('reviewSubmissions', { submitted: true }, null, sub.id) })).data;
