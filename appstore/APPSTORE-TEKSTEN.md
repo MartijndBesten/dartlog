@@ -203,3 +203,32 @@ oefening gaat alleen de eindscore naar de club als de gebruiker die deelt (valt 
 
 Leeftijdsclassificatie: ongewijzigd (gebruikersinhoud Ja; Club voegt clubnamen, logo's en trainingsnamen toe, met
 melden en verbergen). Privacybeleid https://okkiedarts.nl/privacy/ dekt Club (6a) en de oefenresultaten.
+
+## Versie 1.11.0 (voorbereid; indienen pas nadat de review van 1.10.0 build 53 is afgerond)
+
+Build: nog niet gemaakt. Na afronding van de review van 1.10.0: TestFlight-build uit dartlog `main` (workflow *OKKIE
+iPhone-app*), testen in TestFlight, daarna pas versie 1.11.0 aanmaken en indienen (`appstore/release-1.11.0.json`).
+Inhoud gelijk aan webapp 1.11.0: OKKIE. Club bij het bord.
+
+Wat is nieuw (nl):
+
+```
+Nieuw in deze versie:
+• OKKIE. Club bij het bord: de beheerder print een clubposter met QR-code (A4 of A5) en hangt hem bij het dartbord. Scannen, je naam kiezen en meteen meespelen voor je club.
+• Persoonlijke uitnodiging: een link voor één speler, die één keer werkt.
+• Kies zelf of je trainingen automatisch meetellen voor je club. Dat staat standaard uit.
+```
+
+Wat is nieuw (en):
+
+```
+New in this version:
+• OKKIE. Club at the board: the club admin prints a club poster with a QR code (A4 or A5) for next to the dartboard. Scan, pick your name and play for your club straight away.
+• Personal invite: a link for one player that works once.
+• Choose whether your trainings count for your club automatically. This is off by default.
+```
+
+Reviewnotitie 1.11.0 (aanvulling op die van 1.10.0): zie `reviewNotes` in `appstore/release-1.11.0.json`.
+
+App Privacy: ongewijzigd (zelfde gegevenssoorten; een optionele omschrijving bij een toegangscode valt onder Overige
+gebruikersinhoud). Leeftijdsclassificatie: ongewijzigd (16+ voor Club blijft server-side afgedwongen).

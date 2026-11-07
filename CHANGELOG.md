@@ -1,6 +1,6 @@
 # Changelog
 
-## Club bij het bord (kantine/clubhuis) — nog niet live
+## 1.11.0 — OKKIE. Club bij het bord (kantine, clubhuis)
 
 - **QR-code bij het bord:** de beheerder print een clubposter (A4 of A5, ook als pdf) met clubnaam, QR-code, korte code
   en uitleg, en hangt hem bij het dartbord. Per code: nieuwe spelers direct toelaten of eerst goedkeuren (standaard).

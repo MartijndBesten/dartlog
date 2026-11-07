@@ -30,7 +30,7 @@ import { autoShareClubs } from './club-auto.js';
 
 FB.captureErrors();
 
-export const APP_VERSION = '1.10.0';
+export const APP_VERSION = '1.11.0';
 // "Nodig een vriend uit": altijd de website als link. Die blijft geldig, ook na de verhuizing van de app.
 export const INVITE_URL = 'https://okkiedarts.nl/';
 export const INVITE_TEXT = 'Ik train mijn darts met OKKIE. 🎯 Gratis, werkt gewoon op je telefoon en je ziet meteen of je beter wordt. Doe je mee?';
