@@ -44,6 +44,7 @@ const dateTime = iso => new Date(iso).toLocaleString('nl-NL', { weekday: 'short'
 const now = () => new Date().toISOString();
 
 const store = S.createStore(window.localStorage);
+const ANDROID = N.platform() === 'android';   // Android-app (Capacitor): teksten zonder iPhone, Safari of iCloud
 const loaded = store.load();
 let data = loaded.data;
 sanitizeActive();
@@ -350,7 +351,7 @@ function newHereCard() {
 // in een geïnstalleerde app onder het naamveld.
 function fetchCard() {
   return `<section class="card move-card" data-testid="fetch-card"><h3>Al eerder OKKIE. gebruikt?</h3>
-      <p class="muted">${N.isNative() ? 'In Safari, op je beginscherm of op een andere telefoon? Haal eerst je spelers en trainingen naar deze app. Daar wordt niets gewist.' : 'In Safari of op een andere telefoon? Haal eerst je spelers en trainingen hierheen.'}</p>
+      <p class="muted">${N.isNative() ? `In ${ANDROID ? 'Chrome' : 'Safari'}, op je beginscherm of op een andere telefoon? Haal eerst je spelers en trainingen naar deze app. Daar wordt niets gewist.` : 'In Safari of op een andere telefoon? Haal eerst je spelers en trainingen hierheen.'}</p>
       <button class="btn secondary" data-act="transfer-receive">${icon('download', { size: 19 })}Trainingen ophalen</button></section>`;
 }
 
@@ -1174,11 +1175,11 @@ VIEWS.more = () => {
     </nav>
     <section class="card">
       <h3>Back-up en overzetten</h3>
-      <p class="muted">${N.isNative() ? 'Je gegevens staan alleen op deze iPhone (ook in de iCloud-back-up van je iPhone). Bewaar af en toe zelf een back-up in Bestanden of iCloud Drive.' : 'Je gegevens staan alleen op dit toestel. Maak af en toe een back-up, zeker voordat je de browser opschoont.'}</p>
-      <div class="row-actions">${N.isNative() ? '' : `<button class="btn primary" data-act="export">${icon('download', { size: 19 })}Back-up downloaden</button>`}<button class="btn ${N.isNative() ? 'primary' : 'secondary'}" data-act="backup-share">${icon('share', { size: 19 })}${N.isNative() ? 'Back-up bewaren in Bestanden' : 'Bewaar via Delen / iCloud'}</button>
+      <p class="muted">${N.isNative() ? (ANDROID ? 'Je gegevens staan alleen op deze telefoon (ook in de Android-back-up naar je Google-account, als die aanstaat). Bewaar af en toe zelf een back-up via Delen, bijvoorbeeld in Google Drive of Bestanden.' : 'Je gegevens staan alleen op deze iPhone (ook in de iCloud-back-up van je iPhone). Bewaar af en toe zelf een back-up in Bestanden of iCloud Drive.') : 'Je gegevens staan alleen op dit toestel. Maak af en toe een back-up, zeker voordat je de browser opschoont.'}</p>
+      <div class="row-actions">${N.isNative() ? '' : `<button class="btn primary" data-act="export">${icon('download', { size: 19 })}Back-up downloaden</button>`}<button class="btn ${N.isNative() ? 'primary' : 'secondary'}" data-act="backup-share">${icon('share', { size: 19 })}${N.isNative() ? (ANDROID ? 'Back-up bewaren of delen' : 'Back-up bewaren in Bestanden') : 'Bewaar via Delen / iCloud'}</button>
       <label class="btn secondary file">${icon('upload', { size: 19 })}Back-up terugzetten<input type="file" accept="application/json,.json" data-input="import" hidden></label></div>
       <h4>Naar een andere telefoon of app</h4>
-      <p class="muted small">Met een overzetcode zet je alles over via kopiëren en plakken, bijvoorbeeld van Safari ${N.isNative() ? 'of je beginscherm naar deze app' : 'naar OKKIE. op je beginscherm'}. Er komt niets dubbel.</p>
+      <p class="muted small">Met een overzetcode zet je alles over via kopiëren en plakken, bijvoorbeeld van ${ANDROID ? 'Chrome' : 'Safari'} ${N.isNative() ? 'of je beginscherm naar deze app' : 'naar OKKIE. op je beginscherm'}. Er komt niets dubbel.</p>
       <div class="row-actions"><button class="btn secondary" data-act="transfer-code" data-testid="make-code">${icon('copy', { size: 19 })}Overzetcode maken</button><button class="btn secondary" data-act="transfer-receive" data-testid="enter-code">${icon('download', { size: 19 })}Code invoeren</button></div>
       <button class="link-row compact" data-go="andere-app"><span><b>Scores uit een andere app</b><small>Bijv. DartCounter, of zelf een eindstand invullen</small></span>${icon('chevron', { size: 18 })}</button>
     </section>
@@ -2602,6 +2603,15 @@ if (at) ui.view = at.kind === 'clock' ? 'play-clock' : 'play-score';
 else if (data.active.match) ui.view = 'play-match';
 else if (data.active.drill) { ui.view = DRILL_VIEW[data.active.drill.kind]; ui.mod = ringMod(data.active.drill.kind); }
 render();
+// Android-terugknop (js/native.js): venster dicht, of terug naar het startscherm. Tijdens een training of wedstrijd
+// naar het startscherm (daar staat "Verder"); bij een gerichte oefening blijft het scherm staan.
+N.onBack(() => {
+  if (!$('#modal').hidden) { closeModal(); return true; }
+  if (ui.view === 'home' || ui.view === 'welcome') return false;
+  if (DRILL_VIEWS.has(ui.view)) return true;
+  go('home');
+  return true;
+});
 {
   const link = new URLSearchParams(location.hash.slice(1));
   if (link.has('start')) { history.replaceState(null, '', location.pathname + location.search); startFromLink(link.get('start'), link.get('speler')); }

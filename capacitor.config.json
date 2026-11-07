@@ -6,7 +6,8 @@
   "loggingBehavior": "debug",
   "server": {
     "hostname": "localhost",
-    "iosScheme": "capacitor"
+    "iosScheme": "capacitor",
+    "androidScheme": "https"
   },
   "ios": {
     "contentInset": "never",
@@ -26,6 +27,17 @@
     "StatusBar": {
       "style": "DARK",
       "overlaysWebView": true
+    },
+    "SystemBars": {
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover",
+      "style": "DARK"
     }
+  },
+  "android": {
+    "backgroundColor": "#07120d",
+    "allowMixedContent": false,
+    "captureInput": false,
+    "webContentsDebuggingEnabled": false
   }
 }

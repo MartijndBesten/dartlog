@@ -1,0 +1,121 @@
+name: OKKIE Android-app
+
+# Android-app (Capacitor, zie ANDROID-APP.md). Bouwt en test; publiceert NOOIT in Google Play.
+# - Elke push naar main of een Android-branch: debug-APK + release-AAB bouwen, unit-tests van Gradle, en een rooktest in
+#   de Android-emulator (app start, startscherm met "Let's play darts" verschijnt, geen crash).
+# - Ondertekend (uploadsleutel) alleen als de secrets OKKIE_UPLOAD_KEYSTORE_B64, OKKIE_UPLOAD_STORE_PASSWORD,
+#   OKKIE_UPLOAD_KEY_ALIAS en OKKIE_UPLOAD_KEY_PASSWORD bestaan; anders een niet-ondertekende AAB (alleen ter controle).
+# - Uploaden naar Google Play gebeurt met de hand in de Play Console (of later met een aparte, handmatige stap).
+on:
+  push:
+    branches: [main, 'claude/android-**', 'release/**']
+    paths:
+      - 'android/**'
+      - 'js/**'
+      - 'css/**'
+      - 'index.html'
+      - 'community/**'
+      - 'club/**'
+      - 'uitleg/**'
+      - 'vrienden/**'
+      - 'icons/**'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tools/app-files.mjs'
+      - 'tools/build-ios-web.mjs'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'push' }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Bouwen (APK + AAB)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - run: npm ci --no-audit --no-fund
+      - name: Webbestanden (zelfde app als app.okkiedarts.nl en de iPhone-app) en sync
+        run: node tools/build-ios-web.mjs && npx cap sync android
+      - name: Uploadsleutel (alleen als de secrets bestaan)
+        env:
+          KEYSTORE_B64: ${{ secrets.OKKIE_UPLOAD_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            echo "OKKIE_UPLOAD_KEYSTORE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+            echo "Ondertekend met de uploadsleutel."
+          else
+            echo "Geen uploadsleutel: AAB blijft niet-ondertekend (niet te uploaden naar Google Play)."
+          fi
+      - name: Gradle (unit-tests, debug-APK, release-AAB)
+        working-directory: android
+        env:
+          OKKIE_UPLOAD_STORE_PASSWORD: ${{ secrets.OKKIE_UPLOAD_STORE_PASSWORD }}
+          OKKIE_UPLOAD_KEY_ALIAS: ${{ secrets.OKKIE_UPLOAD_KEY_ALIAS }}
+          OKKIE_UPLOAD_KEY_PASSWORD: ${{ secrets.OKKIE_UPLOAD_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon -PokkieVersionCode=$((1000 + GITHUB_RUN_NUMBER)) testDebugUnitTest assembleDebug bundleRelease
+      - name: Controle versie en rechten
+        run: |
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          "$AAPT" dump badging android/app/build/outputs/apk/debug/app-debug.apk > badging.txt
+          head -3 badging.txt
+          grep -q "versionName='$(node -p "require('./package.json').version")'" badging.txt
+          grep -q "package: name='nl.denckh.okkie'" badging.txt
+          # Alleen internet en trillen (Haptics, gewoon recht zonder toestemmingsvraag): geen camera, locatie,
+          # contacten, meldingen of opslagrechten.
+          PERMS=$(grep "uses-permission:" badging.txt | grep -v "android.permission.INTERNET'" | grep -v "android.permission.VIBRATE'" | grep -v "DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" || true)
+          echo "$PERMS"
+          test -z "$PERMS"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: okkie-android-${{ github.run_number }}
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
+
+  emulator:
+    name: Rooktest in de Android-emulator
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: okkie-android-${{ github.run_number }}
+          path: out
+      - name: KVM aanzetten
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: App starten, startscherm controleren
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: bash tools/android/smoke.sh out/apk/debug/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: okkie-android-rooktest-${{ github.run_number }}
+          path: android-smoke/
+          if-no-files-found: ignore
+          retention-days: 14

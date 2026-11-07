@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OKKIE.: Android-back-up (Google Drive van de gebruiker zelf) neemt de trainingen mee (webviewopslag en de duurzame
+     kopie in de app-map), zodat ze een nieuwe telefoon overleven. Wij krijgen daar niets van te zien. -->
+<full-backup-content>
+    <include domain="root" path="app_webview/" />
+    <include domain="file" path="." />
+    <exclude domain="root" path="app_webview/Default/Cache/" />
+    <exclude domain="root" path="app_webview/Default/Code Cache/" />
+</full-backup-content>
