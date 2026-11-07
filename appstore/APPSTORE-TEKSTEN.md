@@ -27,7 +27,7 @@ Taal: **Nederlands** (primaire taal). Lengtes zijn gecontroleerd met `node tools
 ## Promotietekst (max. 170, mag je altijd aanpassen zonder nieuwe versie)
 
 ```
-Train je darts met drie pijlen per beurt, zie direct je gemiddelde en of je beter wordt. Gratis, zonder account en zonder reclame. Ook samen met vrienden.
+Train je darts, oefen gericht op je dubbels en je uitgooi, en speel mee in je eigen besloten club. Gratis, zonder reclame, zonder account en zonder aankopen.
 ```
 
 ## Beschrijving (max. 4000)
@@ -76,7 +76,7 @@ OKKIE. is ontwikkeld door Denckh. in Nederland.
 ## Trefwoorden (max. 100, komma's zonder spaties)
 
 ```
-darts,dart,trainer,training,501,301,dartbord,score,checkout,gemiddelde,oefenen,180,bull,uitgooien
+darts,dart,trainer,training,501,301,dartbord,score,checkout,gemiddelde,oefenen,180,club,uitgooien
 ```
 
 ## Wat is nieuw (versie 1.8.0)

@@ -16,19 +16,22 @@ const build = (env = {}) => execFileSync(process.execPath, ['tools/build-public-
 const dist = p => readFileSync(join(out, p), 'utf8');
 process.on('exit', () => rmSync(out, { recursive: true, force: true }));
 
-test('site-config: release110 aan (1.10.0 live sinds 2-11-2026), App Store-badge uit tot de app openbaar in de App Store staat', () => {
+test('site-config: release110 aan (1.10.0 live sinds 2-11-2026), App Store-badge aan (app openbaar sinds 6-11-2026)', () => {
   const cfg = JSON.parse(readFileSync(join(root, 'ontdek/site-config.json'), 'utf8'));
   assert.equal(cfg.release110, true, '1.10.0 staat live');
-  assert.equal(cfg.appStoreApproved, false, 'pas aanzetten als de app openbaar in de App Store staat');
+  assert.equal(cfg.appStoreApproved, true, 'app staat openbaar in de App Store (itunes lookup id 6829301399)');
   assert.match(cfg.appStoreUrl, /^https:\/\/apps\.apple\.com\/nl\/app\/id6829301399$/);
 });
 
-test('website (productie-build): gratis-belofte bovenaan, Club direct onder de hero, Over OKKIE., Gericht oefenen, geen App Store-badge', () => {
+test('website (productie-build): gratis-belofte bovenaan, Club direct onder de hero, Over OKKIE., Gericht oefenen, App Store-badge', () => {
   try {
-    assert.match(build(), /release110: true, App Store-badge: false/);
+    assert.match(build(), /release110: true, App Store-badge: true/);
     const home = dist('index.html');
     assert.match(home, /data-testid="gratis"><span class="pulse"><\/span> Gratis\. Geen reclame\. Geen abonnement\.<\/div>/);
-    assert.doesNotMatch(home, /appstore-badge|apps\.apple\.com|<!--(IF|END):|\{\{APPSTORE_URL\}\}/);
+    assert.doesNotMatch(home, /<!--(IF|END):|\{\{APPSTORE_URL\}\}/);
+    assert.equal((home.match(/href="https:\/\/apps\.apple\.com\/nl\/app\/id6829301399"/g) || []).length, 2, 'badge bovenaan en bij Installeren');
+    assert.doesNotMatch(home, /in Safari\. Tik op de deelknop, kies <strong>Zet op beginscherm/, 'iPhone: App Store in plaats van Zet op beginscherm');
+    assert.match(home, /Meer → Overzetcode maken<\/strong> en in de nieuwe app <strong>Trainingen ophalen/);
     assert.match(home, /id="gericht"/);
     for (const t of ["Bob's 27", '121 Checkout', 'Rond de klok', 'Vandaag oefenen', 'Waarom?', 'weekdoel']) assert.ok(home.includes(t), t);
     assert.doesNotMatch(home, /houd je reeks vast/);

@@ -218,11 +218,14 @@
     <section class="container install" id="installeren">
       <span class="overline">INSTALLEREN OP JE TELEFOON</span><h2>Jouw darttrainer, altijd bij de hand.</h2>
       <div class="features two stagger">
-        <article data-device="ios"><h3>iPhone</h3><p>Open <strong>app.okkiedarts.nl</strong> in Safari. Tik op de deelknop, kies <strong>Zet op beginscherm</strong> en tik op <strong>Voeg toe</strong>.</p></article>
-        <article data-device="android"><h3>Android</h3><p>Open <strong>app.okkiedarts.nl</strong> in Chrome. Tik op <strong>Installeren</strong>, of kies in het menu (⋮) <strong>App installeren</strong> of <strong>Toevoegen aan startscherm</strong>.</p></article>
+<!--IF:!appstore-->        <article data-device="ios"><h3>iPhone</h3><p>Open <strong>app.okkiedarts.nl</strong> in Safari. Tik op de deelknop, kies <strong>Zet op beginscherm</strong> en tik op <strong>Voeg toe</strong>.</p></article>
+<!--END:!appstore--><!--IF:appstore-->        <article data-device="ios"><h3>iPhone</h3><p>Download <strong>OKKIE.</strong> gratis in de App Store. Gebruikte je OKKIE. al in Safari of op je beginscherm? Kies in die oude app <strong>Meer → Overzetcode maken</strong> en in de nieuwe app <strong>Trainingen ophalen</strong>.</p>
+          <a class="appstore-badge" href="{{APPSTORE_URL}}" data-testid="appstore-badge-install"><img src="../icons/appstore-badge-nl.svg" alt="Download in de App Store" width="150" height="50"></a></article>
+<!--END:appstore-->        <article data-device="android"><h3>Android</h3><p>Open <strong>app.okkiedarts.nl</strong> in Chrome. Tik op <strong>Installeren</strong>, of kies in het menu (⋮) <strong>App installeren</strong> of <strong>Toevoegen aan startscherm</strong>.</p></article>
       </div>
-      <p class="subtle">Op iPhone heeft de app op je beginscherm een eigen opslag. Heb je al in Safari getraind? Zet je trainingen dan eerst over via <strong>Meer → Overzetcode maken</strong>.</p>
-      <a class="btn primary" href="../">Open de gratis app <span aria-hidden="true">↗</span></a>
+<!--IF:!appstore-->      <p class="subtle">Op iPhone heeft de app op je beginscherm een eigen opslag. Heb je al in Safari getraind? Zet je trainingen dan eerst over via <strong>Meer → Overzetcode maken</strong>.</p>
+<!--END:!appstore--><!--IF:appstore-->      <p class="subtle">De iPhone-app, de app in je browser en de app op je beginscherm hebben elk een eigen opslag. Wissel je, zet je trainingen dan over via <strong>Meer → Overzetcode maken</strong>; er wordt niets gewist.</p>
+<!--END:appstore-->      <a class="btn primary" href="../">Open de gratis app <span aria-hidden="true">↗</span></a>
     </section>
   </main>
   <footer><div class="footer-inside"><strong>OKKIE.</strong><span>Gooi. Scoor. Word beter.</span><a class="maker" href="https://denckh.nl/" aria-label="Ontwikkeld door Denckh (naar denckh.nl)"><span class="maker-role">Ontwikkeld door</span><img src="../icons/denckh-logo-signature-light.svg" alt="Denckh" width="92" height="28"></a><span class="footer-links"><a href="./club/">Club</a><a href="./over/">Over OKKIE.</a><a href="./dartregels/">Dartregels</a><a href="./privacy/">Privacy</a><a href="./contact/">Contact</a></span></div></footer>

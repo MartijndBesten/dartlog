@@ -1,6 +1,6 @@
 {
-  "_uitleg": "Schakelaars voor okkiedarts.nl (tools/build-public-site.mjs). release110: pas op true als webversie 1.10.0 live staat op app.okkiedarts.nl. appStoreApproved: pas op true als de app openbaar in de App Store staat (controle: https://itunes.apple.com/lookup?id=6829301399&country=nl geeft een resultaat). release110 staat aan sinds 2 november 2026 (1.10.0 live). Voor een voorbeeld op staging: OKKIE_SITE_PREVIEW=1 zet alles aan.",
+  "_uitleg": "Schakelaars voor okkiedarts.nl (tools/build-public-site.mjs). release110: pas op true als webversie 1.10.0 live staat op app.okkiedarts.nl. appStoreApproved: pas op true als de app openbaar in de App Store staat (controle: https://itunes.apple.com/lookup?id=6829301399&country=nl geeft een resultaat). release110 staat aan sinds 2 november 2026 (1.10.0 live). appStoreApproved staat aan sinds 7 november 2026 (1.8.0 openbaar sinds 6 november). Voor een voorbeeld op staging: OKKIE_SITE_PREVIEW=1 zet alles aan.",
   "release110": true,
-  "appStoreApproved": false,
+  "appStoreApproved": true,
   "appStoreUrl": "https://apps.apple.com/nl/app/id6829301399"
 }
