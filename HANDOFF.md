@@ -1,13 +1,14 @@
 # Overdracht OKKIE.
 
-## Actuele stand (2 november 2026)
+## Actuele stand (7 november 2026, gecontroleerd via App Store Connect-API, Cloudflare en de live sites)
 | Onderdeel | Live | Terugzetten |
 |---|---|---|
-| Webapp app.okkiedarts.nl | **1.10.0**, sinds 2 november 2026 (okkie-app `d142ea9`, uit dartlog `99f4fd3`) | tag `live-1.9.0` in okkie-app (`a97eb29`) |
+| Webapp app.okkiedarts.nl | **1.10.0**, sinds 2 november 2026 (okkie-app `d142ea9`, uit dartlog `99f4fd3`); byte-gelijk aan `main` | tag `live-1.9.0` in okkie-app (`a97eb29`) |
 | Oude adres martijndbesten.github.io/dartlog | 1.10.0 (= `main` van dartlog) | tag `live-1.9.0` in dartlog (`d1f1ca0`) |
-| Website okkiedarts.nl | 1.10.0: gratis-belofte, Gericht/Vandaag oefenen, /over/ (okkiedarts-site `119b0ed`, PR #7); App Store-badge **uit** | tag `live-voor-1.10.0` in okkiedarts-site (`6717bff`) |
-| API (Worker `okkie-api`) | versie `ac052b34`, migraties t/m 0011 | `wrangler rollback 2c08abdf-966a-4486-8b0f-3209fd1a58a7 --env production` |
-| iOS | 1.8.0 *Wachten op review* (build 29, automatisch live na goedkeuring); 1.9.0 wordt **overgeslagen**; 1.10.0 = build 33, klaar, wordt ingediend na vrijgave van 1.8.0 (akkoord Martijn) | — |
+| Website okkiedarts.nl | 1.10.0 + **App Store-badge aan** en privacy aangevuld (Club) sinds 7 november 2026 (okkiedarts-site PR #8, `db71ae6`) | okkiedarts-site `119b0ed` (vorige stand) |
+| API (Worker `okkie-api`) | versie `ac052b34` (2 november), D1-migraties t/m 0011; `capacitor://localhost` toegestaan | `wrangler rollback 2c08abdf-966a-4486-8b0f-3209fd1a58a7 --env production` |
+| iOS App Store | **1.8.0 (build 29)** openbaar sinds 6 november 2026 (`READY_FOR_SALE`), 4+ | — |
+| iOS 1.10.0 | build **33** (`VALID`, `APP_STORE_ELIGIBLE`, verloopt 31-1-2027), gebouwd uit `main` `a00288a` = zelfde appcode als nu; zie *iOS 1.10.0 indienen (7 november)* | — |
 
 ## 1.10.0 — Gericht oefenen, Vandaag oefenen, website (live sinds 2 november 2026)
 Wat er is gebouwd (details in CHANGELOG.md):
