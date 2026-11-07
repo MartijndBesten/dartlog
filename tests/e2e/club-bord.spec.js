@@ -60,7 +60,7 @@ test('kantine: club aanmaken, poster, scannen zonder profiel, meedoen, score tel
   await expect(P.getByTestId('poster-qr').locator('svg')).toBeVisible();
   await expect(P.getByTestId('poster-code')).toHaveText(code.slice(0, 4) + ' ' + code.slice(4));
   await expect(P.locator('#sheet')).toContainText(`Scan deze code en speel mee voor ${club}`);
-  await expect(P.locator('#sheet')).toContainText('Je training en scores tellen direct mee voor de club');
+  await expect(P.locator('#sheet')).toContainText('je training en scores tellen direct mee voor de club');
   await expect(P.locator('#sheet')).toContainText('Nog geen OKKIE.? Scan en doe mee');
   const pageSize = () => P.locator('#page-size').evaluate(el => el.textContent);
   expect(await pageSize()).toMatch(/size: A4/);
@@ -78,7 +78,12 @@ test('kantine: club aanmaken, poster, scannen zonder profiel, meedoen, score tel
   await expect(C.page.getByTestId('join-hero')).toContainText(club);
   await expect(C.page.getByTestId('join-hero')).not.toContainText('eerst toe');
   await C.page.locator('#joinflow input[name=name]').fill('Cor');
-  await expect(C.page.locator('#joinflow input[name=auto]')).toBeChecked();
+  // Browser zonder speler: eerst de waarschuwing voor wie OKKIE. al als app heeft (geen tweede profiel).
+  await expect(C.page.getByTestId('app-note')).toContainText('De browser en de app delen geen spelers of trainingen');
+  await expect(C.page.getByTestId('app-note')).toContainText(code);
+  // Automatisch meetellen: standaard UIT, een aparte keuze naast de verplichte toestemming.
+  await expect(C.page.locator('#joinflow input[name=auto]')).not.toBeChecked();
+  await C.page.locator('#joinflow input[name=auto]').check();
   await C.page.locator('#joinflow input[name=consent]').check();
   await C.page.locator('#joinflow').getByRole('button', { name: `Meedoen met ${club}` }).click();
   await expect(C.page.getByTestId('join-done')).toContainText(`Je doet mee met ${club}!`);
@@ -97,7 +102,7 @@ test('kantine: club aanmaken, poster, scannen zonder profiel, meedoen, score tel
   await expect(A.page.locator('#panel .board').first()).toContainText('Cor');
   await A.page.getByRole('tab', { name: 'Feed' }).click();
   await expect(A.page.locator('#panel')).toContainText('Cor');
-  // In de club: automatisch meetellen staat aan en is uit te zetten.
+  // In de club: automatisch meetellen staat aan (zelf gekozen) en is uit te zetten.
   await C.page.goto('/club/');
   await C.page.getByRole('button', { name: 'Openen' }).click();
   await expect(C.page.locator('#auto')).toBeChecked();
@@ -120,6 +125,79 @@ test('kantine: club aanmaken, poster, scannen zonder profiel, meedoen, score tel
 
   for (const x of [A, C, D]) expect(x.errors).toEqual([]);
   await A.context.close(); await C.context.close(); await D.context.close();
+});
+
+test('zonder automatisch meetellen gaat er na een training niets naar de club; ook niet later bij goedkeuring', async ({ browser }, info) => {
+  const club = 'Stil ' + info.project.name;
+  const A = await phone(browser, info, seed('Anja'));
+  const B = await phone(browser, info, seed('Bas'));
+  await A.page.goto('/club/');
+  await A.page.locator('#create input[name=name]').fill(club);
+  await A.page.locator('#create input[name=consent]').check();
+  await A.page.locator('#create button').click();
+  const code = (await A.page.getByTestId('invite-board').locator('.club-code').first().textContent()).trim();
+  await A.page.locator('#challenge select').selectOption('score30');
+  await A.page.locator('#challenge').getByRole('button', { name: 'Opslaan' }).click();
+  await expect(A.page.locator('#status')).toContainText('Weekoefening opgeslagen');
+  // Bas heeft al een speler in deze browser: die staat gekozen, de app-waarschuwing staat onderaan, geen tweede speler.
+  await B.page.goto('/club/#club=' + code);
+  await expect(B.page.locator('#joinflow input[name=who][value=p1]')).toBeChecked();
+  await expect(B.page.getByTestId('app-note')).toBeVisible();
+  await B.page.locator('#joinflow input[name=consent]').check();
+  await B.page.locator('#joinflow button.primary').click();
+  await expect(B.page.getByTestId('join-done')).toContainText('aanmelding staat klaar');
+  // Training gooien terwijl hij wacht, daarna toelaten: er mag niets automatisch mee.
+  await B.page.getByTestId('start-training').click();
+  for (let i = 0; i < 30; i++) await key(B.page, 20);
+  await expect(B.page.getByTestId('compare').or(B.page.getByTestId('best-turn'))).toBeVisible();
+  await A.page.getByRole('tab', { name: /Beheer/ }).click();
+  await A.page.getByRole('button', { name: 'Toelaten' }).click();
+  await expect(A.page.locator('#status')).toContainText('Lid toegelaten');
+  await B.page.goto('/');   // app start: synchroniseert wat klaarstaat
+  await B.page.goto('/club/');
+  await B.page.getByRole('button', { name: 'Openen' }).click();
+  await expect(B.page.locator('#auto')).not.toBeChecked();
+  await expect(B.page.locator('#panel .board')).toHaveCount(0);
+  await A.page.getByRole('tab', { name: 'Feed' }).click();
+  await expect(A.page.locator('#panel')).not.toContainText('Bas');
+  const players = await B.page.evaluate(() => JSON.parse(localStorage.getItem('oche.data')).players.map(p => p.name));
+  expect(players).toEqual(['Bas']);
+  for (const x of [A, B]) expect(x.errors).toEqual([]);
+  await A.context.close(); await B.context.close();
+});
+
+test('iPhone-app (nagebootst): code invullen in de app, geen browserwaarschuwing, bestaande speler, poster opent buiten de app', async ({ browser }, info) => {
+  test.skip(info.project.name !== 'iphone', 'app-laag: één toestelformaat is genoeg');
+  const club = 'App ' + info.project.name;
+  const A = await phone(browser, info, seed('Anja'));
+  await A.page.goto('/club/');
+  await A.page.locator('#create input[name=name]').fill(club);
+  await A.page.locator('#create input[name=consent]').check();
+  await A.page.locator('#create button').click();
+  const code = (await A.page.getByTestId('invite-board').locator('.club-code').first().textContent()).trim();
+  const N = await phone(browser, info, seed('Nina'));
+  await N.context.addInitScript(() => {
+    window.Capacitor = { isNativePlatform: () => true, getPlatform: () => 'ios', Plugins: { App: { addListener: () => Promise.resolve({ remove() {} }) } } };
+  });
+  await N.page.goto('/club/');
+  await N.page.locator('#code input[name=code]').fill(code.toLowerCase());
+  await N.page.locator('#code button').click();
+  await expect(N.page.getByTestId('join-hero')).toContainText(club);
+  await expect(N.page.getByTestId('app-note')).toHaveCount(0);
+  await expect(N.page.locator('#joinflow input[name=who][value=p1]')).toBeChecked();
+  await N.page.locator('#joinflow input[name=consent]').check();
+  await N.page.locator('#joinflow button.primary').click();
+  await expect(N.page.getByTestId('join-done')).toBeVisible();
+  expect(await N.page.evaluate(() => JSON.parse(localStorage.getItem('oche.data')).players.length)).toBe(1);
+  // Beheer in de app: de posterlink gaat naar app.okkiedarts.nl (opent in Safari, daar kun je printen).
+  const href = await (async () => {
+    const P = await N.context.newPage();
+    await P.goto('/club/');
+    return P.evaluate(async () => (await import('/js/native.js')).publicUrl('club/poster.html'));
+  })();
+  expect(href).toBe('https://app.okkiedarts.nl/club/poster.html');
+  for (const x of [A, N]) expect(x.errors).toEqual([]);
+  await A.context.close(); await N.context.close();
 });
 
 test('persoonlijke uitnodiging: werkt één keer, speler is direct lid zonder goedkeuring; intrekken', async ({ browser }, info) => {

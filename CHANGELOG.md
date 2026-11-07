@@ -8,9 +8,9 @@
 - **Persoonlijke uitnodiging:** link voor één speler, werkt één keer, 14 dagen geldig, direct lid. Intrekken kan.
 - **Scannen zonder OKKIE.:** de club staat er meteen; kies je speler of maak er een, doe mee en start direct de
   weekoefening. Geen doodlopend "maak eerst een speler aan" meer.
-- **Scores tellen automatisch mee** (`js/club-auto.js`): na elke training gaat de samenvatting naar de weekoefening
-  (als hij past) en de clubfeed. Standaard aan na het meedoen, uit te zetten in de club. Gegooid terwijl je wacht op
-  goedkeuring of offline: gaat later alsnog mee.
+- **Automatisch meetellen** (`js/club-auto.js`), **standaard uit**, een aparte keuze: wie het aanzet, deelt na elke
+  training de samenvatting met de weekoefening (als hij past) en de clubfeed. Alleen trainingen vanaf het aanzetten;
+  gegooid terwijl je wacht op goedkeuring of offline gaat alleen later mee als het aanstaat. Uit te zetten in de club.
 - **Teksten:** clubpagina, uitnodiging, beheer, lege staten, startscherm, okkiedarts.nl/club en de landingspagina van
   de QR-code gericht op scannen, gooien en meetellen. Privacy 6a bijgewerkt (codes, automatisch meetellen).
 - **Server:** migratie 0012 (`club_codes`), routes `/v1/clubs/:id/codes…`, `challenge: 'auto'`; iOS 1.10.0 blijft werken.

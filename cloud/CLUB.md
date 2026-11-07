@@ -138,7 +138,7 @@ Doel: club aanmaken → QR-poster bij het dartbord → leden scannen → hun sco
   tussen migratie en deploy) krijgt die rij bij het eerste gebruik alsnog, met goedkeuring.
 - **Eenmalig gebruik** wordt vóór het lidmaatschap voorwaardelijk vastgelegd (`uses < max_uses`), zodat twee spelers met
   dezelfde uitnodiging niet allebei binnenkomen. De dagelijkse opschoning wist verlopen en gebruikte uitnodigingen.
-- **Automatisch meetellen** (`js/club-auto.js`, per speler per club op het toestel, standaard aan na het meedoen):
+- **Automatisch meetellen** (`js/club-auto.js`, per speler per club op het toestel, **standaard uit**; alleen na een aparte, expliciete keuze):
   na elke training `POST …/trainings` met `feed: true, challenge: 'auto'` (telt mee als hij bij de open weekoefening
   past, anders alleen feed, zonder fout). Alleen trainingen van ná het aanzetten, hoogstens 14 dagen terug; de
   weekoefening alleen met trainingen van de lopende week (anders zou een training van vorige week voor deze week

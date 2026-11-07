@@ -6,6 +6,7 @@ import { CLUB_OPEN, API_BASE } from '../community/config.js';
 import { apiAvailable, getAccount, upsertAccount, dropAccount, syncAccount, request } from '../js/community-sync.js';
 import { shareableTrainings, CLUB_KIND_LABELS, CLUB_KIND_HELP, clubValue, clubAverage } from '../js/club-share.js';
 import { prepare, publicUrl, isNative } from '../js/native.js';
+import { isStandalone } from '../js/install.js';
 import { setClubAuto, clubAutoFor, dropClubAuto, autoShareClubs } from '../js/club-auto.js';
 import { createStore, newPlayer, cleanName } from '../js/store.js';
 import qrcode from '../js/vendor/qrcode.mjs';
@@ -24,8 +25,8 @@ const ROLE = { admin: 'beheerder', captain: 'captain', member: 'lid' };
 const leden = n => `${n} ${n === 1 ? 'lid' : 'leden'}`;
 // "2026-11-08 22:00" → "zondag 8 november, 22:00"
 const closeText = s => { const [d, t] = String(s).split(' '); const x = new Date(d + 'T12:00:00Z'); return Number.isFinite(x.getTime()) ? `${x.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })}, ${t}` : s; };
-const CONSENT_TEXT = 'Ik ben 16 jaar of ouder. Alleen leden van deze club zien mijn bijnaam, mijn gemiddelde van de laatste 4 weken, mijn resultaten bij de weekoefening en de trainingen die ik met de club deel (standaard automatisch na elke training; dat zet ik in de club altijd uit). Ik kan de club altijd verlaten; dan worden die gegevens gewist.';
-const AUTO_HELP = 'Na elke training gaat alleen de samenvatting naar de club: soort training, punten, aantal pijlen en hoogste beurt. Nooit losse pijlen. Uitzetten kan altijd in de club.';
+const CONSENT_TEXT = 'Ik ben 16 jaar of ouder. Alleen leden van deze club zien mijn bijnaam, mijn gemiddelde van de laatste 4 weken, mijn resultaten bij de weekoefening en de trainingen die ik met de club deel (alleen wat ik zelf deel: per training, of automatisch als ik dat apart aanzet). Ik kan de club altijd verlaten; dan worden die gegevens gewist.';
+const AUTO_HELP = 'Optioneel, staat standaard uit. Aan: na elke training gaat alleen de samenvatting naar de club (soort training, punten, aantal pijlen, hoogste beurt), ook trainingen die je gooit terwijl je op goedkeuring wacht of offline bent. Nooit losse pijlen, nooit trainingen van vóór het aanzetten. Uitzetten kan altijd in de club.';
 // Starten vanuit de club: soorten die de app via ../#start= kan openen (js/app.js startFromLink).
 const STARTABLE = ['score30', 'score60', 'score99', 'clock', 'bobs27', 'c121'];
 const startLink = (kind, playerId) => `../#start=${encodeURIComponent(STARTABLE.includes(kind) ? kind : 'score30')}&speler=${encodeURIComponent(playerId)}`;
@@ -189,7 +190,7 @@ function startView() {
   const noPlayers = !data?.players?.length;
   $('#vr').innerHTML = `${playerPicker()}
     ${mine.length ? `<section class="card"><h2>Mijn clubs</h2><ol class="board">${mine.map(c => `<li><span class="who"><b>${esc(c.name)}</b>
-      <small>${c.status === 'pending' ? 'Wacht op de beheerder. Gooi gerust alvast: je trainingen tellen mee zodra je erin zit.' : `${leden(c.members)} · ${ROLE[c.role]}`}</small></span><span></span>
+      <small>${c.status === 'pending' ? 'Wacht op de beheerder' : `${leden(c.members)} · ${ROLE[c.role]}`}</small></span><span></span>
       ${c.status === 'pending' ? `<button class="btn outline" type="button" data-cancel="${esc(c.id)}">Intrekken</button>` : `<button class="btn primary" type="button" data-open="${esc(c.id)}">Openen</button>`}</li>`).join('')}</ol></section>` : ''}
     <section class="card"><h2>${mine.length ? 'Nog een club?' : 'Speel mee met je club'}</h2>
       <p class="help">Scan de QR-code bij het dartbord van je club met de camera van je telefoon. Geen QR-code bij de hand? Vul de clubcode in.</p>
@@ -213,17 +214,24 @@ async function joinFlow() {
       <label class="pick"><input type="radio" name="who" value="new"><span>Nieuwe speler</span></label></div>
       <label class="field" data-newname style="display:none">Naam of bijnaam<input name="name" maxlength="24" autocomplete="nickname"></label>`
     : '<label class="field">Je naam of bijnaam<input name="name" required maxlength="24" autocomplete="nickname" placeholder="Zoals je club je kent"></label>';
-  $('#vr').innerHTML = `<section class="card join-hero" data-testid="join-hero">
+  // In de browser (niet in de iPhone-app en niet als app op het beginscherm): de opslag van de browser staat los van
+  // de app. Waarschuwen vóór er een tweede, losse speler ontstaat; nooit suggereren dat dat vanzelf samenkomt.
+  const inBrowser = !isNative() && !isStandalone();
+  const appNote = inBrowser ? `<section class="card app-note" data-testid="app-note"><h3>Gebruik je OKKIE. al als app?</h3>
+      <p>Open dan <b>de app</b> op deze telefoon, kies <b>OKKIE. Club</b> en vul daar deze code in: <b class="club-code small-code">${esc(state.code)}</b></p>
+      <p class="help">De browser en de app delen geen spelers of trainingen. Meedoen hier maakt een aparte speler in deze browser; die gaat niet vanzelf over naar de app.${players.length ? '' : ' Nog geen OKKIE.-app? Dan kun je hier gewoon meedoen.'}</p></section>` : '';
+  $('#vr').innerHTML = `${players.length ? '' : appNote}<section class="card join-hero" data-testid="join-hero">
       <div class="eyebrow">${pv.code?.kind === 'personal' ? 'Je bent uitgenodigd voor' : 'Je speelt mee voor'}</div>
       <h2 class="join-club">${esc(name)}</h2>
       <p class="muted small">${leden(pv.club.members)}${pv.code?.label && pv.code.kind === 'board' ? ' · ' + esc(pv.code.label) : ''}</p>
-      <ol class="join-steps"><li>Kies wie er gooit</li><li>Gooi je pijlen en tik je score in</li><li>Je score telt mee voor de club</li></ol>
-      ${direct ? '' : '<p class="help">De beheerder laat nieuwe spelers eerst toe. Gooi gerust alvast: je trainingen tellen mee zodra je erin zit.</p>'}</section>
+      <ol class="join-steps"><li>Kies wie er gooit</li><li>Gooi je pijlen en tik je score in</li><li>Deel je score met de club: per training, of automatisch</li></ol>
+      ${direct ? '' : '<p class="help">De beheerder laat nieuwe spelers eerst toe. Tot dan zie je de club nog niet.</p>'}</section>
     <form id="joinflow" class="card"><h3>${players.length ? 'Wie gooit er?' : 'Hoe heet je?'}</h3>${pick}
-      <label class="check"><input type="checkbox" name="auto" checked><span><b>Mijn trainingen tellen automatisch mee voor ${esc(name)}</b><small>${esc(AUTO_HELP)}</small></span></label>
       <label class="check"><input type="checkbox" name="consent" required><span>${esc(CONSENT_TEXT)}</span></label>
+      <label class="check auto-choice"><input type="checkbox" name="auto"><span><b>Ja, mijn trainingen tellen automatisch mee voor ${esc(name)}</b><small>${esc(AUTO_HELP)}</small></span></label>
       <button class="btn primary big">Meedoen met ${esc(name)}</button>
       <p class="help">Gratis, zonder reclame en zonder e-mailadres. Je trainingen blijven op je telefoon.</p></form>
+    ${players.length ? appNote : ''}
     <p class="center"><button class="btn outline" type="button" data-other>Andere code of eigen club</button></p>`;
 }
 function badCode() {
@@ -240,8 +248,8 @@ async function joinedView(r, auto) {
   }
   $('#vr').innerHTML = `<section class="card join-done" data-testid="join-done">
       <h2>${active ? `Je doet mee met ${esc(r.club.name)}!` : `Je aanmelding staat klaar bij ${esc(r.club.name)}`}</h2>
-      <p>${active ? (auto ? 'Gooi een training: je score telt direct mee voor de club.' : 'Je bent lid. Automatisch meetellen staat uit; je kunt trainingen in de club zelf insturen.')
-        : 'De beheerder laat je zo snel mogelijk toe. Gooi gerust alvast: ' + (auto ? 'je trainingen tellen mee zodra je erin zit.' : 'daarna kun je trainingen in de club insturen.')}</p>
+      <p>${active ? (auto ? 'Gooi een training: je score telt direct mee voor de club.' : 'Je bent lid. Automatisch meetellen staat uit: na een training kies je in de club zelf wat je deelt. Aanzetten kan bij Weekoefening.')
+        : 'De beheerder laat je zo snel mogelijk toe. ' + (auto ? 'Gooi gerust alvast: omdat je automatisch meetellen hebt aangezet, tellen je trainingen mee zodra je erin zit.' : 'Daarna kun je in de club trainingen delen of automatisch meetellen aanzetten.')}</p>
       <p><a class="btn primary big" href="${esc(startLink(kind, state.playerId))}" data-testid="start-training">${esc(active ? startLabel(kind) : 'Start scoretraining (30 pijlen)')}</a></p>
       ${active && r.club.id ? `<p><button class="btn outline" type="button" data-open="${esc(r.club.id)}">Naar de club</button></p>` : `<p><button class="btn outline" type="button" data-home>Mijn clubs</button></p>`}</section>`;
 }
@@ -585,7 +593,6 @@ document.addEventListener('submit', e => {
     await ensureAccount('clubFounder', true);
     const r = await api('/v1/clubs', 'POST', { name: f.elements.name.value, consent: true });
     await markClub();
-    setClubAuto(state.playerId, r.club.id, { name: r.club.name, on: true });
     status(`${r.club.name} is aangemaakt. Jij bent beheerder. Print de QR-code en hang hem bij het bord.`);
     state.tab = 'admin';
     await openClub(r.club.id);

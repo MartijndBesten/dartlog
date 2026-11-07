@@ -24,7 +24,7 @@ export function posterHtml({ code, club, direct, label }) {
       <ol class="steps">
         <li><span><b>Scan</b> met de camera van je telefoon</span></li>
         <li><span><b>Kies je naam</b> en gooi je pijlen</span></li>
-        <li><span><b>${direct ? 'Je training en scores tellen direct mee voor de club' : 'Je training en scores tellen mee voor de club'}</b>${direct ? '' : '<small>De beheerder laat nieuwe spelers eerst toe.</small>'}</span></li>
+        <li><span><b>Deel je score met de club</b><small>Zet <i>automatisch meetellen</i> aan: je training en scores tellen direct mee voor de club.${direct ? '' : ' De beheerder laat nieuwe spelers eerst toe.'}</small></span></li>
       </ol>
       <p class="new">Nog geen OKKIE.? Scan en doe mee. <span>Gratis, zonder reclame, zonder account.</span></p>
       <p class="manual">Lukt scannen niet? Open <b>app.okkiedarts.nl/club</b> en vul de code in:<br><span class="code" data-testid="poster-code">${esc(groupCode(code))}</span></p>

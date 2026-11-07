@@ -50,3 +50,5 @@
 .board.invite-list li > span:empty { display: none; }
 .board.invite-list .who { flex: 1 1 10rem; }
 #newinvite input, #newboard input { flex-basis: 100%; }
+.app-note { border-color: #3d5a47; }
+.app-note .club-code { display: inline-block; margin: .25rem 0; letter-spacing: .12em; }

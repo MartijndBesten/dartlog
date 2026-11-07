@@ -1,5 +1,5 @@
 // OKKIE. Club bij het bord: trainingen tellen automatisch mee voor je club.
-// Per speler en per club zet je dit aan (standaard aan na het scannen van de clubcode, altijd uit te zetten in de club).
+// Per speler en per club, alleen als de speler het zelf expliciet aanzet (standaard UIT); altijd weer uit te zetten in de club.
 // Vanaf dat moment gaat van elke afgeronde training alleen de samenvatting (club-share.js: soort, pijlen, punten,
 // hoogste beurt) naar de clubfeed, en naar de weekoefening als hij daarbij past. Nooit losse pijlen of tijdstippen.
 // Wacht je nog op goedkeuring of ben je offline, dan blijft de training staan en gaat hij later alsnog mee
@@ -88,6 +88,8 @@ export function autoShareClubs(data, { send, token, storage = localStorage, now 
       const key = item.playerId + '|' + item.clubId;
       const tok = token(item.playerId);
       if (!tok || skip.has(key)) continue;
+      // Vlak voor het versturen opnieuw kijken: net uitgezet (of club verlaten) = niets meer delen, ook niet uit de wachtrij.
+      if (!clubAutoFor(item.playerId, item.clubId, storage)?.on) continue;
       try {
         const r = await send(`/v1/clubs/${item.clubId}/trainings`, 'POST', { training: item.training, feed: true, challenge: item.challenge }, tok);
         markSent(item.playerId, item.clubId, item.training.trainingId, storage);

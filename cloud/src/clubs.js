@@ -249,7 +249,8 @@ export async function handleClubs(request, env, path, h, cors) {
     const club = await clubByCode(env, (await h.bodyJson(request)).code);
     if (!club) return h.fail('Deze clubcode klopt niet. Vraag de beheerder van je club om de code.', 404, cors);
     return h.json({ club: { name: club.name, members: await countActive(env, club.id) },
-      code: { kind: club.kind, direct: club.kind === 'personal' || !!club.autoApprove, label: club.label || '' } }, 200, cors);
+      // Label alleen bij een bordcode ("Bord 2"); bij een persoonlijke uitnodiging kan het een naam zijn: die blijft bij de beheerder.
+      code: { kind: club.kind, direct: club.kind === 'personal' || !!club.autoApprove, label: club.kind === 'board' ? club.label || '' : '' } }, 200, cors);
   }
 
   const member = await h.auth(request, env);

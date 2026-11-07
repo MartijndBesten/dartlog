@@ -87,7 +87,7 @@ test('persoonlijke uitnodiging: 10 tekens, één keer bruikbaar, 14 dagen geldig
   assert.equal(inv.label, 'Jan de Vries b');
   const days = (Date.parse(inv.expiresAt.replace(' ', 'T') + 'Z') - Date.now()) / 864e5;
   assert.ok(days > CODE_LIMITS.personalDays - 1 && days <= CODE_LIMITS.personalDays + 0.01, 'verloopt na 14 dagen: ' + inv.expiresAt);
-  assert.deepEqual((await ok(await preview(env, inv.code))).code, { kind: 'personal', direct: true, label: 'Jan de Vries b' });
+  assert.deepEqual((await ok(await preview(env, inv.code))).code, { kind: 'personal', direct: true, label: '' }, 'naam uit de uitnodiging alleen voor de beheerder');
   // Registreren met de persoonlijke code mag (zoals met een bordcode).
   const jan = await register(env, 'Jan', { clubCode: inv.code });
   assert.equal((await ok(await join(env, jan, inv.code), 201)).status, 'active');
@@ -184,4 +184,42 @@ test('migratie 0012: bestaande clubs houden hun code (met goedkeuring); vangnet 
   env.DB.raw.prepare('DELETE FROM club_codes WHERE club_id = ?').run(a.club.id);
   assert.equal((await ok(await preview(env, a.club.inviteCode))).club.name, 'Kantine De Roos');
   assert.equal(env.DB.raw.prepare('SELECT COUNT(*) n FROM club_codes WHERE club_id = ?').get(a.club.id).n, 1);
+});
+
+test('16+ blijft gelden: ook een persoonlijke uitnodiging of directe bordcode laat niemand onder 16 binnen', async () => {
+  const env = env0();
+  const a = await founder(env);
+  await ok(await call(env, `/v1/clubs/${a.club.id}/codes/${a.club.inviteCode}`, { method: 'PATCH', token: a.token, body: { direct: true } }));
+  const inv = (await ok(await call(env, `/v1/clubs/${a.club.id}/codes`, { method: 'POST', token: a.token, body: { kind: 'personal' } }), 201)).code;
+  for (const code of [a.club.inviteCode, inv.code])
+    assert.equal(await status(await call(env, '/v1/register', { method: 'POST', body: { nickname: 'Kind', clubCode: code, age: 'minor' } })), 403, code);
+  const acc = await register(env, 'Volwassen', { clubCode: a.club.inviteCode });
+  env.DB.raw.prepare("UPDATE members SET age_group = 'minor' WHERE handle = ?").run(acc.account.handle);
+  for (const code of [a.club.inviteCode, inv.code]) assert.equal(await status(await join(env, acc, code)), 403, code);
+  assert.equal(env.DB.raw.prepare('SELECT uses FROM club_codes WHERE code = ?').get(inv.code).uses, 0, 'uitnodiging niet verbruikt');
+});
+
+test('compatibel met iOS 1.10.0 (oude clubpagina): preview, aanvraag, inviteCode, /code, delen met challenge true/false', async () => {
+  const env = env0();
+  const a = await founder(env);
+  await ok(await call(env, `/v1/clubs/${a.club.id}/challenge`, { method: 'PUT', token: a.token, body: { kind: 'score30' } }));
+  // Oude app leest alleen club.name en club.members uit preview, en inviteCode uit de club.
+  const pv = await ok(await preview(env, a.club.inviteCode));
+  assert.equal(pv.club.name, 'Kantine De Roos'); assert.equal(pv.club.members, 1);
+  const p = await register(env, 'Piet', { clubCode: a.club.inviteCode });
+  const j = await ok(await join(env, p, a.club.inviteCode), 201);
+  assert.equal(j.status, 'pending'); assert.equal(j.club.name, 'Kantine De Roos');
+  await ok(await call(env, `/v1/clubs/${a.club.id}/requests/${p.account.handle}`, { method: 'POST', token: a.token, body: { approve: true } }));
+  // Delen zoals 1.10.0: challenge true (fout als hij niet past), feed per training.
+  const share = (t, challenge) => call(env, `/v1/clubs/${a.club.id}/trainings`, { method: 'POST', token: p.token, body: { training: t, feed: true, challenge } });
+  assert.equal(await status(await share({ trainingId: 'x1', kind: 'score60', darts: 60, points: 1200, high: 60 }, true)), 409);
+  await ok(await share({ trainingId: 'x2', kind: 'score30', darts: 30, points: 600, high: 60 }, true), 201);
+  await ok(await share({ trainingId: 'x3', kind: 'free', darts: 30, points: 600, high: 60 }, false), 201);
+  // Oude app vernieuwt via /code en toont inviteCode.
+  const { inviteCode } = await ok(await call(env, `/v1/clubs/${a.club.id}/code`, { method: 'POST', token: a.token }));
+  assert.equal((await clubOf(env, a)).club.inviteCode, inviteCode);
+  // Persoonlijke uitnodiging (10 tekens) werkt ook in de oude app: die stuurt de code gewoon naar /join.
+  const inv = (await ok(await call(env, `/v1/clubs/${a.club.id}/codes`, { method: 'POST', token: a.token, body: { kind: 'personal' } }), 201)).code;
+  const q = await register(env, 'Quinten', { clubCode: inv.code });
+  assert.equal((await ok(await join(env, q, inv.code), 201)).status, 'active');
 });
