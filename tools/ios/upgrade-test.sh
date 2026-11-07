@@ -7,24 +7,26 @@
 set -euo pipefail
 OLD="$1"; NEW="$2"; OUT="$3"; BUNDLE=nl.denckh.okkie
 mkdir -p "$OUT"
-DEV=$(tools/ios/pick-simulator.sh)
-xcrun simctl boot "$DEV" 2>/dev/null || true
-xcrun simctl bootstatus "$DEV" -b >/dev/null
-xcrun simctl uninstall "$DEV" "$BUNDLE" 2>/dev/null || true
-ver() { xcrun simctl appinfo "$DEV" "$BUNDLE" | grep -E 'CFBundleShortVersionString|CFBundleVersion' | tr -d ' ;"' | tr '\n' ' '; }
+# Elke simctl-stap met een tijdslimiet en zichtbaar in het log: een hangende stap faalt in plaats van te blijven wachten.
+t() { local s=$1; shift; echo "+ $*" >&2; perl -e 'alarm shift; exec @ARGV' "$s" "$@"; }
+DEV=$(t 120 tools/ios/pick-simulator.sh)
+t 120 xcrun simctl boot "$DEV" 2>/dev/null || true
+t 600 xcrun simctl bootstatus "$DEV" -b >/dev/null
+t 120 xcrun simctl uninstall "$DEV" "$BUNDLE" 2>/dev/null || true
+ver() { t 60 xcrun simctl appinfo "$DEV" "$BUNDLE" | grep -E 'CFBundleShortVersionString|CFBundleVersion' | tr -d ' ;"' | tr '\n' ' '; }
 start() { # $1 = naam
-  xcrun simctl launch --terminate-running-process "$DEV" "$BUNDLE" >/dev/null
+  t 120 xcrun simctl launch --terminate-running-process "$DEV" "$BUNDLE" </dev/null >/dev/null
   sleep 20
-  xcrun simctl io "$DEV" screenshot "$OUT/$1.png" >/dev/null 2>&1
-  xcrun simctl terminate "$DEV" "$BUNDLE" || true
+  t 60 xcrun simctl io "$DEV" screenshot "$OUT/$1.png" >/dev/null 2>&1 || echo "(geen screenshot)"
+  t 60 xcrun simctl terminate "$DEV" "$BUNDLE" || true
   sleep 2
 }
 newest() { ls -t "$KOPIE"/opslag-*.json 2>/dev/null | head -1; }
 
 echo "== 1. Oude versie installeren en gegevens laten inlezen"
-xcrun simctl install "$DEV" "$OLD"
+t 300 xcrun simctl install "$DEV" "$OLD"
 echo "Geïnstalleerd: $(ver)"
-DATA=$(xcrun simctl get_app_container "$DEV" "$BUNDLE" data); KOPIE="$DATA/Library/OKKIE"
+DATA=$(t 60 xcrun simctl get_app_container "$DEV" "$BUNDLE" data); KOPIE="$DATA/Library/OKKIE"
 mkdir -p "$KOPIE"
 node tools/ios/upgrade-seed.mjs write "$KOPIE/opslag-a.json"
 start 1-oud-ingelezen
@@ -37,10 +39,10 @@ node tools/ios/upgrade-seed.mjs verify "$(newest)"
 
 echo "== 3. Update naar de nieuwe versie (installeren over de bestaande app heen)"
 rm -f "$KOPIE"/opslag-*.json
-xcrun simctl install "$DEV" "$NEW"
+t 300 xcrun simctl install "$DEV" "$NEW"
 echo "Na update: $(ver)"
-test "$(xcrun simctl get_app_container "$DEV" "$BUNDLE" data)" = "$DATA" || echo "(container verplaatst door simulator; inhoud wordt hieronder gecontroleerd)"
-DATA=$(xcrun simctl get_app_container "$DEV" "$BUNDLE" data); KOPIE="$DATA/Library/OKKIE"
+test "$(t 60 xcrun simctl get_app_container "$DEV" "$BUNDLE" data)" = "$DATA" || echo "(container verplaatst door simulator; inhoud wordt hieronder gecontroleerd)"
+DATA=$(t 60 xcrun simctl get_app_container "$DEV" "$BUNDLE" data); KOPIE="$DATA/Library/OKKIE"
 start 3-nieuw-na-update
 test -n "$(newest)" || { echo "::error::nieuwe versie schreef geen kopie: webviewopslag leeg na de update"; exit 1; }
 node tools/ios/upgrade-seed.mjs verify "$(newest)"
