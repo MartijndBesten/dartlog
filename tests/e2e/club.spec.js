@@ -55,14 +55,16 @@ test('club oprichten (gratis, 16+), lid via uitnodigingslink, goedkeuren, weekoe
   await A.page.locator('#challenge').getByRole('button', { name: 'Opslaan' }).click();
   await expect(A.page.locator('#status')).toContainText('Weekoefening opgeslagen');
 
-  // 2. Lid opent de QR-link: code staat al ingevuld, preview toont alleen naam en aantal leden.
+  // 2. Lid opent de QR-link: de club staat er meteen (alleen naam en aantal leden), eigen speler al gekozen.
   const before = await (async () => { await B.page.goto('/'); return B.page.evaluate(() => localStorage.getItem('oche.data')); })();
   await B.page.goto('/club/#club=' + code);
-  await expect(B.page.locator('#preview')).toContainText('DC De Pijl');
-  await B.page.locator('#join input[name=consent]').check();
-  await B.page.locator('#join').getByRole('button', { name: 'Aanvraag versturen' }).click();
-  await expect(B.page.locator('#status')).toContainText('Aanvraag verstuurd');
-  await expect(B.page.locator('#vr')).toContainText('wacht op goedkeuring');
+  await expect(B.page.getByTestId('join-hero')).toContainText('DC De Pijl');
+  await expect(B.page.locator('#joinflow input[name=who][value=p1]')).toBeChecked();
+  await B.page.locator('#joinflow input[name=consent]').check();
+  await B.page.locator('#joinflow').getByRole('button', { name: /Meedoen met/ }).click();
+  await expect(B.page.getByTestId('join-done')).toContainText('aanmelding staat klaar');
+  await B.page.getByRole('button', { name: 'Mijn clubs' }).click();
+  await expect(B.page.locator('#vr')).toContainText('Wacht op de beheerder');
 
   // 3. Beheerder laat toe.
   await A.page.getByRole('tab', { name: /Beheer/ }).click();
@@ -72,6 +74,7 @@ test('club oprichten (gratis, 16+), lid via uitnodigingslink, goedkeuren, weekoe
   // 4. Lid deelt zijn training (feed + weekoefening als de week nog open is).
   await B.page.reload();
   await B.page.getByRole('button', { name: 'Openen' }).click();
+  await B.page.getByText('Zelf een training insturen').click();
   const row = B.page.locator('form.share-row').first();
   await row.locator('input[name=feed]').check();
   const weekOpen = await row.locator('input[name=challenge]').count() > 0;
@@ -144,8 +147,9 @@ test('clubprofiel en eigen clubtrainingen: naam en logo (alleen leden), doel-oef
 
   // Lid wordt toegelaten, ziet logo en training, en stuurt een resultaat in.
   await B.page.goto('/club/#club=' + code);
-  await B.page.locator('#join input[name=consent]').check();
-  await B.page.locator('#join button').click();
+  await B.page.locator('#joinflow input[name=consent]').check();
+  await B.page.locator('#joinflow button').click();
+  await expect(B.page.getByTestId('join-done')).toBeVisible();
   await A.page.getByRole('tab', { name: /Beheer/ }).click();
   await A.page.getByRole('button', { name: 'Toelaten' }).click();
   await B.page.reload();

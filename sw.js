@@ -36,6 +36,8 @@ const ASSETS = [
   './js/voice-lines.js',
   './js/usage-ping.js',
   './js/turn-chart.js',
+  './js/club-share.js',
+  './js/club-auto.js',
   './vrienden/',
   './vrienden/index.html',
   './vrienden/vrienden.css',
