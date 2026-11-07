@@ -258,18 +258,27 @@ Niet via de API en dus handwerk in App Store Connect: App Privacy-labels, EU-han
 | Kinderen | Niet in de Kids-categorie. Club alleen 16+; Darters onder 16 alleen na toestemming van een ouder (link). |
 | Exportnaleving | `ITSAppUsesNonExemptEncryption = false`. |
 
+## Release 1.10.0 (7 november 2026)
+
+| Wat | Uitslag |
+|---|---|
+| Build 33 (1.10.0) | uit `a00288a`, zelfde appcode als `main` en live webapp; `APP_STORE_ELIGIBLE`, niet verlopen |
+| Echte update 1.8.0 (bron build 29, Release) → 1.10.0 (Release), simulator | ✔ alle spelers, trainingen (elke pijl), wedstrijd, instellingen, online profiel en sleutels behouden, ook na herstart |
+| Club in productie vanuit `capacitor://localhost` (23 controles, testaccounts opgeruimd) | ✔ |
+| iOS-suite: build, rooktest, 10 UI-tests, Release zonder testmodus | ✔ |
+| Unit 203 · Worker 98 · web-e2e 255 | ✔ |
+| App Store Connect | versie 1.10.0 met build 33 **ingediend**, `WAITING_FOR_REVIEW`, vrijgave na goedkeuring |
+
 ## Nog open / bekende beperkingen
 
-- **Worker-deploy** (origin `capacitor://localhost`) wacht op akkoord.
-- **Privacyverklaring** op okkiedarts.nl (paragraaf 2a, melden) is bijgewerkt in de bron; publiceren van de website
-  wacht op akkoord (`node tools/build-public-site.mjs` → okkiedarts-site).
 - Echte iPhone: build 20 handmatig getest door Martijn (1 november 2026, "werkt goed", geen details); de lijst
   *Met de hand op de iPhone* is niet punt voor punt afgevinkt.
 - Rooktest: bekende instabiliteit bij de eerste start, herpoging maskeert de oorzaak, **nog open** (zie
   *Automatische UI-tests*, beperkingen).
-- Echte app-update (oudere build → nieuwere build met bestaande gegevens) is **niet aantoonbaar getest**, nog open.
+- Echte app-update is getest in de simulator (1.8.0 → 1.10.0, zie hierboven), niet op een fysiek toestel.
 - Geen iPad-versie (bewust; iPhone-app draait op iPad in iPhone-formaat).
-- Webversie 1.8.0 (boot.js, Darters melden/verbergen) is nog niet gepubliceerd op app.okkiedarts.nl.
+- EU-handelaarsstatus: "geen handelaar"; keuze van de eigenaar (App Store Connect → App-informatie).
+- Screenshots tonen geen Club (die heeft het netwerk nodig; de screenshotmodus werkt offline met fictieve gegevens).
 
 ## Stand TestFlight (1 november 2026)
 
