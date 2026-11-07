@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.11.0 — OKKIE. Club bij het bord (kantine, clubhuis)
+
+- **QR-code bij het bord:** de beheerder print een clubposter (A4 of A5, ook als pdf) met clubnaam, QR-code, korte code
+  en uitleg, en hangt hem bij het dartbord. Per code: nieuwe spelers direct toelaten of eerst goedkeuren (standaard).
+  Nieuwe code maken maakt de oude (en de geprinte posters) direct ongeldig. Extra codes voor een ander bord of groep.
+- **Persoonlijke uitnodiging:** link voor één speler, werkt één keer, 14 dagen geldig, direct lid. Intrekken kan.
+- **Scannen zonder OKKIE.:** de club staat er meteen; kies je speler of maak er een, doe mee en start direct de
+  weekoefening. Geen doodlopend "maak eerst een speler aan" meer.
+- **Automatisch meetellen** (`js/club-auto.js`), **standaard uit**, een aparte keuze: wie het aanzet, deelt na elke
+  training de samenvatting met de weekoefening (als hij past) en de clubfeed. Alleen trainingen vanaf het aanzetten;
+  gegooid terwijl je wacht op goedkeuring of offline gaat alleen later mee als het aanstaat. Uit te zetten in de club.
+- **Teksten:** clubpagina, uitnodiging, beheer, lege staten, startscherm, okkiedarts.nl/club en de landingspagina van
+  de QR-code gericht op scannen, gooien en meetellen. Privacy 6a bijgewerkt (codes, automatisch meetellen).
+- **Server:** migratie 0012 (`club_codes`), routes `/v1/clubs/:id/codes…`, `challenge: 'auto'`; iOS 1.10.0 blijft werken.
+
 ## iOS 1.10.0 bij Apple ingediend, website met App Store-badge (7 november 2026, geen nieuwe appversie)
 
 - **App Store:** 1.8.0 staat sinds 6 november openbaar. Versie 1.10.0 (build 53, zelfde code als de webapp) is

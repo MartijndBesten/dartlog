@@ -103,26 +103,65 @@ Alle routes behalve `preview` vereisen een bearer-token. Schrijven kan alleen va
 | `POST /v1/clubs` `{name, pilotCode, consent:true}` | 16+ met proefclubcode |
 | `POST /v1/clubs/join` `{code, consent:true}` → aanvraag | 16+ |
 | `GET /v1/clubs/:id` → club, leden, teams, weekoefening met ranglijst (code alleen voor beheerders) | lid |
-| `PATCH` / `DELETE /v1/clubs/:id`, `POST /v1/clubs/:id/code` | beheerder |
+| `PATCH` / `DELETE /v1/clubs/:id`, `POST /v1/clubs/:id/code` (vernieuwt de hoofd-bordcode) | beheerder |
+| `GET /v1/clubs/:id/codes`; `POST …/codes` `{kind:'board'\|'personal', label?, direct?, teamId?}` | beheerder |
+| `PATCH …/codes/:code` `{label?, direct?, teamId?}`, `POST …/codes/:code/renew`, `DELETE …/codes/:code` | beheerder |
 | `GET /v1/clubs/:id/requests`, `POST /v1/clubs/:id/requests/:handle` `{approve}` | beheerder |
 | `PATCH /v1/clubs/:id/members/:handle` `{role?, teamId?}`, `DELETE …` | beheerder |
 | `POST /v1/clubs/:id/teams`, `PATCH` / `DELETE …/teams/:teamId` `{name?, captain?}` | beheerder |
 | `GET /v1/clubs/:id/teams/:teamId` → captain-overzicht | captain van dat team, beheerder |
 | `PUT /v1/clubs/:id/challenge` `{kind, week?:'next'}`; `GET …/challenge?week=previous\|next` | beheerder; lid |
-| `POST /v1/clubs/:id/trainings` `{training:{trainingId,kind,darts,points,high}, feed, challenge}` | lid |
+| `POST /v1/clubs/:id/trainings` `{training:{trainingId,kind,darts,points,high}, feed, challenge: true\|false\|'auto'}` | lid |
 | `DELETE /v1/clubs/:id/results/:handle` (lopende week) | eigen resultaat, of beheerder |
 | `GET /v1/clubs/:id/feed`, `DELETE …/feed/:itemId` | lid; eigen bericht, of beheerder |
 | `GET /v1/clubs/:id/form` → vormranglijst (min. 30 pijlen in 4 weken) | lid |
 | `DELETE /v1/clubs/:id/me` → club verlaten of aanvraag intrekken, met wissen | lid of aanvrager |
 
+`preview` geeft sinds Club bij het bord ook `code: {kind, direct, label}`; `join` geeft `status: 'active'` bij een
+directe bordcode of persoonlijke uitnodiging.
+
 Registreren voor Club: `POST /v1/register` `{nickname, age:'adult', clubCode}` of `{…, pilotCode}`. Dit geeft altijd
 een niet-openbaar profiel.
+
+## Club bij het bord (kantine, clubhuis): codes en QR-codes (migratie 0012)
+
+Doel: club aanmaken → QR-poster bij het dartbord → leden scannen → hun scores tellen automatisch mee.
+
+- **`club_codes`**: meerdere toegangscodes per club. `board` = clubcode bij het bord (8 tekens, onbeperkt bruikbaar,
+  `auto_approve` 0 = eerst goedkeuren (standaard, gedrag van 1.10.0), 1 = direct meedoen). `personal` = persoonlijke
+  uitnodiging (10 tekens, `max_uses` 1, verloopt na 14 dagen, altijd direct lid). Grenzen: `CODE_LIMITS` (10 bordcodes,
+  25 open uitnodigingen per club).
+- **Vernieuwen** = nieuwe rij met dezelfde instellingen, oude rij weg: de oude QR-code en geprinte posters werken direct
+  niet meer. Ongeldig maken = rij weg. De hoofd-bordcode kan niet weg, alleen vernieuwd worden.
+- **Compatibel:** `clubs.invite_code` blijft gelijk aan de hoofd-bordcode, zodat iOS 1.10.0 (`inviteCode`, `POST /code`)
+  blijft werken. Vangnet: een club met een `invite_code` zonder rij in `club_codes` (aangemaakt door de oude Worker
+  tussen migratie en deploy) krijgt die rij bij het eerste gebruik alsnog, met goedkeuring.
+- **Eenmalig gebruik** wordt vóór het lidmaatschap voorwaardelijk vastgelegd (`uses < max_uses`), zodat twee spelers met
+  dezelfde uitnodiging niet allebei binnenkomen. De dagelijkse opschoning wist verlopen en gebruikte uitnodigingen.
+- **Automatisch meetellen** (`js/club-auto.js`, per speler per club op het toestel, **standaard uit**; alleen na een aparte, expliciete keuze):
+  na elke training `POST …/trainings` met `feed: true, challenge: 'auto'` (telt mee als hij bij de open weekoefening
+  past, anders alleen feed, zonder fout). Alleen trainingen van ná het aanzetten, hoogstens 14 dagen terug; de
+  weekoefening alleen met trainingen van de lopende week (anders zou een training van vorige week voor deze week
+  tellen). Wachtend lid (404) of offline: blijft staan en gaat later mee (bij het openen van de app of de club).
+- **Voorbereid, nog niet in de app:** `team_id` per code (wie via de jeugd-QR binnenkomt, komt in team Jeugd) en
+  meerdere bordcodes met een label (bord 2, bovenzaal). De API en het beheerscherm ("Meer borden of groepen") kunnen het
+  al; een teamkeuze per code zit nog niet in het scherm.
+- **App:** `club/club.js` (QR-flow: club herkennen → speler kiezen of maken → meedoen → "Gooi de weekoefening",
+  beheer met twee blokken: QR-code bij het bord en Persoonlijke uitnodiging), `club/poster.html` (A4/A5, printen of pdf;
+  in de iPhone-app opent hij in Safari), startlink `../#start=score30&speler=<id>` in `js/app.js`.
+- **Uitrol (na akkoord):** back-up + bookmark, `npm run migrate:production` (0012), direct daarna
+  `npm run deploy:production`, dan webapp (okkie-app) en website (okkiedarts-site, privacy 6a en /club). Terug: Worker
+  rollback; de tabel `club_codes` mag blijven staan (oude Worker gebruikt alleen `clubs.invite_code`). Let op: codes die
+  na de uitrol zijn vernieuwd, staan ook in `clubs.invite_code`, dus ook na een rollback werkt de hoofdcode.
 
 ## Nog niet
 
 - Checkout- en finishpercentages: de app synchroniseert die niet, dus het captain-overzicht toont ze niet.
 - Jeugd (onder 16): pas later, met een ouderroute en DPIA. Zie B55 en `VRIENDEN.md` voor de bestaande ouderlink.
 - Trainer wijst oefeningen toe, duels, clubrecords en club-tegen-club (zie het concept, onder "Later").
+- QR-code die de iPhone-app direct opent (universal link); nu opent de QR de website en daarna de webapp. Gebruikers van
+  de iPhone-app vullen de code in de app in (staat op de landingspagina en de poster).
+- Team kiezen per bordcode in het beheerscherm (API kan het al), statistieken per bord/locatie.
 
 ## Live sinds 1 november 2026 (1.9.0)
 

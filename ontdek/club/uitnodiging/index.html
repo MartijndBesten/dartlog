@@ -30,6 +30,7 @@
     .invite .steps { margin: 18px 0; padding-left: 20px; }
     .invite .steps li { margin: 6px 0; }
     .invite .code { font: 700 1.3rem/1 ui-monospace, Menlo, monospace; letter-spacing: .15em; }
+    .invite .app-note { border: 1px solid rgba(255,255,255,.15); border-radius: 14px; padding: 12px 14px; }
     @media (max-width: 760px) { .invite h1 { font-size: clamp(1.7rem, 8.4vw, 2.6rem); } }
   </style>
 </head>
@@ -43,16 +44,16 @@
   </header>
   <main class="container invite">
     <span class="overline">OKKIE. CLUB · UITNODIGING</span>
-    <h1 id="title">Je bent uitgenodigd voor een club</h1>
-    <p class="lead" id="lead">Train samen met je club in OKKIE., de gratis darttrainer: iedereen gooit de weekoefening wanneer het uitkomt, en alleen clubgenoten zien de clubranglijst.</p>
-    <p><a class="btn primary" id="open" href="https://app.okkiedarts.nl/club/">Open de uitnodiging in OKKIE. <span aria-hidden="true">↗</span></a></p>
+    <h1 id="title">Speel mee voor je club</h1>
+    <p class="lead" id="lead">Gooi je pijlen, tik je score in en je resultaat telt mee voor de club. In OKKIE., de gratis darttrainer.</p>
+    <p><a class="btn primary" id="open" href="https://app.okkiedarts.nl/club/">Speel mee <span aria-hidden="true">↗</span></a></p>
     <ol class="steps">
-      <li>Open OKKIE. en maak je speler aan (een bijnaam is genoeg).</li>
-      <li>De clubcode staat al ingevuld; vraag lid worden aan.</li>
-      <li>De beheerder van de club laat je toe. Daarna zie je de weekoefening en de clubranglijst.</li>
+      <li>Tik op <b>Speel mee</b> en kies je naam (een bijnaam is genoeg).</li>
+      <li>Gooi je pijlen en tik je score in.</li>
+      <li id="step3">Deel je scores met de club: per training, of automatisch als je dat aanzet.</li>
     </ol>
-    <p class="small" id="codeline" hidden>Clubcode: <span class="code" id="code"></span></p>
-    <p class="small">Gratis en zonder reclame. Je trainingen blijven op je telefoon; met je club deel je alleen samengevatte resultaten. Voor spelers van 16 jaar en ouder. <a href="../">Meer over OKKIE. Club</a> · <a href="../../privacy/#club">Privacy</a></p>
+    <p class="small app-note" id="codeline" hidden><b>Speel je al met de OKKIE.-app?</b> Open dan de app, kies <b>OKKIE. Club</b> en vul deze code in: <span class="code" id="code"></span><br>Tik niet op Speel mee: de browser en de app delen geen spelers of trainingen, dan krijg je een tweede, losse speler.</p>
+    <p class="small">Gratis, zonder reclame en zonder e-mailadres. Je trainingen blijven op je telefoon; met je club deel je alleen samengevatte resultaten. Voor spelers van 16 jaar en ouder. <a href="../">Meer over OKKIE. Club</a> · <a href="../../privacy/#club">Privacy</a></p>
   </main>
   <footer><div class="footer-inside"><strong>OKKIE.</strong><span>Gooi. Scoor. Word beter.</span><a class="maker" href="https://denckh.nl/" aria-label="Ontwikkeld door Denckh (naar denckh.nl)"><span class="maker-role">Ontwikkeld door</span><img src="../../../icons/denckh-logo-signature-light.svg" alt="Denckh" width="92" height="28"></a><span class="footer-links"><a href="../../over/">Over OKKIE.</a><a href="../../dartregels/">Dartregels</a><a href="../../privacy/">Privacy</a><a href="../../contact/">Contact</a></span></div></footer>
   <script>
@@ -62,20 +63,24 @@
     var m = location.hash.match(/club=([A-Za-z0-9-]{8,10})/);
     if (!m) return;
     var code = m[1].toUpperCase().replace(/-/g, '');
-    if (!/^[A-HJKMNP-Z2-9]{8}$/.test(code)) return;
+    // 8 tekens: clubcode bij het bord; 10 tekens: persoonlijke uitnodiging (werkt één keer).
+    if (!/^[A-HJKMNP-Z2-9]{8}(?:[A-HJKMNP-Z2-9]{2})?$/.test(code)) return;
     document.getElementById('open').href = 'https://app.okkiedarts.nl/club/#club=' + code;
     document.getElementById('code').textContent = code;
     document.getElementById('codeline').hidden = false;
     fetch('https://okkie-api.zaalverhuur-sion.workers.dev/v1/clubs/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code }) })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
-        if (!d || !d.club) { document.getElementById('lead').textContent = 'Deze uitnodiging lijkt niet (meer) geldig. Vraag de beheerder van je club om een nieuwe link. Je kunt OKKIE. natuurlijk altijd gewoon gebruiken.'; return; }
+        if (!d || !d.club) { document.getElementById('lead').textContent = 'Deze code werkt niet (meer). De club heeft waarschijnlijk een nieuwe QR-code, of de uitnodiging is al gebruikt. Vraag de beheerder om de nieuwe. Je kunt OKKIE. natuurlijk altijd gewoon gebruiken.'; return; }
+        var personal = d.code && d.code.kind === 'personal', direct = !d.code || d.code.direct;
         var t = document.getElementById('title');
-        t.textContent = 'Je bent uitgenodigd voor ';
+        t.textContent = personal ? 'Je bent uitgenodigd voor ' : 'Speel mee voor ';
         var s = document.createElement('span'); s.className = 'clubname'; s.textContent = d.club.name; t.appendChild(s);
-        document.title = 'Uitnodiging: ' + d.club.name + ' — OKKIE. Club';
+        document.title = d.club.name + ' — OKKIE. Club';
         var n = d.club.members;
-        document.getElementById('lead').textContent = d.club.name + ' (' + n + (n === 1 ? ' lid' : ' leden') + ') traint samen in OKKIE. Club: iedereen gooit de weekoefening wanneer het uitkomt, en alleen clubgenoten zien de clubranglijst.';
+        document.getElementById('lead').textContent = d.club.name + ' (' + n + (n === 1 ? ' lid' : ' leden') + ') speelt in OKKIE. Club. Gooi je pijlen, tik je score in en je resultaat telt mee in de weekoefening en de clubranglijst.';
+        if (d.code && !direct) document.getElementById('step3').textContent = 'De beheerder laat je eerst toe. Daarna deel je je scores met de club: per training, of automatisch als je dat aanzet.';
+        else if (d.code) document.getElementById('step3').textContent = 'Je bent meteen lid. Zet automatisch meetellen aan, dan tellen je training en scores direct mee voor de club.';
       })
       .catch(function () {});
   })();

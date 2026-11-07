@@ -41,15 +41,18 @@ const ID = /^[a-f0-9]{32}$/;
 const HANDLE = /^[a-z0-9]{12}$/;
 const TRAINING_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // geen 0/O, 1/I/L
-const CODE = /^[A-HJKMNP-Z2-9]{8}$/;
+// Bordcode (QR bij het bord): 8 tekens. Persoonlijke uitnodiging: 10 tekens (zo zie je het verschil al aan de code).
+const CODE = /^[A-HJKMNP-Z2-9]{8}(?:[A-HJKMNP-Z2-9]{2})?$/;
+// Toegangscodes per club (migratie 0012). Personal: één keer bruikbaar, 14 dagen geldig, speler is direct lid.
+export const CODE_LIMITS = { boardCodes: 10, openPersonal: 25, personalDays: 14, labelMax: 30 };
 const newId = () => crypto.randomUUID().replaceAll('-', '');
 
 export function cleanClubName(input) {
   const name = typeof input === 'string' ? input.trim().replace(/\s+/g, ' ') : '';
   return /^[\p{L}\p{N} ._'!&()+-]{2,40}$/u.test(name) ? name : null;
 }
-export function newInviteCode() {
-  const bytes = crypto.getRandomValues(new Uint8Array(8));
+export function newInviteCode(length = 8) {
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
   return [...bytes].map(b => CODE_ALPHABET[b % CODE_ALPHABET.length]).join('');
 }
 export const normalizeCode = input => typeof input === 'string' ? input.trim().toUpperCase().replace(/[\s-]/g, '') : '';
@@ -99,10 +102,40 @@ async function activeMembership(env, clubId, memberId) {
     "FROM clubs c JOIN club_members cm ON cm.club_id = c.id WHERE c.id = ? AND cm.member_id = ? AND cm.status = 'active'"
   ).bind(clubId, memberId).first();
 }
+// Geldige code → club plus de instellingen van die code. Verlopen of opgebruikte codes bestaan niet (meer).
+// Vangnet rond de uitrol (migratie 0012 vóór de nieuwe Worker): een hoofdcode zonder rij in club_codes krijgt er alsnog
+// een, met goedkeuring (het oude gedrag).
+const ensurePrimaryCode = (env, clubId, code) => env.DB.prepare(
+  "INSERT OR IGNORE INTO club_codes(code, club_id, kind, label, auto_approve, created_at) SELECT invite_code, id, 'board', '', 0, datetime('now') FROM clubs WHERE id = ? AND invite_code = ?"
+).bind(clubId, code).run();
 async function clubByCode(env, code) {
   const c = normalizeCode(code);
   if (!CODE.test(c)) return null;
-  return env.DB.prepare('SELECT id, name, max_members AS maxMembers FROM clubs WHERE invite_code = ?').bind(c).first();
+  const legacy = await env.DB.prepare('SELECT c.id FROM clubs c WHERE c.invite_code = ? AND NOT EXISTS (SELECT 1 FROM club_codes k WHERE k.code = c.invite_code)').bind(c).first();
+  if (legacy) await ensurePrimaryCode(env, legacy.id, c);
+  return env.DB.prepare(
+    'SELECT c.id, c.name, c.max_members AS maxMembers, k.code, k.kind, k.auto_approve AS autoApprove, k.team_id AS teamId, k.label ' +
+    'FROM club_codes k JOIN clubs c ON c.id = k.club_id WHERE k.code = ? ' +
+    "AND (k.expires_at IS NULL OR k.expires_at > datetime('now')) AND (k.max_uses IS NULL OR k.uses < k.max_uses)"
+  ).bind(c).first();
+}
+// Nieuwe unieke code (bestaat nog niet als code van welke club dan ook, ook niet verlopen).
+async function freshCode(env, length = 8) {
+  for (;;) {
+    const code = newInviteCode(length);
+    if (!await env.DB.prepare('SELECT 1 AS x FROM club_codes WHERE code = ? UNION SELECT 1 FROM clubs WHERE invite_code = ?').bind(code, code).first()) return code;
+  }
+}
+const cleanLabel = v => typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').replace(/[<>\u0000-\u001f]/g, '').slice(0, CODE_LIMITS.labelMax) : '';
+// Codes van een club voor de beheerder. primary = de hoofd-bordcode (gelijk aan clubs.invite_code).
+async function clubCodes(env, clubId, primary) {
+  await ensurePrimaryCode(env, clubId, primary);
+  const rows = await env.DB.prepare(
+    "SELECT code, kind, label, auto_approve AS direct, team_id AS teamId, max_uses AS maxUses, uses, expires_at AS expiresAt, created_at AS createdAt FROM club_codes " +
+    "WHERE club_id = ? AND (expires_at IS NULL OR expires_at > datetime('now')) AND (max_uses IS NULL OR uses < max_uses) ORDER BY kind, created_at, code"
+  ).bind(clubId).all();
+  return (rows.results || []).map(r => ({ ...r, direct: !!r.direct, primary: r.code === primary }))
+    .sort((a, b) => (b.primary - a.primary) || (a.kind === b.kind ? 0 : a.kind === 'board' ? -1 : 1));
 }
 export async function clubCodeValid(env, code) {
   return clubsOpen(env) && !!(await clubByCode(env, code));
@@ -143,6 +176,8 @@ export async function releaseClubMemberships(env, memberId) {
 // Dagelijkse opschoning: oude feedberichten.
 export async function cleanupClubs(env) {
   await env.DB.prepare('DELETE FROM club_feed WHERE created_at < datetime(\'now\', ?)').bind(`-${CLUB_LIMITS.feedDays} days`).run();
+  // Verlopen of gebruikte persoonlijke uitnodigingen.
+  await env.DB.prepare("DELETE FROM club_codes WHERE kind = 'personal' AND (expires_at <= datetime('now') OR uses >= max_uses)").run();
 }
 
 // ---------- Overzichten (altijd met club_id én alleen actieve leden) ----------
@@ -213,7 +248,9 @@ export async function handleClubs(request, env, path, h, cors) {
     if (await ipLimited()) return h.fail('Te veel pogingen. Probeer het over een minuut opnieuw.', 429, cors);
     const club = await clubByCode(env, (await h.bodyJson(request)).code);
     if (!club) return h.fail('Deze clubcode klopt niet. Vraag de beheerder van je club om de code.', 404, cors);
-    return h.json({ club: { name: club.name, members: await countActive(env, club.id) } }, 200, cors);
+    return h.json({ club: { name: club.name, members: await countActive(env, club.id) },
+      // Label alleen bij een bordcode ("Bord 2"); bij een persoonlijke uitnodiging kan het een naam zijn: die blijft bij de beheerder.
+      code: { kind: club.kind, direct: club.kind === 'personal' || !!club.autoApprove, label: club.kind === 'board' ? club.label || '' : '' } }, 200, cors);
   }
 
   const member = await h.auth(request, env);
@@ -246,13 +283,15 @@ export async function handleClubs(request, env, path, h, cors) {
     const today = (await env.DB.prepare("SELECT COUNT(*) AS n FROM clubs WHERE created_at >= date('now')").first()).n;
     if (today >= CLUB_LIMITS.newClubsPerDay) return h.fail('Er zijn vandaag erg veel clubs opgericht. Probeer het morgen opnieuw.', 429, cors);
     const id = newId();
-    let code = newInviteCode();
-    while (await clubByCode(env, code)) code = newInviteCode();
+    const code = await freshCode(env);
     await env.DB.batch([
       env.DB.prepare("INSERT INTO clubs(id, name, invite_code, max_members, created_by, created_at, updated_at) VALUES(?,?,?,?,?,datetime('now'),datetime('now'))")
         .bind(id, name, code, CLUB_LIMITS.membersPerClub, member.id),
       env.DB.prepare("INSERT INTO club_members(club_id, member_id, role, status, requested_at, joined_at) VALUES(?,?,'admin','active',datetime('now'),datetime('now'))")
         .bind(id, member.id),
+      // Hoofd-bordcode: standaard met goedkeuring; de beheerder kan "direct meedoen" aanzetten.
+      env.DB.prepare("INSERT INTO club_codes(code, club_id, kind, label, auto_approve, created_by, created_at) VALUES(?,?,'board','',0,?,datetime('now'))")
+        .bind(code, id, member.id),
     ]);
     return h.json({ club: { id, name, role: 'admin', inviteCode: code } }, 201, cors);
   }
@@ -264,16 +303,33 @@ export async function handleClubs(request, env, path, h, cors) {
     if (body.consent !== true) return h.fail('Bevestig wat je met de club deelt.', 400, cors);
     const club = await clubByCode(env, body.code);
     if (!club) return h.fail('Deze clubcode klopt niet. Vraag de beheerder van je club om de code.', 404, cors);
+    const direct = club.kind === 'personal' || !!club.autoApprove;
     const existing = await env.DB.prepare('SELECT status FROM club_members WHERE club_id = ? AND member_id = ?').bind(club.id, member.id).first();
-    if (existing) return h.json({ club: { name: club.name }, status: existing.status, already: true }, 200, cors);
-    const myPending = (await env.DB.prepare("SELECT COUNT(*) AS n FROM club_members WHERE member_id = ? AND status = 'pending'").bind(member.id).first()).n;
-    if (myPending >= CLUB_LIMITS.pendingPerMember) return h.fail(`Je hebt al ${CLUB_LIMITS.pendingPerMember} aanmeldingen open staan. Wacht tot een beheerder ze bekijkt.`, 429, cors);
-    if (await countMine(env, member.id) >= CLUB_LIMITS.clubsPerMember) return h.fail(`Je zit al in ${CLUB_LIMITS.clubsPerMember} clubs.`, 409, cors);
-    const pending = (await env.DB.prepare("SELECT COUNT(*) AS n FROM club_members WHERE club_id = ? AND status = 'pending'").bind(club.id).first()).n;
-    if (pending >= CLUB_LIMITS.pendingPerClub) return h.fail('Er staan al veel aanvragen open bij deze club. Probeer het later opnieuw.', 409, cors);
+    if (existing && (existing.status === 'active' || !direct)) return h.json({ club: { id: club.id, name: club.name }, status: existing.status, already: true }, 200, cors);
+    if (!existing) {
+      const myPending = (await env.DB.prepare("SELECT COUNT(*) AS n FROM club_members WHERE member_id = ? AND status = 'pending'").bind(member.id).first()).n;
+      if (!direct && myPending >= CLUB_LIMITS.pendingPerMember) return h.fail(`Je hebt al ${CLUB_LIMITS.pendingPerMember} aanmeldingen open staan. Wacht tot een beheerder ze bekijkt.`, 429, cors);
+      if (await countMine(env, member.id) >= CLUB_LIMITS.clubsPerMember) return h.fail(`Je zit al in ${CLUB_LIMITS.clubsPerMember} clubs.`, 409, cors);
+    }
+    if (!direct) {
+      const pending = (await env.DB.prepare("SELECT COUNT(*) AS n FROM club_members WHERE club_id = ? AND status = 'pending'").bind(club.id).first()).n;
+      if (pending >= CLUB_LIMITS.pendingPerClub) return h.fail('Er staan al veel aanvragen open bij deze club. Probeer het later opnieuw.', 409, cors);
+    }
     if (await countActive(env, club.id) >= club.maxMembers) return h.fail('Deze club is vol.', 409, cors);
-    await env.DB.prepare("INSERT INTO club_members(club_id, member_id, role, status, requested_at) VALUES(?,?,'member','pending',datetime('now'))").bind(club.id, member.id).run();
-    return h.json({ club: { name: club.name }, status: 'pending' }, 201, cors);
+    // Team uit de code (voorbereid: aparte QR voor bijv. jeugd of senioren), alleen als dat team nog bij de club hoort.
+    const teamId = club.teamId && await env.DB.prepare('SELECT 1 AS ok FROM club_teams WHERE id = ? AND club_id = ?').bind(club.teamId, club.id).first() ? club.teamId : null;
+    const status = direct ? 'active' : 'pending';
+    // Gebruik eerst vastleggen (voorwaardelijk): twee spelers tegelijk met dezelfde persoonlijke uitnodiging → één wint.
+    const claimed = await env.DB.prepare('UPDATE club_codes SET uses = uses + 1 WHERE code = ? AND (max_uses IS NULL OR uses < max_uses)').bind(club.code).run();
+    if (!claimed.meta?.changes) return h.fail('Deze uitnodiging is al gebruikt. Vraag de beheerder om een nieuwe.', 404, cors);
+    if (existing) {
+      // Wachtende aanvraag + persoonlijke uitnodiging of directe bordcode: meteen lid.
+      await env.DB.prepare("UPDATE club_members SET status = 'active', joined_at = datetime('now'), team_id = COALESCE(team_id, ?) WHERE club_id = ? AND member_id = ?").bind(teamId, club.id, member.id).run();
+    } else {
+      await env.DB.prepare(`INSERT INTO club_members(club_id, member_id, role, status, team_id, requested_at, joined_at) VALUES(?,?,'member',?,?,datetime('now'),${direct ? "datetime('now')" : 'NULL'})`)
+        .bind(club.id, member.id, status, teamId).run();
+    }
+    return h.json({ club: { id: club.id, name: club.name }, status }, 201, cors);
   }
 
   const m = path.match(/^\/v1\/clubs\/([^/]+)(\/.*)?$/);
@@ -290,6 +346,19 @@ export async function handleClubs(request, env, path, h, cors) {
   if (!me) return notFound();
   const isAdmin = me.role === 'admin';
   const forbidden = (who = 'de beheerder') => h.fail(`Alleen ${who} van de club kan dit.`, 403, cors);
+  // Bordcode vernieuwen: nieuwe code met dezelfde instellingen; de oude werkt direct niet meer (QR-posters ook niet).
+  const renewCode = async old => {
+    if (old === me.inviteCode) await ensurePrimaryCode(env, clubId, old);
+    const code = await freshCode(env);
+    const steps = [
+      env.DB.prepare("INSERT INTO club_codes(code, club_id, kind, label, auto_approve, team_id, created_by, created_at) " +
+        "SELECT ?, club_id, kind, label, auto_approve, team_id, ?, datetime('now') FROM club_codes WHERE code = ? AND club_id = ?").bind(code, member.id, old, clubId),
+      env.DB.prepare('DELETE FROM club_codes WHERE code = ? AND club_id = ?').bind(old, clubId),
+    ];
+    if (old === me.inviteCode) steps.push(env.DB.prepare("UPDATE clubs SET invite_code = ?, updated_at = datetime('now') WHERE id = ?").bind(code, clubId));
+    await env.DB.batch(steps);
+    return code;
+  };
   // Clublogo en eigen clubtrainingen (club-extras.js), pas na de lidmaatschapscontrole hierboven.
   const extra = await handleClubExtras(request, env, rest, { me, member, clubId, now, h, cors });
   if (extra) return extra;
@@ -300,7 +369,7 @@ export async function handleClubs(request, env, path, h, cors) {
     ).bind(clubId).all()).results || [];
     const pending = isAdmin ? (await env.DB.prepare("SELECT COUNT(*) AS n FROM club_members WHERE club_id = ? AND status = 'pending'").bind(clubId).first()).n : undefined;
     const logo = await env.DB.prepare('SELECT updated_at AS at FROM club_logos WHERE club_id = ?').bind(clubId).first();
-    return h.json({ club: { id: clubId, name: me.name, role: me.role, teamId: me.teamId, maxMembers: me.maxMembers, logo: logo ? logo.at : null, ...(isAdmin ? { inviteCode: me.inviteCode, pending } : {}) },
+    return h.json({ club: { id: clubId, name: me.name, role: me.role, teamId: me.teamId, maxMembers: me.maxMembers, logo: logo ? logo.at : null, ...(isAdmin ? { inviteCode: me.inviteCode, pending, codes: await clubCodes(env, clubId, me.inviteCode) } : {}) },
       members: await clubMembers(env, clubId, member.id), teams, thisWeek: await challengeView(env, clubId, clubWeek(now), member.id, now) }, 200, cors);
   }
   if (rest === '' && method === 'PATCH') {
@@ -315,13 +384,72 @@ export async function handleClubs(request, env, path, h, cors) {
     await env.DB.prepare('DELETE FROM clubs WHERE id = ?').bind(clubId).run();   // cascade: leden, teams, oefeningen, resultaten, feed
     return h.json({ deleted: true }, 200, cors);
   }
-  // Uitnodigingscode vernieuwen (oude code werkt direct niet meer).
+  // Hoofd-bordcode vernieuwen (route van 1.10.0; oude code werkt direct niet meer). Instellingen blijven.
   if (rest === '/code' && method === 'POST') {
     if (!isAdmin) return forbidden();
-    let code = newInviteCode();
-    while (await clubByCode(env, code)) code = newInviteCode();
-    await env.DB.prepare("UPDATE clubs SET invite_code = ?, updated_at = datetime('now') WHERE id = ?").bind(code, clubId).run();
-    return h.json({ inviteCode: code }, 200, cors);
+    return h.json({ inviteCode: await renewCode(me.inviteCode) }, 200, cors);
+  }
+  // Codes beheren: bordcode erbij (ander bord, andere ruimte of groep), persoonlijke uitnodiging, aanpassen, vernieuwen,
+  // ongeldig maken. Alleen beheerders. De hoofd-bordcode kan niet weg, alleen vernieuwd worden.
+  if (rest === '/codes' && method === 'GET') {
+    if (!isAdmin) return forbidden();
+    return h.json({ codes: await clubCodes(env, clubId, me.inviteCode) }, 200, cors);
+  }
+  if (rest === '/codes' && method === 'POST') {
+    if (!isAdmin) return forbidden();
+    const body = await h.bodyJson(request);
+    const label = cleanLabel(body.label);
+    const teamId = body.teamId ?? null;
+    if (teamId !== null && !(ID.test(teamId) && await env.DB.prepare('SELECT 1 AS ok FROM club_teams WHERE id = ? AND club_id = ?').bind(teamId, clubId).first())) return h.fail('Team niet gevonden.', 404, cors);
+    if (body.kind === 'board') {
+      const n = (await env.DB.prepare("SELECT COUNT(*) AS n FROM club_codes WHERE club_id = ? AND kind = 'board'").bind(clubId).first()).n;
+      if (n >= CODE_LIMITS.boardCodes) return h.fail(`Een club heeft hoogstens ${CODE_LIMITS.boardCodes} bordcodes.`, 409, cors);
+      const code = await freshCode(env);
+      await env.DB.prepare("INSERT INTO club_codes(code, club_id, kind, label, auto_approve, team_id, created_by, created_at) VALUES(?,?,'board',?,?,?,?,datetime('now'))")
+        .bind(code, clubId, label, body.direct === true ? 1 : 0, teamId, member.id).run();
+      return h.json({ code: { code, kind: 'board', label, direct: body.direct === true, teamId } }, 201, cors);
+    }
+    if (body.kind === 'personal') {
+      await env.DB.prepare("DELETE FROM club_codes WHERE club_id = ? AND kind = 'personal' AND (expires_at <= datetime('now') OR uses >= max_uses)").bind(clubId).run();
+      const n = (await env.DB.prepare("SELECT COUNT(*) AS n FROM club_codes WHERE club_id = ? AND kind = 'personal'").bind(clubId).first()).n;
+      if (n >= CODE_LIMITS.openPersonal) return h.fail(`Er staan al ${CODE_LIMITS.openPersonal} persoonlijke uitnodigingen open. Trek er eerst een paar in.`, 409, cors);
+      const code = await freshCode(env, 10);
+      await env.DB.prepare("INSERT INTO club_codes(code, club_id, kind, label, auto_approve, team_id, max_uses, expires_at, created_by, created_at) " +
+        "VALUES(?,?,'personal',?,1,?,1,datetime('now', ?),?,datetime('now'))").bind(code, clubId, label, teamId, `+${CODE_LIMITS.personalDays} days`, member.id).run();
+      const row = await env.DB.prepare('SELECT expires_at AS expiresAt FROM club_codes WHERE code = ?').bind(code).first();
+      return h.json({ code: { code, kind: 'personal', label, direct: true, teamId, maxUses: 1, uses: 0, expiresAt: row.expiresAt } }, 201, cors);
+    }
+    return h.fail('Kies een bordcode of een persoonlijke uitnodiging.', 400, cors);
+  }
+  const codeM = rest.match(/^\/codes\/([A-Za-z0-9]{8,10})(\/renew)?$/);
+  if (codeM) {
+    if (!isAdmin) return forbidden();
+    const code = normalizeCode(codeM[1]);
+    const row = await env.DB.prepare('SELECT code, kind FROM club_codes WHERE code = ? AND club_id = ?').bind(code, clubId).first();
+    if (!row) return h.fail('Code niet gevonden.', 404, cors);
+    const primary = row.code === me.inviteCode;
+    if (codeM[2] && method === 'POST') {
+      if (row.kind !== 'board') return h.fail('Een persoonlijke uitnodiging vernieuw je niet; trek hem in en maak een nieuwe.', 400, cors);
+      return h.json({ code: await renewCode(row.code), primary }, 200, cors);
+    }
+    if (!codeM[2] && method === 'PATCH') {
+      const body = await h.bodyJson(request);
+      const sets = [], args = [];
+      if (body.label !== undefined) { sets.push('label = ?'); args.push(cleanLabel(body.label)); }
+      if (body.direct !== undefined && row.kind === 'board') { sets.push('auto_approve = ?'); args.push(body.direct === true ? 1 : 0); }
+      if (body.teamId !== undefined) {
+        if (body.teamId !== null && !(ID.test(body.teamId) && await env.DB.prepare('SELECT 1 AS ok FROM club_teams WHERE id = ? AND club_id = ?').bind(body.teamId, clubId).first())) return h.fail('Team niet gevonden.', 404, cors);
+        sets.push('team_id = ?'); args.push(body.teamId);
+      }
+      if (!sets.length) return h.fail('Niets om te wijzigen.', 400, cors);
+      await env.DB.prepare(`UPDATE club_codes SET ${sets.join(', ')} WHERE code = ? AND club_id = ?`).bind(...args, row.code, clubId).run();
+      return h.json({ codes: await clubCodes(env, clubId, me.inviteCode) }, 200, cors);
+    }
+    if (!codeM[2] && method === 'DELETE') {
+      if (primary) return h.fail('De hoofdcode van de club kan niet weg. Maak een nieuwe code; de oude werkt dan niet meer.', 409, cors);
+      await env.DB.prepare('DELETE FROM club_codes WHERE code = ? AND club_id = ?').bind(row.code, clubId).run();
+      return h.json({ removed: row.code }, 200, cors);
+    }
   }
   // Aanvragen.
   if (rest === '/requests' && method === 'GET') {
@@ -454,14 +582,20 @@ export async function handleClubs(request, env, path, h, cors) {
     const body = await h.bodyJson(request);
     const t = body.training;
     if (!trainingOkay(t)) return h.fail('Training heeft een ongeldig formaat.', 400, cors);
-    if (body.feed !== true && body.challenge !== true) return h.fail('Kies of je deze training in de feed en/of bij de weekoefening zet.', 400, cors);
+    // challenge 'auto' (automatisch meetellen, sinds Club bij het bord): telt mee als hij bij de open weekoefening past,
+    // anders alleen de feed, zonder foutmelding.
+    const auto = body.challenge === 'auto';
+    if (body.feed !== true && body.challenge !== true && !auto) return h.fail('Kies of je deze training in de feed en/of bij de weekoefening zet.', 400, cors);
     const out = {};
+    const week = clubWeek(now);
+    const c = body.challenge === true || auto ? await challengeOf(env, clubId, week) : null;
+    const fits = !!c && weekOpen(week, now) && c.kind === t.kind;
     if (body.challenge === true) {
-      const week = clubWeek(now);
-      const c = await challengeOf(env, clubId, week);
       if (!c) return h.fail('Er is deze week geen weekoefening.', 409, cors);
       if (!weekOpen(week, now)) return h.fail('De weekoefening is gesloten (zondag 22:00).', 409, cors);
       if (c.kind !== t.kind) return h.fail('Deze training hoort niet bij de weekoefening van deze week.', 409, cors);
+    }
+    if (fits) {
       const value = resultValue(t);
       const old = await env.DB.prepare('SELECT value FROM club_results WHERE challenge_id = ? AND member_id = ?').bind(c.id, member.id).first();
       if (!old || better(c.kind, value, old.value)) {

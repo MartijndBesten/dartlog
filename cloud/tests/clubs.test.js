@@ -125,9 +125,9 @@ test('alleen 16+: jonger dan 16 kan geen account via een club maken, geen club m
 test('lid worden: code geeft alleen een aanvraag; wachtend lid ziet niets tot de beheerder goedkeurt; afwijzen wist de aanvraag', async () => {
   const env = env0();
   const a = await founder(env, 'Anja', PILOTS[0], 'DC De Pijl');
-  // Code bekijken zonder account: alleen naam en aantal.
+  // Code bekijken zonder account: alleen naam en aantal (plus het soort code: goedkeuring of direct meedoen).
   const preview = await ok(await call(env, '/v1/clubs/preview', { method: 'POST', body: { code: a.club.inviteCode.toLowerCase() } }));
-  assert.deepEqual(preview, { club: { name: 'DC De Pijl', members: 1 } });
+  assert.deepEqual(preview, { club: { name: 'DC De Pijl', members: 1 }, code: { kind: 'board', direct: false, label: '' } });
   assert.equal(await status(await call(env, '/v1/clubs/preview', { method: 'POST', body: { code: 'ZZZZZZZZ' } })), 404);
   const p = await joiner(env, 'Piet', a.club.inviteCode, a, a.club.id, false);
   for (const path of ['', '/feed', '/form', '/challenge', '/requests'])
