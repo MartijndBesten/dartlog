@@ -7,9 +7,9 @@
 | Oude adres martijndbesten.github.io/dartlog | `main` van dartlog (1.11.0, via GitHub Pages) | tag `live-1.9.0` in dartlog (`d1f1ca0`) of `main` vóór `2d3878e` |
 | Website okkiedarts.nl | /club, /club/uitnodiging (doel van de QR-code) en privacy 6a voor Club bij het bord, sinds 7 november 2026 (okkiedarts-site PR #9, `0047f33`) | okkiedarts-site `db71ae6` (vorige stand) |
 | API (Worker `okkie-api`) | versie **`314fe827`** (7 november), D1-migraties t/m **0012** (`club_codes`) | `wrangler rollback ac052b34-92a9-4dd0-833c-cd79aaf0857d --env production`; `club_codes` mag blijven staan |
-| iOS App Store | **1.8.0 (build 29)** openbaar sinds 6 november 2026 (`READY_FOR_SALE`), 4+ | — |
-| iOS 1.10.0 | build **53**, ingediend 7 november 2026 08:24 UTC, **`WAITING_FOR_REVIEW`** (inzending `29c6b0fb`); niet aangeraakt | — |
-| iOS 1.11.0 | **voorbereid, geen build, niets ingediend**: versie 1.11.0 in het Xcode-project, teksten in `appstore/APPSTORE-TEKSTEN.md`, `appstore/release-1.11.0.json`. Pas na afronding van de review van 1.10.0: TestFlight-build, testen, akkoord Martijn, indienen | — |
+| iOS App Store | **1.10.0 (build 53)** openbaar sinds 7 november 2026 19:54 UTC (`READY_FOR_SALE`), 4+; eerste iOS-versie met Club | — |
+| iOS 1.11.0 | build **66** (TestFlight uit `main` `299b9d7`, Club bij het bord), ingediend 7 november 2026 21:10 UTC, **`WAITING_FOR_REVIEW`** (inzending `55473e0d`); vrijgave automatisch na goedkeuring. Getest: simulator + XCUITests + Release zonder testmodus (run 42410639230), update 1.8.0 → 1.11.0 met gegevens (run 42410640708) | Na vrijgave: nieuwe versie met hogere build |
+| Android-app | **voorbereid, niet gepubliceerd** (PR #24): CI bouwt APK/AAB en test in de emulator; Google Play-account, uploadsleutel en doelgroepkeuze liggen bij Martijn (`ANDROID-APP.md`) | — |
 
 ## Club bij het bord (1.11.0) live, 7 november 2026 (akkoord Martijn)
 - **Wat:** QR-poster bij het bord (A4/A5), bordcode met *eerst goedkeuren* (standaard) of *direct toelaten*, persoonlijke
@@ -33,7 +33,8 @@
 - **Lokaal/CI:** unit 210, Worker 108, Playwright volledig 288 geslaagd (51 bewust overgeslagen), CI PR #22 groen.
 - **Bekend:** de staging-webapp (Workers static assets) kan vanuit de cloudsessie niet worden uitgerold (proxy vervangt
   het uploadtoken); productie gaat via GitHub Pages en is daar niet door geraakt.
-- **Open:** iOS 1.11.0 na de review van 1.10.0; daarna `node tools/ios/asc-signing.mjs retire`.
+- **iOS:** 1.10.0 goedgekeurd en live (7-11 19:54 UTC); 1.11.0 build 66 ingediend (21:10 UTC, akkoord Martijn).
+- **Open:** na vrijgave van 1.11.0 `node tools/ios/asc-signing.mjs retire` (oude CI-certificaten `88RRWW9U5S` e.a.; het nieuwste, `YQXC3KY5SF` van build 66, blijft). Android: zie `ANDROID-APP.md`.
 
 ## iOS 1.10.0 ingediend (7 november 2026, akkoord Martijn)
 - **Eerste inzending (build 33) afgekeurd door Apple: ITMS-90035 Invalid Signature.** Oorzaak (fout in onze
