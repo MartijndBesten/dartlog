@@ -29,7 +29,7 @@ export function jwt({ keyId, issuer, p8, now = Math.floor(Date.now() / 1000) }) 
   return head + '.' + body + '.' + sig.toString('base64url');
 }
 
-async function asc(path, { method = 'GET', body } = {}) {
+export async function asc(path, { method = 'GET', body } = {}) {
   const token = jwt({ keyId: ASC_KEY_ID.trim(), issuer: ASC_ISSUER_ID.trim(), p8: ASC_KEY_P8.replace(/\\n/g, '\n') });
   const r = await fetch(API + path, { method, headers: { Authorization: 'Bearer ' + token, ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
   const text = await r.text();

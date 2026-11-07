@@ -45,6 +45,19 @@ on:
         description: 'App Store-screenshots maken in de simulator (6,9" en 6,5", fictieve demogegevens); geen upload'
         type: boolean
         default: false
+      asc:
+        description: 'App Store Connect: status (alleen lezen), voorbereiden (versie, build, teksten) of indienen voor App Review'
+        type: choice
+        options: [geen, status, voorbereiden, indienen]
+        default: geen
+      versie:
+        description: 'Versie voor voorbereiden/indienen (bijv. 1.10.0)'
+        type: string
+        default: ''
+      build:
+        description: 'Buildnummer voor voorbereiden/indienen (bijv. 33)'
+        type: string
+        default: ''
 permissions:
   contents: read
 concurrency:
@@ -58,6 +71,8 @@ env:
 jobs:
   simulator:
     name: Compileren en rooktest (simulator)
+    # Niet bij een losse App Store Connect-actie (status/voorbereiden/indienen): die bouwt niets.
+    if: github.event_name == 'push' || inputs.testflight || inputs.asc == 'geen' || inputs.asc == ''
     runs-on: macos-26
     timeout-minutes: 45
     steps:
@@ -274,3 +289,40 @@ jobs:
             appstore-shots/*.log
             appstore-shots/*.xcresult
           retention-days: 14
+
+  appstoreconnect:
+    name: App Store Connect (${{ inputs.asc }})
+    # Alleen handmatig en alleen vanaf een toegestane branch; secrets uit de environment "testflight".
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.asc != 'geen' &&
+      (github.ref == 'refs/heads/claude/ios-app' || startsWith(github.ref, 'refs/heads/release/') || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: testflight
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      ASC_REPORT: asc-status.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: ${{ inputs.asc }}
+        env:
+          ACTIE: ${{ inputs.asc }}
+          VERSIE: ${{ inputs.versie }}
+          BUILD: ${{ inputs.build }}
+        run: |
+          case "$ACTIE" in
+            status) node tools/ios/asc-release.mjs status ;;
+            voorbereiden) node tools/ios/asc-release.mjs prepare "$VERSIE" "$BUILD" ;;
+            indienen) node tools/ios/asc-release.mjs submit "$VERSIE" "$BUILD" ;;
+          esac
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asc-${{ inputs.asc }}
+          path: asc-*.json
+          retention-days: 30
