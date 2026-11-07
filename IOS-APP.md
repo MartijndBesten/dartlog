@@ -189,9 +189,11 @@ testmodus. Schermafbeeldingen, logs en `uitests.xcresult` staan als artefact bij
   iOS-project stopt de run meteen met een duidelijke melding. Een push breekt een lopende TestFlight-run niet af.
 - App Store Connect-gegevens komen alleen uit de secrets `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, alleen in de
   TestFlight-job, en worden nooit afgedrukt (vooraf gecontroleerd op vorm, zonder waarden te tonen).
-- Per run een tijdelijk Apple Distribution-certificaat en App Store-profiel; na afloop wordt **alleen dat** certificaat
-  ingetrokken (ID én serienummer moeten kloppen) en alleen een profiel met de naam `OKKIE App Store CI …` verwijderd.
-  Je eigen certificaten en profielen worden nooit aangeraakt. Builds in TestFlight blijven werken.
+- Per run een Apple Distribution-certificaat en App Store-profiel. **Die blijven na de upload geldig:** Apple controleert
+  de handtekening opnieuw bij het indienen (een ingetrokken certificaat gaf bij build 33 ITMS-90035 *Invalid Signature*).
+  Opruimen alleen met `node tools/ios/asc-signing.mjs retire` (zelfde secrets) nadat een versie live staat: alleen
+  certificaten van profielen "OKKIE App Store CI …", nooit het nieuwste, en het weigert zolang een versie bij Apple ligt
+  of met een build klaarstaat. Je eigen certificaten en profielen worden nooit aangeraakt.
 - De build wordt gemaakt als *alleen interne TestFlight-test* (`testFlightInternalTestingOnly`): hij kan niet naar
   externe testers of de App Store. Voor de echte App Store-versie komt later een aparte, bewuste stap.
 - Altijd de nieuwste **niet-bèta** Xcode 26 (Apple weigert bèta-builds).
@@ -217,10 +219,33 @@ testmodus. Schermafbeeldingen, logs en `uitests.xcresult` staan als artefact bij
 9. App helemaal afsluiten en opnieuw openen: alles nog daar. Lopende training gaat verder.
 10. Na de Worker-deploy: Darters bekijken, delen aan/uit, een darter verbergen en melden.
 
-## App Store (pas na expliciet akkoord van de eigenaar)
+## App Store
 
-Klaar in `appstore/`: teksten, trefwoorden, leeftijdsvragen, reviewnotities, privacylabels, screenshots.
-Indienen voor review en publiceren doet de eigenaar zelf in App Store Connect; de workflow kan dat bewust niet.
+Openbaar sinds 6 november 2026: **1.8.0 (build 29)**, id 6829301399. Inhoud per versie: `appstore/release-<versie>.json`
+(Nederlandse teksten uit `appstore/APPSTORE-TEKSTEN.md`), screenshots in `appstore/screenshots/<versie>/`.
+
+**Releaseroute (akkoord eigenaar voor 1.10.0, 7 november 2026)** — Actions → *OKKIE iPhone-app* → Run workflow vanaf
+`release/…` of `main`, veld **asc**:
+1. `status`: alleen lezen (versies, builds incl. App Store-geschiktheid en vervaldatum, leeftijd, teksten, screenshots,
+   reviewgegevens, inzendingen). Rapport als artefact `asc-status`.
+2. `voorbereiden` + versie + build: versie aanmaken of bijwerken, build koppelen (alleen `VALID`, niet verlopen,
+   `APP_STORE_ELIGIBLE`), teksten, screenshots (vervangen), reviewnotities (contact van de vorige versie), leeftijdsvragen.
+3. `indienen` + versie + build: controleert opnieuw (juiste build, *Wat is nieuw*, screenshots, reviewnotities) en dient
+   pas dan in bij App Review. Vrijgave: `AFTER_APPROVAL` (automatisch na goedkeuring, zoals bij 1.8.0).
+Niet via de API en dus handwerk in App Store Connect: App Privacy-labels, EU-handelaarsstatus, overeenkomsten.
+
+**Leeftijdsclassificatie (Apple-definities, App Store Connect Help → Age ratings values and definitions)**
+- *Sociale media*: **Nee**. Apple: een sociale feed of ontdekfunctie die gebruikersinhoud zichtbaar verspreidt naar veel
+  gebruikers, met bijvoorbeeld weergaven, likes, reacties en delen. De clubfeed is besloten (goedgekeurde leden, max.
+  150), toont alleen trainingssamenvattingen die een lid zelf deelt (soort, score, datum), zonder likes, reacties,
+  doorsturen of ontdekken, en verdwijnt na 60 dagen. Darters is een ranglijst zonder interactie.
+- *Gebruikersinhoud*: **Ja** (bijnamen, clubnamen, clublogo's, naam en uitleg van clubtrainingen).
+- *Berichten en chat*: **Ja** sinds 1.10.0: een beheerder plaatst clubtrainingen met een uitleg van max. 200 tekens voor
+  alle leden; dat valt onder "group messaging, or public posting". Geen privéberichten of chat.
+- *Leeftijdscontrole*: **Nee** (16+ bij Club is een zelfverklaring). Uitkomst blijft **4+** (gebruikersinhoud en
+  berichten vallen volgens Apple onder 4+; alleen sociale media zou 13+ geven).
+- Leeftijdsregels online: **Club** alleen 16+ (server weigert jonger, ook bij registratie); **Darters** onder 16 alleen
+  na een "ja" van een ouder via een link (server), daarna alleen bijnaam en samengevatte cijfers. Zie privacy §6a en §7.
 
 ### Minimale functionaliteit en andere reviewpunten
 
@@ -228,25 +253,35 @@ Indienen voor review en publiceren doet de eigenaar zelf in App Store Connect; d
 |---|---|
 | 4.2 Minimale functionaliteit | Volledige offline app met lokale opslag, statistieken, trefferkaart, 501-uitgooi-advies, spraak, Haptics, deelmenu en bestanden. Geen geladen website. |
 | 2.1 Volledigheid | Geen testteksten, geen "binnenkort"-functies; Mijn vrienden staat uit en is niet zichtbaar. |
-| 1.2 Gebruikersinhoud | Darters: alleen bijnamen (letters/cijfers, 2–24 tekens), *verbergen op dit toestel*, *meld dit profiel*, contact info@denckh.nl. Beheerder verwijdert gemelde profielen (D1, zie cloud/INFRASTRUCTUUR.md). |
+| 1.2 Gebruikersinhoud | Darters: alleen bijnamen (letters/cijfers, 2–24 tekens), *verbergen op dit toestel*, *meld dit profiel*. Club: leden verbergen, melden (lid, clubnaam/logo, clubtraining), beheerder verwijdert leden, resultaten en feedberichten; Denckh. verwijdert gemelde inhoud of clubs (besloten inbox, cloud/CLUB.md). Contact info@denckh.nl. |
 | 5.1.1 Accounts | Geen verplicht account. Het Darters-profiel is vrijwillig en in de app te verwijderen (delen uit of speler verwijderen wist het online). |
 | 5.1.1/5.1.2 Privacy | Privacyverklaring bijgewerkt (2a), PrivacyInfo.xcprivacy, geen tracking, geen ATT nodig. |
 | 3.1 Betalingen | Geen aankopen, abonnementen of donaties (besluit eigenaar). |
-| Kinderen | Niet in de Kids-categorie. Delen onder 16 staat dicht. |
+| Kinderen | Niet in de Kids-categorie. Club alleen 16+; Darters onder 16 alleen na toestemming van een ouder (link). |
 | Exportnaleving | `ITSAppUsesNonExemptEncryption = false`. |
+
+## Release 1.10.0 (7 november 2026)
+
+| Wat | Uitslag |
+|---|---|
+| Build 33 (1.10.0) | afgekeurd bij indienen: **ITMS-90035 Invalid Signature** (certificaat na upload ingetrokken door onze workflow) |
+| Build 53 (1.10.0) | nieuwe build, zelfde appcode; certificaat blijft geldig tot na App Review |
+| Echte update 1.8.0 (bron build 29, Release) → 1.10.0 (Release), simulator | ✔ alle spelers, trainingen (elke pijl), wedstrijd, instellingen, online profiel en sleutels behouden, ook na herstart |
+| Club in productie vanuit `capacitor://localhost` (23 controles, testaccounts opgeruimd) | ✔ |
+| iOS-suite: build, rooktest, 10 UI-tests, Release zonder testmodus | ✔ |
+| Unit 203 · Worker 98 · web-e2e 255 | ✔ |
+| App Store Connect | versie 1.10.0 met build 53 opnieuw **ingediend** (7-11, 08:24 UTC), `WAITING_FOR_REVIEW`, vrijgave na goedkeuring |
 
 ## Nog open / bekende beperkingen
 
-- **Worker-deploy** (origin `capacitor://localhost`) wacht op akkoord.
-- **Privacyverklaring** op okkiedarts.nl (paragraaf 2a, melden) is bijgewerkt in de bron; publiceren van de website
-  wacht op akkoord (`node tools/build-public-site.mjs` → okkiedarts-site).
 - Echte iPhone: build 20 handmatig getest door Martijn (1 november 2026, "werkt goed", geen details); de lijst
   *Met de hand op de iPhone* is niet punt voor punt afgevinkt.
 - Rooktest: bekende instabiliteit bij de eerste start, herpoging maskeert de oorzaak, **nog open** (zie
   *Automatische UI-tests*, beperkingen).
-- Echte app-update (oudere build → nieuwere build met bestaande gegevens) is **niet aantoonbaar getest**, nog open.
+- Echte app-update is getest in de simulator (1.8.0 → 1.10.0, zie hierboven), niet op een fysiek toestel.
 - Geen iPad-versie (bewust; iPhone-app draait op iPad in iPhone-formaat).
-- Webversie 1.8.0 (boot.js, Darters melden/verbergen) is nog niet gepubliceerd op app.okkiedarts.nl.
+- EU-handelaarsstatus: "geen handelaar"; keuze van de eigenaar (App Store Connect → App-informatie).
+- Screenshots tonen geen Club (die heeft het netwerk nodig; de screenshotmodus werkt offline met fictieve gegevens).
 
 ## Stand TestFlight (1 november 2026)
 

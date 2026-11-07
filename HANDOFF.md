@@ -1,13 +1,41 @@
 # Overdracht OKKIE.
 
-## Actuele stand (2 november 2026)
+## Actuele stand (7 november 2026, gecontroleerd via App Store Connect-API, Cloudflare en de live sites)
 | Onderdeel | Live | Terugzetten |
 |---|---|---|
-| Webapp app.okkiedarts.nl | **1.10.0**, sinds 2 november 2026 (okkie-app `d142ea9`, uit dartlog `99f4fd3`) | tag `live-1.9.0` in okkie-app (`a97eb29`) |
+| Webapp app.okkiedarts.nl | **1.10.0**, sinds 2 november 2026 (okkie-app `d142ea9`, uit dartlog `99f4fd3`); byte-gelijk aan `main` | tag `live-1.9.0` in okkie-app (`a97eb29`) |
 | Oude adres martijndbesten.github.io/dartlog | 1.10.0 (= `main` van dartlog) | tag `live-1.9.0` in dartlog (`d1f1ca0`) |
-| Website okkiedarts.nl | 1.10.0: gratis-belofte, Gericht/Vandaag oefenen, /over/ (okkiedarts-site `119b0ed`, PR #7); App Store-badge **uit** | tag `live-voor-1.10.0` in okkiedarts-site (`6717bff`) |
-| API (Worker `okkie-api`) | versie `ac052b34`, migraties t/m 0011 | `wrangler rollback 2c08abdf-966a-4486-8b0f-3209fd1a58a7 --env production` |
-| iOS | 1.8.0 *Wachten op review* (build 29, automatisch live na goedkeuring); 1.9.0 wordt **overgeslagen**; 1.10.0 = build 33, klaar, wordt ingediend na vrijgave van 1.8.0 (akkoord Martijn) | — |
+| Website okkiedarts.nl | 1.10.0 + **App Store-badge aan** en privacy aangevuld (Club) sinds 7 november 2026 (okkiedarts-site PR #8, `db71ae6`) | okkiedarts-site `119b0ed` (vorige stand) |
+| API (Worker `okkie-api`) | versie `ac052b34` (2 november), D1-migraties t/m 0011; `capacitor://localhost` toegestaan | `wrangler rollback 2c08abdf-966a-4486-8b0f-3209fd1a58a7 --env production` |
+| iOS App Store | **1.8.0 (build 29)** openbaar sinds 6 november 2026 (`READY_FOR_SALE`), 4+ | — |
+| iOS 1.10.0 | build **53** (zelfde appcode), ingediend 7 november 2026 08:24 UTC, **`WAITING_FOR_REVIEW`** (inzending `29c6b0fb`); vrijgave automatisch na goedkeuring; zie *iOS 1.10.0 ingediend (7 november)*. Build 33 afgekeurd: ITMS-90035 | Na vrijgave: nieuwe versie met hogere build; App Store kent geen terugrol |
+
+## iOS 1.10.0 ingediend (7 november 2026, akkoord Martijn)
+- **Eerste inzending (build 33) afgekeurd door Apple: ITMS-90035 Invalid Signature.** Oorzaak (fout in onze
+  workflow, sinds de eerste TestFlight-opzet): het tijdelijke distributiecertificaat werd direct na de upload
+  ingetrokken; Apple controleert de handtekening opnieuw bij het indienen. Opgelost in `tools/ios/asc-signing.mjs`:
+  na de upload wordt niets meer ingetrokken; oude CI-certificaten ruimt `node tools/ios/asc-signing.mjs retire` op
+  (weigert zolang een versie bij Apple ligt of klaarstaat met een build; bewaart altijd het nieuwste). Nieuwe build
+  **53** uit `release/ios-1.10.0` `e5b2a25` (appcode gelijk aan build 33), opnieuw ingediend: `WAITING_FOR_REVIEW`
+  (inzending `29c6b0fb`; de oude inzending `e48126e2` is afgesloten). Certificaat `88RRWW9U5S` blijft geldig tot na
+  vrijgave; daarna `retire`.
+- **Build:** eerst 33 (uit `main` `a00288a`), na ITMS-90035 vervangen door **53** (zelfde appcode; de webbuild is
+  byte-gelijk aan live app.okkiedarts.nl). 1.9.0 (build 31) is overgeslagen.
+- **Ingediend via de API** (`tools/ios/asc-release.mjs`, workflow *OKKIE iPhone-app*, veld *asc*): versie 1.10.0
+  aangemaakt, build gekoppeld (eerst 33, daarna 53), NL/EN-teksten (beschrijving met Club, *Wat is nieuw*, promotietekst, trefwoorden met
+  "club"), 4 × 6 nieuwe screenshots uit de simulator (`appstore/screenshots/1.10.0/`), reviewnotities met Club-testroute,
+  leeftijd: berichten/plaatsen **ja**, sociale media **nee**, gebruikersinhoud ja → **4+**. Onderbouwing: IOS-APP.md.
+- **Getest vóór indienen:**
+  - Echte update 1.8.0 → 1.10.0 in de simulator (`tools/ios/upgrade-test.sh`, input *updatetest*): Release-build
+    van de bron van build 29 met 3 spelers, 5 trainingen, wedstrijd, instellingen, online profiel; daaroverheen 1.10.0.
+    Bewijs uit de webviewopslag zelf (kopie telkens gewist): alles ongewijzigd, ook na herstart.
+  - Club in productie vanuit de app-origin (`tools/ios/club-prod-test.mjs`): 23/23, testaccounts en club opgeruimd
+    (gecontroleerd in D1: 0 restanten).
+  - iOS-suite (build, rooktest, 10 XCUITests, Release zonder testmodus) groen; unit 203, Worker 98, web-e2e 255.
+- **Website** (okkiedarts-site PR #8): App Store-badge aan, iPhone-installatie via de App Store, privacy 6a/7 aangevuld.
+- **Open (Martijn):** EU-handelaarsstatus staat op "geen handelaar" terwijl OKKIE. een product is van de eenmanszaak
+  Denckh. (KvK); dat is een juridische keuze in App Store Connect → App-informatie. App Privacy-labels kloppen al
+  (gecontroleerd op de App Store-pagina).
 
 ## 1.10.0 — Gericht oefenen, Vandaag oefenen, website (live sinds 2 november 2026)
 Wat er is gebouwd (details in CHANGELOG.md):

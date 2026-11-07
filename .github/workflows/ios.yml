@@ -45,11 +45,29 @@ on:
         description: 'App Store-screenshots maken in de simulator (6,9" en 6,5", fictieve demogegevens); geen upload'
         type: boolean
         default: false
+      updatetest:
+        description: 'Echte update testen: App Store-versie 1.8.0 (build 29) met gegevens, dan deze versie eroverheen'
+        type: boolean
+        default: false
+      asc:
+        description: 'App Store Connect: status (alleen lezen), voorbereiden (versie, build, teksten) of indienen voor App Review'
+        type: choice
+        options: [geen, status, voorbereiden, indienen]
+        default: geen
+      versie:
+        description: 'Versie voor voorbereiden/indienen (bijv. 1.10.0)'
+        type: string
+        default: ''
+      build:
+        description: 'Buildnummer voor voorbereiden/indienen (bijv. 33)'
+        type: string
+        default: ''
 permissions:
   contents: read
 concurrency:
   # Een push mag een lopende handmatige (TestFlight-)run nooit afbreken.
-  group: ios-${{ github.ref }}-${{ github.event_name }}
+  # Handmatige runs elk een eigen groep (GitHub houdt per groep maar één wachtende run aan); pushes vervangen elkaar.
+  group: ios-${{ github.ref }}-${{ github.event_name == 'push' && 'push' || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'push' }}
 env:
   BUNDLE_ID: nl.denckh.okkie
@@ -58,6 +76,8 @@ env:
 jobs:
   simulator:
     name: Compileren en rooktest (simulator)
+    # Niet bij een losse App Store Connect-actie (status/voorbereiden/indienen): die bouwt niets.
+    if: github.event_name == 'push' || inputs.testflight || ((inputs.asc == 'geen' || inputs.asc == '') && !inputs.updatetest)
     runs-on: macos-26
     timeout-minutes: 45
     steps:
@@ -230,7 +250,7 @@ jobs:
             | tee export.log | grep -Ei "error|upload|EXPORT (SUCCEEDED|FAILED)" || true
           grep -qE "EXPORT SUCCEEDED|Upload succeeded" export.log
           echo "Build ${{ github.run_number }} staat in App Store Connect; na verwerking (5-30 min) verschijnt hij in TestFlight (alleen interne tests)." | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Opruimen (alleen het eigen tijdelijke certificaat intrekken, sleutel weg)
+      - name: Opruimen (sleutel en keychain weg; certificaat blijft geldig tot na App Review)
         if: always()
         run: |
           [ -n "${SIGN:-}" ] && node tools/ios/asc-signing.mjs cleanup "$SIGN" || true
@@ -274,3 +294,84 @@ jobs:
             appstore-shots/*.log
             appstore-shots/*.xcresult
           retention-days: 14
+
+  appstoreconnect:
+    name: App Store Connect (${{ inputs.asc }})
+    # Alleen handmatig en alleen vanaf een toegestane branch; secrets uit de environment "testflight".
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.asc != 'geen' &&
+      (github.ref == 'refs/heads/claude/ios-app' || startsWith(github.ref, 'refs/heads/release/') || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: testflight
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      ASC_REPORT: asc-status.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: ${{ inputs.asc }}
+        env:
+          ACTIE: ${{ inputs.asc }}
+          VERSIE: ${{ inputs.versie }}
+          BUILD: ${{ inputs.build }}
+        run: |
+          case "$ACTIE" in
+            status) node tools/ios/asc-release.mjs status ;;
+            voorbereiden) node tools/ios/asc-release.mjs prepare "$VERSIE" "$BUILD" ;;
+            indienen) node tools/ios/asc-release.mjs submit "$VERSIE" "$BUILD" ;;
+          esac
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: asc-${{ inputs.asc }}
+          path: asc-*.json
+          retention-days: 30
+
+  updatetest:
+    name: Update 1.8.0 → deze versie (gegevensbehoud, simulator)
+    if: github.event_name == 'workflow_dispatch' && inputs.updatetest
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      OUD_COMMIT: 82c3772   # bron van build 29 = App Store-versie 1.8.0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Xcode (nieuwste niet-bèta Xcode 26)
+        run: tools/ios/select-xcode.sh
+      - name: Oude versie 1.8.0 bouwen (Release, zoals in de App Store)
+        run: |
+          git worktree add "$RUNNER_TEMP/oud" "$OUD_COMMIT"
+          node tools/ios/upgrade-seed.mjs check-old "$RUNNER_TEMP/oud"
+          cd "$RUNNER_TEMP/oud" && npm ci --no-audit --no-fund && node tools/build-ios-web.mjs && npx cap sync ios
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/build-oud" \
+            MARKETING_VERSION=1.8.0 CURRENT_PROJECT_VERSION=29 CODE_SIGNING_ALLOWED=NO build > "$RUNNER_TEMP/oud.log" 2>&1 || { tail -40 "$RUNNER_TEMP/oud.log"; exit 1; }
+      - name: Nieuwe versie bouwen (Release)
+        run: |
+          npm ci --no-audit --no-fund && node tools/build-ios-web.mjs && npx cap sync ios
+          VERSION=$(node -p "require('./package.json').version")
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build-nieuw \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION=999 CODE_SIGNING_ALLOWED=NO build > nieuw.log 2>&1 || { tail -40 nieuw.log; exit 1; }
+      - name: Update uitvoeren en gegevens controleren
+        timeout-minutes: 25
+        run: tools/ios/upgrade-test.sh "$RUNNER_TEMP/build-oud/Build/Products/Release-iphonesimulator/App.app" build-nieuw/Build/Products/Release-iphonesimulator/App.app update
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-updatetest
+          path: update/
+          retention-days: 30

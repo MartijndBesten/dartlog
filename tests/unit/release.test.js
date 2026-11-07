@@ -21,6 +21,8 @@ const EXTERNAL = [APP, APP + 'community/', 'https://denckh.nl/', 'https://okkied
   // bronnen van de dartregels (js/rules.js)
   'https://dartswdf.com/rules', 'https://www.thedra.co.uk/dra-rulebook',
   'https://autoriteitpersoonsgegevens.nl/', 'mailto:info@denckh.nl', 'mailto:info@denckh.nl?subject=OKKIE.',
+  // officiële App Store-vermelding (badge, sinds de app openbaar staat: site-config appStoreApproved)
+  'https://apps.apple.com/nl/app/id6829301399',
   // cookieloze bezoekersteller van Denckh (alleen op de website, nooit in de app)
   'https://dashboard.denckh.nl/s.js'];
 const COUNTER = '<script defer src="https://dashboard.denckh.nl/s.js" data-brand="okkie"></script>';

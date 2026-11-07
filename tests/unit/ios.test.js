@@ -67,7 +67,7 @@ test('webbuild voor de app: dezelfde app als app.okkiedarts.nl, met opstarten vi
   assert.ok(!files.some(f => /^(cloud|tests|tools|ios|node_modules)\b/.test(f)), 'geen servercode, tests of tools in de app');
 });
 
-test('workflow: handmatig te starten, TestFlight alleen vanaf de iOS-branch, nooit naar de App Store', () => {
+test('workflow: handmatig te starten, TestFlight en indienen alleen met de hand vanaf een toegestane branch', () => {
   const wf = read('.github/workflows/ios.yml').replace(/\r\n/g, '\n'); // Windows-checkout (autocrlf) heeft CRLF
   assert.match(wf, /^  workflow_dispatch:/m, 'handmatig te starten (bestand moet ook op main staan)');
   assert.match(wf, /github\.event_name == 'workflow_dispatch' && inputs\.testflight &&/);
@@ -83,7 +83,15 @@ test('workflow: handmatig te starten, TestFlight alleen vanaf de iOS-branch, noo
   // Screenshots tellen niet mee bij de gewone UI-tests en draaien alleen handmatig.
   assert.match(wf, /-skip-testing:OKKIEUITests\/AppStoreScreenshots/);
   assert.match(wf, /if: github\.event_name == 'workflow_dispatch' && inputs\.screenshots/);
-  assert.doesNotMatch(wf, /submit|appStoreVersionSubmissions|reviewSubmissions|deliver\b|altool/i);
+  // Indienen bij App Review (akkoord eigenaar, 7-11-2026): alleen via de job App Store Connect, alleen handmatig met de
+  // expliciete keuze "indienen", alleen vanaf een toegestane branch; nooit bij een push en niet via andere tools.
+  assert.doesNotMatch(wf, /appStoreVersionSubmissions|reviewSubmissions|deliver\b|altool|fastlane/i);
+  assert.equal((wf.match(/asc-release\.mjs submit/g) || []).length, 1);
+  const ascJob = wf.split('\n  appstoreconnect:')[1]?.split(/\n  [a-z]+:\n/)[0] || '';
+  assert.match(ascJob, /github\.event_name == 'workflow_dispatch' && inputs\.asc != 'geen' &&/);
+  assert.match(ascJob, /indienen\) node tools\/ios\/asc-release\.mjs submit/);
+  assert.match(wf, /asc:\n\s+description: .*\n\s+type: choice\n\s+options: \[geen, status, voorbereiden, indienen\]\n\s+default: geen/, 'standaard niets');
+  assert.doesNotMatch(wf.split('\n  appstoreconnect:')[0], /asc-release\.mjs submit/, 'indienen alleen in die ene job');
   assert.match(wf, /asc-signing\.mjs cleanup/, 'tijdelijk certificaat wordt altijd opgeruimd');
   assert.match(wf, /select-xcode\.sh/, 'nooit met een bèta-Xcode bouwen');
 });
@@ -91,11 +99,16 @@ test('workflow: handmatig te starten, TestFlight alleen vanaf de iOS-branch, noo
 test('workflow: App Store Connect-gegevens alleen uit secrets, nooit afgedrukt', () => {
   const wf = read('.github/workflows/ios.yml');
   for (const k of ['ASC_KEY_ID', 'ASC_ISSUER_ID', 'ASC_KEY_P8']) assert.match(wf, new RegExp(`${k}: \\$\\{\\{ secrets\\.${k} \\}\\}`));
-  assert.equal((wf.match(/secrets\./g) || []).length, 3, 'geen andere of dubbele secrets');
+  assert.equal((wf.match(/secrets\./g) || []).length, 6, 'alleen de drie ASC-secrets, in de jobs TestFlight en App Store Connect');
   assert.doesNotMatch(wf, /echo[^\n]*\$\{?ASC_|set -x|-----BEGIN/);
   assert.doesNotMatch(wf, /pull_request_target/);
-  // Secrets alleen in de TestFlight-job (die alleen handmatig draait).
-  assert.doesNotMatch(wf.split('\n  testflight:')[0], /secrets\./);
+  // Secrets alleen in de jobs TestFlight en App Store Connect (beide alleen handmatig, environment testflight).
+  const jobs = wf.split(/\n  (?=[a-z]+:\n)/).slice(1);
+  for (const j of jobs) if (/secrets\./.test(j)) {
+    assert.match(j, /^(testflight|appstoreconnect):/, 'secrets in onverwachte job: ' + j.slice(0, 20));
+    assert.match(j, /environment: testflight/);
+    assert.match(j, /github\.event_name == 'workflow_dispatch'/);
+  }
 });
 
 test('geen aankopen, abonnementen of advertenties in de app', () => {
