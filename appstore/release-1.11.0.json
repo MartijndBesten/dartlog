@@ -1,7 +1,7 @@
 {
-  "_uitleg": "Inhoud van App Store-versie 1.11.0 (VOORBEREID, nog niet ingediend: eerst moet de review van 1.10.0 build 53 zijn afgerond en een TestFlight-build van 1.11.0 bestaan). Teksten uit appstore/APPSTORE-TEKSTEN.md.",
+  "_uitleg": "Inhoud van App Store-versie 1.11.0 voor tools/ios/asc-release.mjs (prepare/submit). Build 66 (TestFlight, main 299b9d7, 7-11-2026) na goedkeuring van 1.10.0. Teksten uit appstore/APPSTORE-TEKSTEN.md.",
   "version": "1.11.0",
-  "build": "TBD",
+  "build": "66",
   "releaseType": "AFTER_APPROVAL",
   "ageRating": {
     "_uitleg": "Apple-definities (App Store Connect Help, Age ratings values and definitions): clubtrainingen met naam en uitleg die een beheerder voor alle leden plaatst = groepsbericht/plaatsen (messagingAndChat ja). Geen sociale feed die inhoud verspreidt of versterkt (geen likes, reacties, delen, ontdekken; besloten club tot 150 leden): socialMedia nee. Gebruikersinhoud ja (bijnamen, clubnamen, logo's, clubtrainingen).",

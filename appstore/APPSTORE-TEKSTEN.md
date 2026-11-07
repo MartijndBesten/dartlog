@@ -204,7 +204,7 @@ oefening gaat alleen de eindscore naar de club als de gebruiker die deelt (valt 
 Leeftijdsclassificatie: ongewijzigd (gebruikersinhoud Ja; Club voegt clubnamen, logo's en trainingsnamen toe, met
 melden en verbergen). Privacybeleid https://okkiedarts.nl/privacy/ dekt Club (6a) en de oefenresultaten.
 
-## Versie 1.11.0 (voorbereid; indienen pas nadat de review van 1.10.0 build 53 is afgerond)
+## Versie 1.11.0 (build 66; ingediend na goedkeuring van 1.10.0 op 7 november 2026)
 
 Build: nog niet gemaakt. Na afronding van de review van 1.10.0: TestFlight-build uit dartlog `main` (workflow *OKKIE
 iPhone-app*), testen in TestFlight, daarna pas versie 1.11.0 aanmaken en indienen (`appstore/release-1.11.0.json`).
