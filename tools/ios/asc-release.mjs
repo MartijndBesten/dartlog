@@ -205,15 +205,22 @@ export async function submit(version, build) {
   }
   if (!d.review || !(d.review.notities > 100)) problems.push('reviewnotities ontbreken');
   if (problems.length) throw new Error('Niet ingediend: ' + problems.join('; '));
-  // Een open inzending (bijv. UNRESOLVED_ISSUES na een afgekeurde build) eerst intrekken; daarna een nieuwe, schone inzending.
+  // Open inzending hergebruiken (READY_FOR_REVIEW, bijv. van een eerdere poging; of UNRESOLVED_ISSUES na een afgekeurde
+  // build en niet in te trekken). Alleen als er geen is: een nieuwe. Zo ontstaan er nooit dubbele inzendingen.
+  let sub = null;
   for (const old of await all('/reviewSubmissions' + q({ 'filter[app]': app.id, limit: 20 }))) {
-    if (['UNRESOLVED_ISSUES', 'READY_FOR_REVIEW'].includes(old.attributes.state)) {
-      await asc(`/reviewSubmissions/${old.id}`, { method: 'PATCH', body: body('reviewSubmissions', { canceled: true }, null, old.id) });
-      console.log(`Open inzending ${old.id} (${old.attributes.state}) ingetrokken.`);
+    const st = old.attributes.state;
+    if (st === 'READY_FOR_REVIEW') { sub = old; break; }
+    if (st === 'UNRESOLVED_ISSUES') {
+      try { await asc(`/reviewSubmissions/${old.id}`, { method: 'PATCH', body: body('reviewSubmissions', { canceled: true }, null, old.id) }); console.log(`Inzending ${old.id} (UNRESOLVED_ISSUES) ingetrokken.`); }
+      catch { sub = old; console.log(`Inzending ${old.id} (UNRESOLVED_ISSUES) niet in te trekken; wordt hergebruikt.`); break; }
     }
   }
-  const sub = (await asc('/reviewSubmissions', { method: 'POST', body: body('reviewSubmissions', { platform: 'IOS' }, { app: rel('apps', app.id) }) })).data;
-  await asc('/reviewSubmissionItems', { method: 'POST', body: body('reviewSubmissionItems', null, { reviewSubmission: rel('reviewSubmissions', sub.id), appStoreVersion: rel('appStoreVersions', v.id) }) });
+  if (sub) console.log(`Bestaande inzending ${sub.id} (${sub.attributes.state}) wordt gebruikt.`);
+  else sub = (await asc('/reviewSubmissions', { method: 'POST', body: body('reviewSubmissions', { platform: 'IOS' }, { app: rel('apps', app.id) }) })).data;
+  const items = await all(`/reviewSubmissions/${sub.id}/items`).catch(() => []);
+  const hasVersion = items.some(it => it.relationships?.appStoreVersion?.data?.id === v.id);
+  if (!hasVersion) await asc('/reviewSubmissionItems', { method: 'POST', body: body('reviewSubmissionItems', null, { reviewSubmission: rel('reviewSubmissions', sub.id), appStoreVersion: rel('appStoreVersions', v.id) }) });
   // Screenshots of build kunnen nog verwerkt worden (409 ASSET_IN_POST_PROCESSING): tot 10 minuten opnieuw proberen.
   let done = null;
   for (let i = 0; !done; i++) {
