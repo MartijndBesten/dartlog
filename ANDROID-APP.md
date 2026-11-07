@@ -9,7 +9,7 @@ Zelfde opzet als de iPhone-app (`IOS-APP.md`): Capacitor 8 met **exact dezelfde 
 |---|---|
 | Android-project (Capacitor 8.5.3, minSdk 24, targetSdk 36) | `android/` |
 | Versie en ondertekenen (uploadsleutel alleen uit secrets) | `android/app/build.gradle` |
-| Alleen internetrecht; Android-back-up neemt de trainingen mee (webviewopslag + duurzame kopie) | `AndroidManifest.xml`, `res/xml/backup_rules.xml`, `res/xml/data_extraction_rules.xml` |
+| Alleen internet en trillen (VIBRATE, via de Haptics-plugin; geen toestemmingsvraag); Android-back-up neemt de trainingen mee (webviewopslag + duurzame kopie) | `AndroidManifest.xml`, `res/xml/backup_rules.xml`, `res/xml/data_extraction_rules.xml` |
 | Icoon (klassiek, rond, adaptief) en startscherm | `tools/make-android-assets.mjs` → `android/app/src/main/res/` |
 | Terugknop: venster dicht → startscherm → pagina terug → app naar achtergrond | `js/native.js` (`onBack`, `handleBack`), `js/app.js` |
 | Rand-tot-rand (Android 15+): SystemBars `insetsHandling: css` (de app gebruikt al `env(safe-area-inset-*)`) | `capacitor.config.json` |

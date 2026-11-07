@@ -24,7 +24,7 @@ test('project: app-ID nl.denckh.okkie, versienaam uit package.json, versiecode p
   assert.equal(JSON.parse(read('package.json')).dependencies['@capacitor/android'], JSON.parse(read('package.json')).dependencies['@capacitor/core']);
 });
 
-test('manifest: alleen internet, back-up van de trainingen (webviewopslag en duurzame kopie), geen cache', () => {
+test('manifest: alleen internet (trillen voegt de Haptics-plugin toe), back-up van de trainingen (webviewopslag en duurzame kopie), geen cache', () => {
   const m = read('android/app/src/main/AndroidManifest.xml');
   const perms = [...m.matchAll(/uses-permission android:name="([^"]+)"/g)].map(x => x[1]);
   assert.deepEqual(perms, ['android.permission.INTERNET']);
@@ -70,7 +70,9 @@ test('workflow: bouwt, test in de emulator, publiceert nooit naar Google Play; A
   assert.match(wf, /assembleDebug bundleRelease/);
   assert.match(wf, /tools\/android\/smoke\.sh/);
   assert.doesNotMatch(wf, /upload-google-play|androidpublisher|fastlane supply|play-publisher/i);
-  assert.match(wf, /test -z "\$PERMS"/, 'controle: alleen internetrecht in de gebouwde APK');
+  assert.match(wf, /test -z "\$PERMS"/, 'controle: alleen internet (en trillen via Haptics) in de gebouwde APK');
+  assert.match(wf, /grep -v "android\.permission\.VIBRATE'"/);
+  assert.doesNotMatch(wf, /grep -v "android\.permission\.(CAMERA|ACCESS_|READ_|WRITE_|POST_NOTIFICATIONS)/);
   const origins = [...read('cloud/wrangler.toml').matchAll(/^ALLOWED_ORIGINS = "([^"]+)"/gm)].map(m => m[1].split(','));
   for (const o of origins) assert.ok(o.includes('https://localhost'));
 });

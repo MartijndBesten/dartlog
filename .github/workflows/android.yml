@@ -75,8 +75,9 @@ jobs:
           head -3 badging.txt
           grep -q "versionName='$(node -p "require('./package.json').version")'" badging.txt
           grep -q "package: name='nl.denckh.okkie'" badging.txt
-          # Alleen internet: geen camera, locatie, contacten of opslagrechten.
-          PERMS=$(grep "uses-permission:" badging.txt | grep -v "android.permission.INTERNET" | grep -v "DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" || true)
+          # Alleen internet en trillen (Haptics, gewoon recht zonder toestemmingsvraag): geen camera, locatie,
+          # contacten, meldingen of opslagrechten.
+          PERMS=$(grep "uses-permission:" badging.txt | grep -v "android.permission.INTERNET'" | grep -v "android.permission.VIBRATE'" | grep -v "DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" || true)
           echo "$PERMS"
           test -z "$PERMS"
       - uses: actions/upload-artifact@v4
