@@ -2,8 +2,8 @@
 
 ## iOS 1.10.0 bij Apple ingediend, website met App Store-badge (7 november 2026, geen nieuwe appversie)
 
-- **App Store:** 1.8.0 staat sinds 6 november openbaar. Versie 1.10.0 (build 33, zelfde code als de webapp) is
-  ingediend bij App Review, met Club in de beschrijving, nieuwe screenshots en reviewnotities. Vrijgave automatisch na
+- **App Store:** 1.8.0 staat sinds 6 november openbaar. Versie 1.10.0 (build 53, zelfde code als de webapp) is
+  ingediend bij App Review (build 33 werd afgekeurd: ITMS-90035, certificaat na upload ingetrokken; opgelost), met Club in de beschrijving, nieuwe screenshots en reviewnotities. Vrijgave automatisch na
   goedkeuring. Leeftijd blijft 4+ (berichten/plaatsen ja vanwege clubtrainingen, sociale media nee).
 - **Getest:** echte update 1.8.0 → 1.10.0 in de iOS-simulator zonder gegevensverlies; Club in productie vanuit de
   iPhone-app met tijdelijke testaccounts (daarna verwijderd).

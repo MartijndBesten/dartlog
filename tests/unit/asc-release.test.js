@@ -23,10 +23,10 @@ before(async () => {
 after(() => { globalThis.fetch = realFetch; });
 const APP = { data: [{ id: 'APP1', attributes: { name: 'OKKIE.', bundleId: 'nl.denckh.okkie' } }] };
 
-test('releasebestand 1.10.0: Nederlandse teksten uit APPSTORE-TEKSTEN.md, lengtes binnen Apple-grenzen, build 33', () => {
+test('releasebestand 1.10.0: Nederlandse teksten uit APPSTORE-TEKSTEN.md, lengtes binnen Apple-grenzen, build 53', () => {
   const r = mod.loadRelease('1.10.0');
   const md = readFileSync(root + '/appstore/APPSTORE-TEKSTEN.md', 'utf8');
-  assert.equal(r.build, '33');
+  assert.equal(r.build, '53');   // build 33 werd afgekeurd (ITMS-90035, certificaat ingetrokken)
   assert.equal(r.releaseType, 'AFTER_APPROVAL');
   const nl = r.locales['nl-NL'], en = r.locales['en-US'];
   for (const t of [nl.description, nl.whatsNew, nl.keywords, nl.promotionalText]) assert.ok(md.includes(t));

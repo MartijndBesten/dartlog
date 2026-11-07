@@ -189,9 +189,11 @@ testmodus. Schermafbeeldingen, logs en `uitests.xcresult` staan als artefact bij
   iOS-project stopt de run meteen met een duidelijke melding. Een push breekt een lopende TestFlight-run niet af.
 - App Store Connect-gegevens komen alleen uit de secrets `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, alleen in de
   TestFlight-job, en worden nooit afgedrukt (vooraf gecontroleerd op vorm, zonder waarden te tonen).
-- Per run een tijdelijk Apple Distribution-certificaat en App Store-profiel; na afloop wordt **alleen dat** certificaat
-  ingetrokken (ID én serienummer moeten kloppen) en alleen een profiel met de naam `OKKIE App Store CI …` verwijderd.
-  Je eigen certificaten en profielen worden nooit aangeraakt. Builds in TestFlight blijven werken.
+- Per run een Apple Distribution-certificaat en App Store-profiel. **Die blijven na de upload geldig:** Apple controleert
+  de handtekening opnieuw bij het indienen (een ingetrokken certificaat gaf bij build 33 ITMS-90035 *Invalid Signature*).
+  Opruimen alleen met `node tools/ios/asc-signing.mjs retire` (zelfde secrets) nadat een versie live staat: alleen
+  certificaten van profielen "OKKIE App Store CI …", nooit het nieuwste, en het weigert zolang een versie bij Apple ligt
+  of met een build klaarstaat. Je eigen certificaten en profielen worden nooit aangeraakt.
 - De build wordt gemaakt als *alleen interne TestFlight-test* (`testFlightInternalTestingOnly`): hij kan niet naar
   externe testers of de App Store. Voor de echte App Store-versie komt later een aparte, bewuste stap.
 - Altijd de nieuwste **niet-bèta** Xcode 26 (Apple weigert bèta-builds).
@@ -262,12 +264,13 @@ Niet via de API en dus handwerk in App Store Connect: App Privacy-labels, EU-han
 
 | Wat | Uitslag |
 |---|---|
-| Build 33 (1.10.0) | uit `a00288a`, zelfde appcode als `main` en live webapp; `APP_STORE_ELIGIBLE`, niet verlopen |
+| Build 33 (1.10.0) | afgekeurd bij indienen: **ITMS-90035 Invalid Signature** (certificaat na upload ingetrokken door onze workflow) |
+| Build 53 (1.10.0) | nieuwe build, zelfde appcode; certificaat blijft geldig tot na App Review |
 | Echte update 1.8.0 (bron build 29, Release) → 1.10.0 (Release), simulator | ✔ alle spelers, trainingen (elke pijl), wedstrijd, instellingen, online profiel en sleutels behouden, ook na herstart |
 | Club in productie vanuit `capacitor://localhost` (23 controles, testaccounts opgeruimd) | ✔ |
 | iOS-suite: build, rooktest, 10 UI-tests, Release zonder testmodus | ✔ |
 | Unit 203 · Worker 98 · web-e2e 255 | ✔ |
-| App Store Connect | versie 1.10.0 met build 33 **ingediend**, `WAITING_FOR_REVIEW`, vrijgave na goedkeuring |
+| App Store Connect | versie 1.10.0 met build 53 opnieuw **ingediend**, vrijgave na goedkeuring |
 
 ## Nog open / bekende beperkingen
 

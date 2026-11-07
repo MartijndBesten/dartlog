@@ -8,14 +8,19 @@
 | Website okkiedarts.nl | 1.10.0 + **App Store-badge aan** en privacy aangevuld (Club) sinds 7 november 2026 (okkiedarts-site PR #8, `db71ae6`) | okkiedarts-site `119b0ed` (vorige stand) |
 | API (Worker `okkie-api`) | versie `ac052b34` (2 november), D1-migraties t/m 0011; `capacitor://localhost` toegestaan | `wrangler rollback 2c08abdf-966a-4486-8b0f-3209fd1a58a7 --env production` |
 | iOS App Store | **1.8.0 (build 29)** openbaar sinds 6 november 2026 (`READY_FOR_SALE`), 4+ | — |
-| iOS 1.10.0 | build **33**, **ingediend 7 november 2026, status `WAITING_FOR_REVIEW`** (inzending `e48126e2`), vrijgave automatisch na goedkeuring; zie *iOS 1.10.0 ingediend (7 november)* | Na vrijgave: nieuwe versie met hogere build; App Store kent geen terugrol |
+| iOS 1.10.0 | build **53** (zelfde appcode), ingediend 7 november 2026; vrijgave automatisch na goedkeuring; zie *iOS 1.10.0 ingediend (7 november)*. Build 33 afgekeurd: ITMS-90035 | Na vrijgave: nieuwe versie met hogere build; App Store kent geen terugrol |
 
 ## iOS 1.10.0 ingediend (7 november 2026, akkoord Martijn)
-- **Build:** 33 uit `main` `a00288a` (2 november). Sindsdien is er geen appcode veranderd; de webbuild van `main` is
-  byte-gelijk aan live app.okkiedarts.nl. Build 33: `VALID`, `APP_STORE_ELIGIBLE`, versleuteling nee, verloopt 31-1-2027.
-  Geen nieuwe build nodig. 1.9.0 (build 31) is overgeslagen.
+- **Eerste inzending (build 33) afgekeurd door Apple: ITMS-90035 Invalid Signature.** Oorzaak (fout in onze
+  workflow, sinds de eerste TestFlight-opzet): het tijdelijke distributiecertificaat werd direct na de upload
+  ingetrokken; Apple controleert de handtekening opnieuw bij het indienen. Opgelost in `tools/ios/asc-signing.mjs`:
+  na de upload wordt niets meer ingetrokken; oude CI-certificaten ruimt `node tools/ios/asc-signing.mjs retire` op
+  (weigert zolang een versie bij Apple ligt of klaarstaat met een build; bewaart altijd het nieuwste). Nieuwe build
+  **53** uit `release/ios-1.10.0` `e5b2a25` (appcode gelijk aan build 33), opnieuw ingediend.
+- **Build:** eerst 33 (uit `main` `a00288a`), na ITMS-90035 vervangen door **53** (zelfde appcode; de webbuild is
+  byte-gelijk aan live app.okkiedarts.nl). 1.9.0 (build 31) is overgeslagen.
 - **Ingediend via de API** (`tools/ios/asc-release.mjs`, workflow *OKKIE iPhone-app*, veld *asc*): versie 1.10.0
-  aangemaakt, build 33 gekoppeld, NL/EN-teksten (beschrijving met Club, *Wat is nieuw*, promotietekst, trefwoorden met
+  aangemaakt, build gekoppeld (eerst 33, daarna 53), NL/EN-teksten (beschrijving met Club, *Wat is nieuw*, promotietekst, trefwoorden met
   "club"), 4 × 6 nieuwe screenshots uit de simulator (`appstore/screenshots/1.10.0/`), reviewnotities met Club-testroute,
   leeftijd: berichten/plaatsen **ja**, sociale media **nee**, gebruikersinhoud ja → **4+**. Onderbouwing: IOS-APP.md.
 - **Getest vóór indienen:**
