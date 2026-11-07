@@ -270,7 +270,7 @@ Niet via de API en dus handwerk in App Store Connect: App Privacy-labels, EU-han
 | Club in productie vanuit `capacitor://localhost` (23 controles, testaccounts opgeruimd) | ✔ |
 | iOS-suite: build, rooktest, 10 UI-tests, Release zonder testmodus | ✔ |
 | Unit 203 · Worker 98 · web-e2e 255 | ✔ |
-| App Store Connect | versie 1.10.0 met build 53 opnieuw **ingediend**, vrijgave na goedkeuring |
+| App Store Connect | versie 1.10.0 met build 53 opnieuw **ingediend** (7-11, 08:24 UTC), `WAITING_FOR_REVIEW`, vrijgave na goedkeuring |
 
 ## Nog open / bekende beperkingen
 

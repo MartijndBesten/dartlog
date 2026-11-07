@@ -8,7 +8,7 @@
 | Website okkiedarts.nl | 1.10.0 + **App Store-badge aan** en privacy aangevuld (Club) sinds 7 november 2026 (okkiedarts-site PR #8, `db71ae6`) | okkiedarts-site `119b0ed` (vorige stand) |
 | API (Worker `okkie-api`) | versie `ac052b34` (2 november), D1-migraties t/m 0011; `capacitor://localhost` toegestaan | `wrangler rollback 2c08abdf-966a-4486-8b0f-3209fd1a58a7 --env production` |
 | iOS App Store | **1.8.0 (build 29)** openbaar sinds 6 november 2026 (`READY_FOR_SALE`), 4+ | — |
-| iOS 1.10.0 | build **53** (zelfde appcode), ingediend 7 november 2026; vrijgave automatisch na goedkeuring; zie *iOS 1.10.0 ingediend (7 november)*. Build 33 afgekeurd: ITMS-90035 | Na vrijgave: nieuwe versie met hogere build; App Store kent geen terugrol |
+| iOS 1.10.0 | build **53** (zelfde appcode), ingediend 7 november 2026 08:24 UTC, **`WAITING_FOR_REVIEW`** (inzending `29c6b0fb`); vrijgave automatisch na goedkeuring; zie *iOS 1.10.0 ingediend (7 november)*. Build 33 afgekeurd: ITMS-90035 | Na vrijgave: nieuwe versie met hogere build; App Store kent geen terugrol |
 
 ## iOS 1.10.0 ingediend (7 november 2026, akkoord Martijn)
 - **Eerste inzending (build 33) afgekeurd door Apple: ITMS-90035 Invalid Signature.** Oorzaak (fout in onze
@@ -16,7 +16,9 @@
   ingetrokken; Apple controleert de handtekening opnieuw bij het indienen. Opgelost in `tools/ios/asc-signing.mjs`:
   na de upload wordt niets meer ingetrokken; oude CI-certificaten ruimt `node tools/ios/asc-signing.mjs retire` op
   (weigert zolang een versie bij Apple ligt of klaarstaat met een build; bewaart altijd het nieuwste). Nieuwe build
-  **53** uit `release/ios-1.10.0` `e5b2a25` (appcode gelijk aan build 33), opnieuw ingediend.
+  **53** uit `release/ios-1.10.0` `e5b2a25` (appcode gelijk aan build 33), opnieuw ingediend: `WAITING_FOR_REVIEW`
+  (inzending `29c6b0fb`; de oude inzending `e48126e2` is afgesloten). Certificaat `88RRWW9U5S` blijft geldig tot na
+  vrijgave; daarna `retire`.
 - **Build:** eerst 33 (uit `main` `a00288a`), na ITMS-90035 vervangen door **53** (zelfde appcode; de webbuild is
   byte-gelijk aan live app.okkiedarts.nl). 1.9.0 (build 31) is overgeslagen.
 - **Ingediend via de API** (`tools/ios/asc-release.mjs`, workflow *OKKIE iPhone-app*, veld *asc*): versie 1.10.0
