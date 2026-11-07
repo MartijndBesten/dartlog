@@ -120,7 +120,12 @@ async function uploadScreenshots(locId, displayType, dir) {
   if (files.length < 3 || files.length > 10) throw new Error(`${dir}: ${files.length} screenshots (3 tot 10 nodig)`);
   let set = (await all(`/appStoreVersionLocalizations/${locId}/appScreenshotSets`)).find(x => x.attributes.screenshotDisplayType === displayType);
   if (!set) set = (await asc('/appScreenshotSets', { method: 'POST', body: body('appScreenshotSets', { screenshotDisplayType: displayType }, { appStoreVersionLocalization: rel('appStoreVersionLocalizations', locId) }) })).data;
-  for (const old of await all(`/appScreenshotSets/${set.id}/appScreenshots`)) await asc(`/appScreenshots/${old.id}`, { method: 'DELETE' });
+  const existing = await all(`/appScreenshotSets/${set.id}/appScreenshots`);
+  const sums = files.map(f => createHash('md5').update(readFileSync(dir + '/' + f)).digest('hex'));
+  // Al precies dezelfde bestanden (zelfde volgorde en checksum)? Dan niets opnieuw uploaden: dat zou de verwerking bij
+  // Apple opnieuw starten en indienen tijdelijk blokkeren (409 ASSET_IN_POST_PROCESSING).
+  if (existing.length === files.length && existing.every((x, i) => x.attributes?.sourceFileChecksum === sums[i])) return { set: set.id, aantal: existing.length, ongewijzigd: true };
+  for (const old of existing) await asc(`/appScreenshots/${old.id}`, { method: 'DELETE' });
   const ids = [];
   for (const f of files) {
     const path = dir + '/' + f, buf = readFileSync(path);
@@ -209,7 +214,16 @@ export async function submit(version, build) {
   }
   const sub = (await asc('/reviewSubmissions', { method: 'POST', body: body('reviewSubmissions', { platform: 'IOS' }, { app: rel('apps', app.id) }) })).data;
   await asc('/reviewSubmissionItems', { method: 'POST', body: body('reviewSubmissionItems', null, { reviewSubmission: rel('reviewSubmissions', sub.id), appStoreVersion: rel('appStoreVersions', v.id) }) });
-  const done = (await asc(`/reviewSubmissions/${sub.id}`, { method: 'PATCH', body: body('reviewSubmissions', { submitted: true }, null, sub.id) })).data;
+  // Screenshots of build kunnen nog verwerkt worden (409 ASSET_IN_POST_PROCESSING): tot 10 minuten opnieuw proberen.
+  let done = null;
+  for (let i = 0; !done; i++) {
+    try { done = (await asc(`/reviewSubmissions/${sub.id}`, { method: 'PATCH', body: body('reviewSubmissions', { submitted: true }, null, sub.id) })).data; }
+    catch (e) {
+      if (!/ASSET_IN_POST_PROCESSING|PROCESSING/.test(e.message) || i >= 20) throw e;
+      console.log('Apple verwerkt de screenshots/build nog; over 30 s opnieuw.');
+      await new Promise(r => setTimeout(r, Number(process.env.ASC_RETRY_MS ?? 30000)));
+    }
+  }
   const after = await findVersion(app.id, version);
   const out = { inzending: sub.id, inzendingStatus: done.attributes.state, versieStatus: after.attributes.appStoreState || after.attributes.appVersionState, versie: version, build };
   writeFileSync('asc-indienen.json', JSON.stringify(out, null, 2));

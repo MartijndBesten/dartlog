@@ -71,7 +71,8 @@ test('indienen weigert bij ontbrekende onderdelen en dient niets in', async () =
 
 test('indienen als alles klopt: inzending maken, versie toevoegen, versturen', async () => {
   calls = [];
-  let submitted = false;
+  let submitted = false, busyOnce = false;
+  process.env.ASC_RETRY_MS = '0';
   api = (m, p, b) => {
     if (p.startsWith('/apps?')) return { body: APP };
     if (p.startsWith('/apps/APP1/appStoreVersions')) return { body: { data: [{ id: 'V1', attributes: { versionString: '1.10.0', appStoreState: submitted ? 'WAITING_FOR_REVIEW' : 'INVALID_BINARY' } }] } };
@@ -84,11 +85,13 @@ test('indienen als alles klopt: inzending maken, versie toevoegen, versturen', a
     if (m === 'PATCH' && p === '/reviewSubmissions/R0') { assert.equal(b.data.attributes.canceled, true); return { body: { data: { id: 'R0', attributes: { state: 'CANCELING' } } } }; }
     if (m === 'POST' && p === '/reviewSubmissions') { assert.equal(b.data.relationships.app.data.id, 'APP1'); return { status: 201, body: { data: { id: 'R1', attributes: { state: 'READY_FOR_REVIEW' } } } }; }
     if (m === 'POST' && p === '/reviewSubmissionItems') { assert.equal(b.data.relationships.appStoreVersion.data.id, 'V1'); return { status: 201, body: { data: { id: 'I1' } } }; }
+    if (m === 'PATCH' && p === '/reviewSubmissions/R1' && !busyOnce) { busyOnce = true; return { status: 409, body: { errors: [{ status: '409', code: 'STATE_ERROR.ASSET_IN_POST_PROCESSING' }] } }; }
     if (m === 'PATCH' && p === '/reviewSubmissions/R1') { assert.equal(b.data.attributes.submitted, true); submitted = true; return { body: { data: { id: 'R1', attributes: { state: 'WAITING_FOR_REVIEW' } } } }; }
     return null;
   };
   const r = await mod.submit('1.10.0', '33');
   assert.deepEqual([r.inzendingStatus, r.versieStatus], ['WAITING_FOR_REVIEW', 'WAITING_FOR_REVIEW']);
   // Open inzending met problemen (zoals na ITMS-90035) eerst ingetrokken; afgeronde inzendingen blijven staan.
-  assert.deepEqual(calls.filter(c => !c.startsWith('GET')), ['PATCH /reviewSubmissions/R0', 'POST /reviewSubmissions', 'POST /reviewSubmissionItems', 'PATCH /reviewSubmissions/R1']);
+  // Eerste poging: Apple verwerkt de screenshots nog (409); daarna gelukt.
+  assert.deepEqual(calls.filter(c => !c.startsWith('GET')), ['PATCH /reviewSubmissions/R0', 'POST /reviewSubmissions', 'POST /reviewSubmissionItems', 'PATCH /reviewSubmissions/R1', 'PATCH /reviewSubmissions/R1']);
 });
