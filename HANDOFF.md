@@ -1,14 +1,39 @@
 # Overdracht OKKIE.
 
-## Actuele stand (7 november 2026, gecontroleerd via App Store Connect-API, Cloudflare en de live sites)
+## Actuele stand (7 november 2026, middag: Club bij het bord live)
 | Onderdeel | Live | Terugzetten |
 |---|---|---|
-| Webapp app.okkiedarts.nl | **1.10.0**, sinds 2 november 2026 (okkie-app `d142ea9`, uit dartlog `99f4fd3`); byte-gelijk aan `main` | tag `live-1.9.0` in okkie-app (`a97eb29`) |
-| Oude adres martijndbesten.github.io/dartlog | 1.10.0 (= `main` van dartlog) | tag `live-1.9.0` in dartlog (`d1f1ca0`) |
-| Website okkiedarts.nl | 1.10.0 + **App Store-badge aan** en privacy aangevuld (Club) sinds 7 november 2026 (okkiedarts-site PR #8, `db71ae6`) | okkiedarts-site `119b0ed` (vorige stand) |
-| API (Worker `okkie-api`) | versie `ac052b34` (2 november), D1-migraties t/m 0011; `capacitor://localhost` toegestaan | `wrangler rollback 2c08abdf-966a-4486-8b0f-3209fd1a58a7 --env production` |
+| Webapp app.okkiedarts.nl | **1.11.0** (Club bij het bord), sinds 7 november 2026 (okkie-app `52423bf`, uit dartlog `2d3878e`) | okkie-app commit `d142ea9` (1.10.0) terugzetten (tag pushen mocht niet: 403) |
+| Oude adres martijndbesten.github.io/dartlog | `main` van dartlog (1.11.0, via GitHub Pages) | tag `live-1.9.0` in dartlog (`d1f1ca0`) of `main` vóór `2d3878e` |
+| Website okkiedarts.nl | /club, /club/uitnodiging (doel van de QR-code) en privacy 6a voor Club bij het bord, sinds 7 november 2026 (okkiedarts-site PR #9, `0047f33`) | okkiedarts-site `db71ae6` (vorige stand) |
+| API (Worker `okkie-api`) | versie **`314fe827`** (7 november), D1-migraties t/m **0012** (`club_codes`) | `wrangler rollback ac052b34-92a9-4dd0-833c-cd79aaf0857d --env production`; `club_codes` mag blijven staan |
 | iOS App Store | **1.8.0 (build 29)** openbaar sinds 6 november 2026 (`READY_FOR_SALE`), 4+ | — |
-| iOS 1.10.0 | build **53** (zelfde appcode), ingediend 7 november 2026 08:24 UTC, **`WAITING_FOR_REVIEW`** (inzending `29c6b0fb`); vrijgave automatisch na goedkeuring; zie *iOS 1.10.0 ingediend (7 november)*. Build 33 afgekeurd: ITMS-90035 | Na vrijgave: nieuwe versie met hogere build; App Store kent geen terugrol |
+| iOS 1.10.0 | build **53**, ingediend 7 november 2026 08:24 UTC, **`WAITING_FOR_REVIEW`** (inzending `29c6b0fb`); niet aangeraakt | — |
+| iOS 1.11.0 | **voorbereid, geen build, niets ingediend**: versie 1.11.0 in het Xcode-project, teksten in `appstore/APPSTORE-TEKSTEN.md`, `appstore/release-1.11.0.json`. Pas na afronding van de review van 1.10.0: TestFlight-build, testen, akkoord Martijn, indienen | — |
+
+## Club bij het bord (1.11.0) live, 7 november 2026 (akkoord Martijn)
+- **Wat:** QR-poster bij het bord (A4/A5), bordcode met *eerst goedkeuren* (standaard) of *direct toelaten*, persoonlijke
+  uitnodiging (eenmalig, 14 dagen), scannen zonder profiel, startknop naar de weekoefening, **automatisch meetellen
+  standaard UIT** (aparte keuze), waarschuwing in de browser dat browser en app geen spelers delen. Details:
+  `cloud/CLUB.md` (*Club bij het bord*), CHANGELOG 1.11.0.
+- **Volgorde:** PR #22 (6/6 checks groen) gemerged → productieback-up → migratie 0012 → Worker → webapp → website.
+- **Back-up vóór 0012:** export `okkie-community-production-2026-11-07-voor-0012.sql` (24.748 bytes, sha256
+  `428acea4…752ec1ff3`), in een lege SQLite volledig hersteld: 24 tabellen, aantallen gelijk aan live, integrity_check
+  ok; migratie 0012 eerst op die herstelde kopie geproefd (bestaande club krijgt zijn hoofdcode, foreign_key_check leeg).
+  De export stond alleen in de tijdelijke sessieomgeving (niet in Git: bevat gebruikersgegevens); het blijvende
+  herstelpunt is de Time Travel-bookmark vooraf: `00000149-00000000-0000511c-68f10c1ff5c96063cd037733515300e4`
+  (`wrangler d1 time-travel restore okkie-community --bookmark=… --env production`, alleen in nood).
+- **Na de migratie:** inhoud-hash van clubs, club_members, members en stats identiek aan de back-up; de bestaande club
+  (1 lid) heeft zijn eigen code als hoofd-bordcode met goedkeuring en is via die code bereikbaar.
+- **Getest op staging (eerst) en productie:** `tools/club-bord-live-test.mjs` 25/25 (beide), `tools/ios/club-prod-test.mjs`
+  (origin capacitor://localhost, iOS 1.10.0) 23/23, live browsertest webapp + website op iPhone- en Android-formaat
+  16/16 (QR via okkiedarts.nl → Speel mee → naam → meedoen → training telt mee; bestaande speler, geen tweede profiel;
+  zonder keuze niets automatisch; oude QR ongeldig na vernieuwen). Alle testaccounts en testclubs verwijderd;
+  productie daarna: clubs 1, club_members 1, members 6, club_codes 1, stats 15 (= vóór de tests).
+- **Lokaal/CI:** unit 210, Worker 108, Playwright volledig 288 geslaagd (51 bewust overgeslagen), CI PR #22 groen.
+- **Bekend:** de staging-webapp (Workers static assets) kan vanuit de cloudsessie niet worden uitgerold (proxy vervangt
+  het uploadtoken); productie gaat via GitHub Pages en is daar niet door geraakt.
+- **Open:** iOS 1.11.0 na de review van 1.10.0; daarna `node tools/ios/asc-signing.mjs retire`.
 
 ## iOS 1.10.0 ingediend (7 november 2026, akkoord Martijn)
 - **Eerste inzending (build 33) afgekeurd door Apple: ITMS-90035 Invalid Signature.** Oorzaak (fout in onze
