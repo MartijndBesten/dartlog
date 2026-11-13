@@ -232,3 +232,27 @@ Reviewnotitie 1.11.0 (aanvulling op die van 1.10.0): zie `reviewNotes` in `appst
 
 App Privacy: ongewijzigd (zelfde gegevenssoorten; een optionele omschrijving bij een toegangscode valt onder Overige
 gebruikersinhoud). Leeftijdsclassificatie: ongewijzigd (16+ voor Club blijft server-side afgedwongen).
+
+## Versie 1.12.0 (eigen clubtrainingen voorop; build 72 uit `main` `85b2967`, 13 november 2026)
+
+Inhoud gelijk aan webapp 1.12.0. Indienen via `appstore/release-1.12.0.json`.
+
+Wat is nieuw (nl):
+
+```
+Nieuw in deze versie:
+• OKKIE. Club: jullie eigen clubtrainingen staan nu voorop. De club kiest zelf de naam, de oefening, het aantal pijlen en hoe lang een training loopt. Elke training heeft een eigen ranglijst.
+• Gooi een clubtraining direct vanuit de club. Wie automatisch meetellen aanzet, staat na de training vanzelf in de ranglijst.
+• Een vaste weekoefening is voortaan een keuze van de beheerder.
+```
+
+Wat is nieuw (en):
+
+```
+New in this version:
+• OKKIE. Club: your club's own trainings now come first. The club chooses the name, the exercise, the number of darts and how long a training runs. Each training has its own ranking.
+• Start a club training straight from the club. With automatic sharing switched on, your result appears in the ranking by itself.
+• A fixed weekly exercise is now the admin's choice.
+```
+
+Reviewnotitie 1.12.0: zie `reviewNotes` in `appstore/release-1.12.0.json`. App Privacy en leeftijdsclassificatie: ongewijzigd.
