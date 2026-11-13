@@ -239,3 +239,45 @@ test('moderatie in de besloten inbox: nieuwe clubs zichtbaar, logo/naam/training
   await ok(await act({ action: 'delete' }));
   assert.equal(await status(await call(env, `/v1/clubs/${A}`, { token: lot.token })), 404);
 });
+
+test('automatisch meetellen telt mee bij passende open clubtrainingen: zelfde aantal pijlen, rond de klok, eigen team', async () => {
+  const { env, a, cas, tim, uma, lot, A, t1 } = await setup();
+  const mk = async (acc, body) => (await ok(await call(env, `/v1/clubs/${A}/exercises`, { method: 'POST', token: acc.token, body }), 201)).exercise;
+  const club60 = await mk(a, ex());
+  const klok = await mk(a, ex({ name: 'Klok', kind: 'clock', darts: undefined }));
+  const team60 = await mk(cas, ex({ name: 'Alleen team 1', teamId: t1.id }));
+  const later = await mk(a, ex({ name: 'Volgende week', startsOn: '2026-11-09', endsOn: '2026-11-15' }));
+  const share = (acc, training, extra = { feed: true, challenge: 'auto' }) => call(env, `/v1/clubs/${A}/trainings`, { method: 'POST', token: acc.token, body: { training, ...extra } });
+  const rank = async (acc, id) => (await ok(await call(env, `/v1/clubs/${A}/exercises/${id}`, { token: acc.token }))).ranking;
+  // Tim (team 1): 60 pijlen telt bij de clubtraining en bij die van zijn team; niet bij de training die nog moet beginnen.
+  let r = await ok(await share(tim, { trainingId: 't1', kind: 'score60', darts: 60, points: 1000, high: 100 }), 201);
+  assert.deepEqual(r.exercises.map(x => x.name).sort(), ['60 pijlen scoren', 'Alleen team 1']);
+  assert.ok(r.exercises.every(x => x.best && x.value === 1000));
+  assert.equal((await rank(a, later.id)).length, 0);
+  // Vrij trainen met precies 60 pijlen past ook; een slechtere poging vervangt de betere niet.
+  r = await ok(await share(tim, { trainingId: 't2', kind: 'free', darts: 60, points: 800, high: 60 }), 201);
+  assert.ok(r.exercises.every(x => !x.best && x.value === 1000));
+  assert.equal((await rank(tim, club60.id))[0].points, 1000);
+  assert.equal((await rank(tim, club60.id))[0].manual, false);
+  // Ander aantal pijlen: alleen de feed.
+  r = await ok(await share(tim, { trainingId: 't3', kind: 'score30', darts: 30, points: 500, high: 60 }), 201);
+  assert.deepEqual(r.exercises, []);
+  // Uma (team 2) en Lot (geen team): wel de clubtraining, niet die van team 1.
+  for (const acc of [uma, lot]) {
+    r = await ok(await share(acc, { trainingId: 'u1', kind: 'score60', darts: 60, points: 900 }), 201);
+    assert.deepEqual(r.exercises.map(x => x.name), ['60 pijlen scoren']);
+  }
+  assert.deepEqual((await rank(a, team60.id)).map(x => x.nickname), ['Tim']);
+  // Rond de klok: minder pijlen is beter.
+  await ok(await share(lot, { trainingId: 'k1', kind: 'clock', darts: 70, points: 0 }), 201);
+  r = await ok(await share(lot, { trainingId: 'k2', kind: 'clock', darts: 55, points: 0 }), 201);
+  assert.deepEqual(r.exercises, [{ id: klok.id, name: 'Klok', best: true, value: 55 }]);
+  // Zonder automatisch meetellen (alleen feed) verandert er niets aan clubtrainingen.
+  r = await ok(await share(lot, { trainingId: 'u2', kind: 'score60', darts: 60, points: 1500 }, { feed: true }), 201);
+  assert.equal(r.exercises, undefined);
+  assert.equal((await rank(a, club60.id)).find(x => x.nickname === 'Lot').points, 900);
+  // Na sluiting (einddatum 22:00) telt niets meer mee.
+  const closed = at(env, '2026-11-15T21:30:00Z');   // einddatum, 22:30 in Amsterdam
+  r = await ok(await call(closed, `/v1/clubs/${A}/trainings`, { method: 'POST', token: uma.token, body: { training: { trainingId: 'u3', kind: 'score60', darts: 60, points: 1600 }, feed: true, challenge: 'auto' } }), 201);
+  assert.ok(!(r.exercises || []).some(x => x.name === '60 pijlen scoren'));
+});

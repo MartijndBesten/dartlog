@@ -1,5 +1,21 @@
 # Overdracht OKKIE.
 
+## 1.12.0: eigen clubtrainingen voorop (13 november 2026, opdracht Martijn)
+- **Besluit:** de club bepaalt zelf wat er getraind wordt. Eigen clubtrainingen staan voorop; de vaste weekoefening
+  blijft als optie die de beheerder zelf aanzet (standaard geen). Zie CHANGELOG 1.12.0 en `cloud/CLUB.md`.
+- **Gewijzigd:** `club/club.js` (tabblad Trainingen eerst, startknop per clubtraining, Beheer → Vaste weekoefening
+  (optioneel)), `cloud/src/club-extras.js` + `clubs.js` (automatisch meetellen ook bij eigen clubtrainingen),
+  `js/app.js` (`#start=pijlenN`), teksten app/website/privacy/App Store, nieuwe schermafbeeldingen op /club.
+- **Ook hersteld:** het clubrecord bij de weekoefening toonde bij scoretrainingen altijd 3,00 (rekende met punten als
+  pijlen); nu het echte gemiddelde.
+- **Getest (13 november):** unit 216, Worker 111, Playwright volledig 296 geslaagd (55 bewust overgeslagen), waaronder
+  de nieuwe route *eigen clubtraining zonder weekoefening* op iPhone-, Android- en desktopformaat.
+- **Worker niet uitgerold:** in de cloudomgeving OKKIE staat geen Cloudflare-token (Martijn kon er op 13 november geen
+  geven). De app stuurt het resultaat daarom zelf in bij passende clubtrainingen zolang de server geen `exercises`
+  teruggeeft (`js/club-auto.js`, `shareWithExercises`). Uitrollen zodra er toegang is:
+  `cd cloud && npm run deploy:production` (geen migratie nodig). Tot dan telt automatisch meetellen bij eigen
+  clubtrainingen niet voor wie nog iOS 1.11.0 gebruikt; zelf insturen werkt wel.
+
 ## Actuele stand (7 november 2026, middag: Club bij het bord live)
 | Onderdeel | Live | Terugzetten |
 |---|---|---|

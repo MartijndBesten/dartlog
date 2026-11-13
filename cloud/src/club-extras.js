@@ -102,6 +102,34 @@ function rowToExercise(r) {
     checkouts: r.checkouts ? JSON.parse(r.checkouts) : null, startsOn: r.starts_on, endsOn: r.ends_on };
 }
 
+// Automatisch meetellen: een gedeelde training (alleen de samenvatting) telt ook mee bij elke open clubtraining waar hij
+// bij past: scoretraining met hetzelfde aantal pijlen, of rond de klok. Clubbreed, of voor het team van het lid.
+// Doel-oefeningen en checkout-reeksen voert een lid zelf in. Alleen een beter resultaat vervangt het oude.
+const SCORE_KINDS = new Set(['score30', 'score60', 'score99', 'free']);
+export async function autoExerciseResults(env, clubId, me, member, t, now) {
+  const today = amsterdam(now).date;
+  const rows = (await env.DB.prepare(
+    "SELECT * FROM club_exercises WHERE club_id = ? AND starts_on <= ? AND ends_on >= ? AND kind IN ('score', 'clock') AND (team_id IS NULL OR team_id = ?)"
+  ).bind(clubId, today, today, me.teamId ?? null).all()).results || [];
+  const out = [];
+  for (const row of rows) {
+    const ex = rowToExercise(row);
+    if (!exerciseOpen(ex, now)) continue;
+    if (ex.kind === 'score' ? !(SCORE_KINDS.has(t.kind) && t.darts === ex.darts) : t.kind !== 'clock') continue;
+    const r = resultInput(ex, { trainingId: t.trainingId, darts: t.darts, points: t.points });
+    if (!r) continue;
+    const old = await env.DB.prepare('SELECT value FROM club_exercise_results WHERE exercise_id = ? AND member_id = ?').bind(ex.id, member.id).first();
+    const isBetter = !old || (lowerIsBetter(ex) ? r.value < old.value : r.value > old.value);
+    if (isBetter) await env.DB.prepare(
+      "INSERT INTO club_exercise_results(exercise_id, club_id, member_id, training_id, darts, points, hits, value, manual, submitted_at) VALUES(?,?,?,?,?,?,?,?,?,datetime('now')) " +
+      'ON CONFLICT(exercise_id, member_id) DO UPDATE SET training_id = excluded.training_id, darts = excluded.darts, points = excluded.points, hits = excluded.hits, ' +
+      'value = excluded.value, manual = excluded.manual, submitted_at = excluded.submitted_at'
+    ).bind(ex.id, clubId, member.id, r.trainingId, r.darts, r.points, r.hits, r.value, r.manual).run();
+    out.push({ id: ex.id, name: ex.name, best: isBetter, value: isBetter ? r.value : old.value });
+  }
+  return out;
+}
+
 // ---------- Routes (na de lidmaatschapscontrole in clubs.js) ----------
 // ctx: { me (club + rol + teamId van de vrager), member, clubId, now, h, cors }
 export async function handleClubExtras(request, env, rest, ctx) {

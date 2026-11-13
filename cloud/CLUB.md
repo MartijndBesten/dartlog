@@ -1,7 +1,10 @@
 # OKKIE. Club (proef)
 
-Besloten clubruimte per dartvereniging: weekoefening op eigen tijd, clubranglijst die zondag 22:00 sluit,
-vormranglijst (gemiddelde laatste 4 weken), teams met captain-overzicht en een clubfeed. Concept: Claude Doc
+Besloten clubruimte per dartvereniging: **eigen clubtrainingen** die de club zelf maakt (naam, oefening, aantal pijlen,
+looptijd), elk met een eigen ranglijst; vormranglijst (gemiddelde laatste 4 weken), teams met captain-overzicht en een
+clubfeed. De vaste weekoefening (ranglijst sluit zondag 22:00) is sinds 1.12.0 een optie die de beheerder zelf aanzet;
+OKKIE. schrijft geen weekopzet voor (besluit Martijn, 13 november 2026). Automatisch meetellen telt mee bij elke open
+clubtraining waar de training bij past (`autoExerciseResults`, scoretraining met hetzelfde aantal pijlen of rond de klok). Concept: Claude Doc
 *OKKIE. Club – onderzoek en concept* (1 november 2026). Code: `src/clubs.js`, migratie `migrations/0009_clubs.sql`,
 tests `tests/clubs.test.js`.
 

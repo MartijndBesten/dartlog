@@ -57,8 +57,8 @@ test('bordcode met "direct meedoen": scannen = meteen lid, scores tellen direct 
   assert.deepEqual(j, { club: { id: a.club.id, name: 'Kantine De Roos' }, status: 'active' });
   // Automatisch meetellen: past bij de weekoefening → ranglijst + feed; past niet → alleen feed, geen fout.
   const auto = (trainingId, kind, darts, points) => call(env, `/v1/clubs/${a.club.id}/trainings`, { method: 'POST', token: p.token, body: { training: { trainingId, kind, darts, points, high: 60 }, feed: true, challenge: 'auto' } });
-  assert.deepEqual(await ok(await auto('t1', 'score30', 30, 600), 201), { challenge: { best: true, value: 600 }, feed: true });
-  assert.deepEqual(await ok(await auto('t2', 'score60', 60, 1500), 201), { feed: true });
+  assert.deepEqual(await ok(await auto('t1', 'score30', 30, 600), 201), { challenge: { best: true, value: 600 }, exercises: [], feed: true });
+  assert.deepEqual(await ok(await auto('t2', 'score60', 60, 1500), 201), { exercises: [], feed: true });
   const week = await ok(await call(env, `/v1/clubs/${a.club.id}/challenge`, { token: p.token }));
   assert.deepEqual(week.ranking.map(r => [r.nickname, r.value]), [['Piet', 600]]);
   const feed = await ok(await call(env, `/v1/clubs/${a.club.id}/feed`, { token: p.token }));

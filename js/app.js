@@ -30,7 +30,7 @@ import { autoShareClubs } from './club-auto.js';
 
 FB.captureErrors();
 
-export const APP_VERSION = '1.11.0';
+export const APP_VERSION = '1.12.0';
 // "Nodig een vriend uit": altijd de website als link. Die blijft geldig, ook na de verhuizing van de app.
 export const INVITE_URL = 'https://okkiedarts.nl/';
 export const INVITE_TEXT = 'Ik train mijn darts met OKKIE. 🎯 Gratis, werkt gewoon op je telefoon en je ziet meteen of je beter wordt. Doe je mee?';
@@ -1267,15 +1267,24 @@ function clubAuto() {
   autoShareClubs(data, { send: request, token: id => getAccount(id)?.token }).then(done => {
     if (!done.length) return;
     const names = [...new Set(done.map(x => x.clubName).filter(Boolean))].join(' en ') || 'je club';
-    toast(done.some(x => x.challengeResult?.best) ? `Telt mee voor ${names}: je beste resultaat van de week.` : `Telt mee voor ${names}.`);
+    const best = done.flatMap(x => x.exerciseResults || []).find(x => x.best);
+    toast(best ? `Telt mee voor ${names}: je beste resultaat bij ${best.name}.`
+      : done.some(x => x.challengeResult?.best) ? `Telt mee voor ${names}: je beste resultaat van de week.` : `Telt mee voor ${names}.`);
   }).catch(() => {});
 }
-// Vanuit de club ("Gooi de weekoefening"): ./#start=score30&speler=<id>. Start alleen als er niets loopt.
+// Vanuit de club ("Gooi de clubtraining"): ./#start=score30&speler=<id>, of ./#start=pijlen45 voor een clubtraining met
+// een eigen aantal pijlen. Start alleen als er niets loopt.
 const START_LINK = { score30: 10, score60: 20, score99: 33 };
 function startFromLink(kind, playerId) {
   if (data.active.training || data.active.match || data.active.drill || !data.players.length) return false;
   if (playerId && data.players.some(p => p.id === playerId)) { data.activePlayerId = playerId; save(); }
   if (START_LINK[kind]) { ui.setup.turns = START_LINK[kind]; ui.setup.players = [data.activePlayerId]; startScore(); return true; }
+  const own = /^pijlen(\d{1,3})$/.exec(kind || '');
+  if (own && own[1] % 3 === 0 && own[1] >= 9 && own[1] <= 300) {
+    const turns = own[1] / 3;
+    if ([10, 20, 33].includes(turns)) ui.setup.turns = turns; else { ui.setup.turns = -1; ui.setup.custom = turns; }
+    ui.setup.players = [data.activePlayerId]; startScore(); return true;
+  }
   if (kind === 'clock') { startClock(); return true; }
   if (D.DRILL_KINDS.includes(kind)) { startDrill(kind); return true; }
   return false;

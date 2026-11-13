@@ -238,3 +238,50 @@ test('persoonlijke uitnodiging: werkt één keer, speler is direct lid zonder go
   for (const x of [A, B, E]) expect(x.errors).toEqual([]);
   await A.context.close(); await B.context.close(); await E.context.close();
 });
+
+test('eigen clubtraining zonder weekoefening: scannen, "Gooi de clubtraining", eigen aantal pijlen telt automatisch mee in de ranglijst', async ({ browser }, info) => {
+  const club = 'Eigen ' + info.project.name;
+  const A = await phone(browser, info, seed('Anja'));
+  const C = await phone(browser, info, null);
+  await A.page.goto('/club/');
+  await A.page.locator('#create input[name=name]').fill(club);
+  await A.page.locator('#create input[name=consent]').check();
+  await A.page.locator('#create button').click();
+  const code = (await A.page.getByTestId('invite-board').locator('.club-code').first().textContent()).trim();
+  await A.page.locator(`input[data-direct="${code}"]`).check();
+  await expect(A.page.locator('#status')).toContainText('direct mee');
+  // De club maakt zelf een training: 12 pijlen, eigen naam. Geen weekoefening ingesteld.
+  await A.page.getByRole('tab', { name: 'Trainingen' }).click();
+  const f = A.page.locator('#exercise');
+  await f.locator('input[name=name]').fill('Clubavond 12');
+  await f.locator('input[name=darts]').fill('12');
+  await f.getByRole('button', { name: 'Clubtraining toevoegen' }).click();
+  await expect(A.page.locator('#status')).toContainText('Clubtraining toegevoegd');
+  await expect(A.page.locator('.ex-card')).toContainText('12 pijlen, zoveel mogelijk punten');
+  await expect(A.page.getByRole('tab', { name: 'Weekoefening' })).toHaveCount(0);
+  // Nieuwe speler scant, zet automatisch meetellen aan en krijgt de clubtraining als startknop.
+  await C.page.goto('/club/#club=' + code);
+  await C.page.locator('#joinflow input[name=name]').fill('Cor');
+  await C.page.locator('#joinflow input[name=auto]').check();
+  await C.page.locator('#joinflow input[name=consent]').check();
+  await C.page.locator('#joinflow').getByRole('button', { name: `Meedoen met ${club}` }).click();
+  const start = C.page.getByTestId('start-training');
+  await expect(start).toHaveText('Gooi de clubtraining: Clubavond 12');
+  await start.click();
+  await expect(C.page.locator('.nums')).toBeVisible();
+  for (let i = 0; i < 12; i++) await key(C.page, 20);
+  await expect(C.page.locator('#toast')).toContainText(`Telt mee voor ${club}: je beste resultaat bij Clubavond 12`);
+  // De beheerder ziet Cor in de ranglijst van de eigen training (gemiddelde 60,00), niet als "zelf ingevoerd".
+  await A.page.getByRole('tab', { name: 'Trainingen' }).click();
+  await expect(A.page.locator('.ex-card .board')).toContainText('Cor');
+  await expect(A.page.locator('.ex-card .board')).toContainText('60,00');
+  await expect(A.page.locator('.ex-card .board')).not.toContainText('zelf ingevoerd');
+  // In de club staat de schakelaar bij Trainingen (het eerste tabblad), met een startknop per training.
+  await C.page.goto('/club/');
+  await C.page.getByRole('button', { name: 'Openen' }).click();
+  await expect(C.page.locator('#auto')).toBeChecked();
+  await expect(C.page.getByTestId('club-start')).toHaveText('Gooi de clubtraining: Clubavond 12');
+  await expect(C.page.getByTestId('ex-start')).toHaveAttribute('href', /#start=pijlen12&speler=/);
+  expect(A.errors).toEqual([]); expect(C.errors).toEqual([]);
+  await A.context.close(); await C.context.close();
+});

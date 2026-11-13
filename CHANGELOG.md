@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.12.0 — OKKIE. Club: eigen clubtrainingen voorop
+
+De club bepaalt zelf wat er getraind wordt; OKKIE. schrijft geen vaste weekopzet meer voor (besluit Martijn, 13 november 2026).
+
+- **Trainingen is het eerste tabblad.** Daar staan de eigen clubtrainingen (naam, oefening, aantal pijlen en looptijd
+  kiest de club), de schakelaar *automatisch meetellen* en *zelf een training insturen*. Zonder clubtrainingen staat het
+  formulier voor de beheerder meteen open.
+- **Automatisch meetellen werkt nu ook voor eigen clubtrainingen:** een training telt mee bij elke open clubtraining
+  waar hij bij past (scoretraining met hetzelfde aantal pijlen, of rond de klok; clubbreed of voor je eigen team).
+  Doel-oefeningen en checkout-reeksen voer je nog zelf in. Server: `autoExerciseResults` in `cloud/src/club-extras.js`,
+  antwoord `exercises` bij `POST /v1/clubs/:id/trainings` met `challenge: 'auto'`. Werkt ook voor iOS 1.11.0.
+- **Gooi deze training:** per clubtraining een startknop; de app start een scoretraining met precies dat aantal pijlen
+  (`#start=pijlen45`). De startknop na het scannen kiest eerst een open clubtraining.
+- **Vaste weekoefening is een optie.** Beheer → *Vaste weekoefening (optioneel)*, standaard "Geen weekoefening". Het
+  tabblad Weekoefening verschijnt alleen als de club er een heeft ingesteld. Bestaande weekresultaten blijven staan.
+- **Teksten:** app, okkiedarts.nl (home, /club, uitnodiging, over, privacy 6a) en App Store-beschrijving gaan uit van
+  eigen clubtrainingen in plaats van "elke week één oefening".
+
 ## 1.11.0 — OKKIE. Club bij het bord (kantine, clubhuis)
 
 - **QR-code bij het bord:** de beheerder print een clubposter (A4 of A5, ook als pdf) met clubnaam, QR-code, korte code
