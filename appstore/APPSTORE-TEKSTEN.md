@@ -141,13 +141,13 @@ iPad-screenshots nodig. Kleinere iPhone-formaten maakt App Store Connect zelf ui
 Wat is nieuw (nl):
 
 ```
-Nieuw: OKKIE. Club. Richt gratis een besloten club op voor je dartvereniging of team, of word lid met een uitnodiging. Iedereen gooit de weekoefening wanneer het uitkomt, met een clubranglijst die alleen clubgenoten zien. Beheerders maken eigen clubtrainingen en kiezen een clubnaam en logo.
+Nieuw: OKKIE. Club. Richt gratis een besloten club op voor je dartvereniging of team, of word lid met een uitnodiging. De club maakt zijn eigen clubtrainingen, elk met een ranglijst die alleen clubgenoten zien, en kiest een clubnaam en logo. Iedereen gooit wanneer het uitkomt.
 ```
 
 Wat is nieuw (en):
 
 ```
-New: OKKIE. Club. Start a private club for your darts association or team for free, or join with an invite. Everyone throws the weekly exercise when it suits them, with a club ranking only club members can see. Admins create their own club trainings and set a club name and logo.
+New: OKKIE. Club. Start a private club for your darts association or team for free, or join with an invite. The club creates its own club trainings, each with a ranking only club members can see, and sets a club name and logo. Everyone throws when it suits them.
 ```
 
 Reviewnotitie, aanvulling voor 1.9.0:

@@ -10,7 +10,7 @@
 //   Iedereen van 16+ mag een club oprichten, met misbruiklimieten (CLUB_LIMITS: nieuwe clubs per speler per 30 dagen,
 //   clubs als beheerder, nieuwe clubs per dag voor heel OKKIE., openstaande aanmeldingen per speler, plus IP-limiet).
 import { weekKey } from './groups.js';
-import { handleClubExtras } from './club-extras.js';
+import { handleClubExtras, autoExerciseResults } from './club-extras.js';
 
 export const CLUB_LIMITS = {
   clubsPerMember: 5,
@@ -582,8 +582,9 @@ export async function handleClubs(request, env, path, h, cors) {
     const body = await h.bodyJson(request);
     const t = body.training;
     if (!trainingOkay(t)) return h.fail('Training heeft een ongeldig formaat.', 400, cors);
-    // challenge 'auto' (automatisch meetellen, sinds Club bij het bord): telt mee als hij bij de open weekoefening past,
-    // anders alleen de feed, zonder foutmelding.
+    // challenge 'auto' (automatisch meetellen, sinds Club bij het bord): telt mee bij elke open clubtraining waar hij bij
+    // past (eigen trainingen van de club) en bij de open weekoefening als de club die heeft ingesteld; anders alleen de
+    // feed, zonder foutmelding.
     const auto = body.challenge === 'auto';
     if (body.feed !== true && body.challenge !== true && !auto) return h.fail('Kies of je deze training in de feed en/of bij de weekoefening zet.', 400, cors);
     const out = {};
@@ -606,6 +607,10 @@ export async function handleClubs(request, env, path, h, cors) {
         ).bind(c.id, clubId, member.id, t.trainingId, t.darts, t.points, t.high ?? null, value).run();
         out.challenge = { best: true, value };
       } else out.challenge = { best: false, value: old.value };
+    }
+    if (auto) {
+      // Altijd een lijst (ook leeg): daaraan ziet de app dat de server dit zelf doet.
+      out.exercises = await autoExerciseResults(env, clubId, me, member, t, now);
     }
     if (body.feed === true) {
       await env.DB.prepare(

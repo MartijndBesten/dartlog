@@ -16,7 +16,7 @@
   <meta property="og:locale" content="nl_NL">
   <meta property="og:url" content="https://okkiedarts.nl/club/uitnodiging/">
   <meta property="og:title" content="Je bent uitgenodigd voor OKKIE. Club">
-  <meta property="og:description" content="Train samen met je club: weekoefening op eigen tijd en een clubranglijst die alleen clubgenoten zien.">
+  <meta property="og:description" content="Train samen met je club: eigen clubtrainingen met ranglijsten die alleen clubgenoten zien.">
   <meta property="og:image" content="https://okkiedarts.nl/og-image.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -78,7 +78,7 @@
         var s = document.createElement('span'); s.className = 'clubname'; s.textContent = d.club.name; t.appendChild(s);
         document.title = d.club.name + ' — OKKIE. Club';
         var n = d.club.members;
-        document.getElementById('lead').textContent = d.club.name + ' (' + n + (n === 1 ? ' lid' : ' leden') + ') speelt in OKKIE. Club. Gooi je pijlen, tik je score in en je resultaat telt mee in de weekoefening en de clubranglijst.';
+        document.getElementById('lead').textContent = d.club.name + ' (' + n + (n === 1 ? ' lid' : ' leden') + ') speelt in OKKIE. Club. Gooi je pijlen, tik je score in en je resultaat telt mee bij de trainingen en ranglijsten van de club.';
         if (d.code && !direct) document.getElementById('step3').textContent = 'De beheerder laat je eerst toe. Daarna deel je je scores met de club: per training, of automatisch als je dat aanzet.';
         else if (d.code) document.getElementById('step3').textContent = 'Je bent meteen lid. Zet automatisch meetellen aan, dan tellen je training en scores direct mee voor de club.';
       })

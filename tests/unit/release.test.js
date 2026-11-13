@@ -335,7 +335,7 @@ test('bezoekersteller: precies één keer op elke websitepagina, nooit in de app
 test('okkiedarts.nl/club: OKKIE. Club live, "Start gratis een club" naar de app, Club in de navigatie, uitnodigingspagina', () => {
   execFileSync(process.execPath, [join(root, 'tools/build-public-site.mjs')], { cwd: root, stdio: 'pipe' });
   const html = readFileSync(join(root, 'dist/club/index.html'), 'utf8');
-  for (const t of ['OKKIE. Club voor dartverenigingen', 'NIEUW', 'Start gratis een club', 'Weekoefening', 'clubranglijst', 'Eigen clubnaam en logo', 'Eigen trainingen maken', 'Beheerder', 'Captain', 'Lid', 'fictieve gegevens']) assert.ok(html.includes(t), t);
+  for (const t of ['OKKIE. Club voor dartverenigingen', 'NIEUW', 'Start gratis een club', 'Jullie eigen clubtrainingen', 'Vaste weekoefening, als je wilt', 'Eigen clubnaam en logo', 'Ranglijst en vorm', 'Beheerder', 'Captain', 'Lid', 'fictieve gegevens']) assert.ok(html.includes(t), t);
   assert.doesNotMatch(html, /BINNENKORT|nog niet beschikbaar|proefclub/i);
   assert.match(html, /href="https:\/\/app\.okkiedarts\.nl\/club\/"/);
   for (const p of ['index.html', 'privacy/index.html', 'contact/index.html', 'dartregels/index.html', 'club/index.html']) assert.match(readFileSync(join(root, 'dist', p), 'utf8'), /<nav[^>]*>\s*<a href="\/club\/">Club<\/a>/, p + ': Club in de navigatie');

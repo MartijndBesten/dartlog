@@ -51,9 +51,14 @@ test('club oprichten (gratis, 16+), lid via uitnodigingslink, goedkeuren, weekoe
   await expect(A.page.locator('.club-qr svg')).toBeVisible();
   const code = (await A.page.locator('.club-code').textContent()).trim();
   expect(code).toMatch(/^[A-HJKMNP-Z2-9]{8}$/);
+  // Eigen clubtrainingen staan voorop; de vaste weekoefening is een optie die de beheerder zelf aanzet.
+  await expect(A.page.getByRole('tab').first()).toHaveText('Trainingen');
+  await expect(A.page.getByRole('tab', { name: 'Weekoefening' })).toHaveCount(0);
+  await expect(A.page.locator('#challenge select')).toHaveValue('');
   await A.page.locator('#challenge select').selectOption('score30');
   await A.page.locator('#challenge').getByRole('button', { name: 'Opslaan' }).click();
   await expect(A.page.locator('#status')).toContainText('Weekoefening opgeslagen');
+  await expect(A.page.getByRole('tab', { name: 'Weekoefening' })).toHaveCount(1);
 
   // 2. Lid opent de QR-link: de club staat er meteen (alleen naam en aantal leden), eigen speler al gekozen.
   const before = await (async () => { await B.page.goto('/'); return B.page.evaluate(() => localStorage.getItem('oche.data')); })();
@@ -80,7 +85,10 @@ test('club oprichten (gratis, 16+), lid via uitnodigingslink, goedkeuren, weekoe
   const weekOpen = await row.locator('input[name=challenge]').count() > 0;
   await row.getByRole('button', { name: 'Delen' }).click();
   await expect(B.page.locator('#status')).toContainText('Gedeeld');
-  if (weekOpen) await expect(B.page.locator('#panel .board').first()).toContainText('Bas (jij)');
+  if (weekOpen) {
+    await B.page.getByRole('tab', { name: 'Weekoefening' }).click();
+    await expect(B.page.locator('#panel .board').first()).toContainText('Bas (jij)');
+  }
   await B.page.getByRole('tab', { name: 'Feed' }).click();
   await expect(B.page.locator('#panel')).toContainText('Scoretraining 30 pijlen');
 
@@ -134,8 +142,9 @@ test('clubprofiel en eigen clubtrainingen: naam en logo (alleen leden), doel-oef
 
   // Clubtraining: doel-oefening "30 pijlen op D16" voor de hele club.
   await A.page.getByRole('tab', { name: 'Trainingen' }).click();
-  await A.page.getByText('Nieuwe clubtraining').click();
-  const f = A.page.locator('#exercise');
+  await expect(A.page.getByTestId('no-exercises')).toContainText('Maak hieronder jullie eerste');
+  const f = A.page.locator('#exercise');   // zonder clubtrainingen staat het formulier al open
+  await expect(f.locator('input[name=name]')).toBeVisible();
   await f.locator('input[name=name]').fill('Dubbel 16');
   await f.locator('textarea[name=description]').fill('Gooi 30 pijlen op dubbel 16 en tel hoeveel er raak zijn.');
   await f.locator('select[name=kind]').selectOption('target');
@@ -155,7 +164,8 @@ test('clubprofiel en eigen clubtrainingen: naam en logo (alleen leden), doel-oef
   await B.page.reload();
   await B.page.getByRole('button', { name: 'Openen' }).click();
   await expect(B.page.locator('#club-logo img')).toBeVisible();
-  await B.page.getByRole('tab', { name: 'Trainingen' }).click();
+  await expect(B.page.getByRole('tab', { name: 'Trainingen' })).toHaveAttribute('aria-selected', 'true');   // eerste tabblad
+  await expect(B.page.locator('.ex-card')).toContainText('30 pijlen op D16');
   await expect(B.page.getByText('Nieuwe clubtraining')).toHaveCount(0);   // lid mag geen trainingen maken
   await B.page.locator('form[data-ex] input[name=hits]').fill('9');
   await B.page.locator('form[data-ex] button').click();

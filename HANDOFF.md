@@ -1,5 +1,15 @@
 # Overdracht OKKIE.
 
+## 1.12.0: eigen clubtrainingen voorop (13 november 2026, opdracht Martijn)
+- **Besluit:** de club bepaalt zelf wat er getraind wordt. Eigen clubtrainingen staan voorop; de vaste weekoefening
+  blijft als optie die de beheerder zelf aanzet (standaard geen). Zie CHANGELOG 1.12.0 en `cloud/CLUB.md`.
+- **Gewijzigd:** `club/club.js` (tabblad Trainingen eerst, startknop per clubtraining, Beheer → Vaste weekoefening
+  (optioneel)), `cloud/src/club-extras.js` + `clubs.js` (automatisch meetellen ook bij eigen clubtrainingen),
+  `js/app.js` (`#start=pijlenN`), teksten app/website/privacy/App Store, nieuwe schermafbeeldingen op /club.
+- **Ook hersteld:** het clubrecord bij de weekoefening toonde bij scoretrainingen altijd 3,00 (rekende met punten als
+  pijlen); nu het echte gemiddelde.
+- **Status van uitrol en tests:** zie onderaan dit blok (bijgewerkt na uitrol).
+
 ## Actuele stand (7 november 2026, middag: Club bij het bord live)
 | Onderdeel | Live | Terugzetten |
 |---|---|---|

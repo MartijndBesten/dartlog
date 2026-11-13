@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { pendingClubShares, setClubAuto, clubAutoFor, dropClubAuto, readClubAuto, autoShareClubs, weekStartLocal } from '../../js/club-auto.js';
+import { pendingClubShares, setClubAuto, clubAutoFor, dropClubAuto, readClubAuto, autoShareClubs, weekStartLocal, exerciseFits } from '../../js/club-auto.js';
 import { posterHtml, readPosterHash, groupCode, INVITE_PAGE } from '../../club/poster.js';
 
 const mem = () => { const m = new Map(); return { getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) }; };
@@ -101,4 +101,40 @@ test('app: automatisch meetellen na training en oefening, startlink vanuit de cl
   assert.match(app, /if \(link\.has\('start'\)\)/);
   const sw = read('sw.js');
   for (const f of ['./js/club-auto.js', './js/club-share.js']) assert.ok(sw.includes(`'${f}'`), f);
+});
+
+test('eigen clubtrainingen: passende training telt mee; met een server van vóór 1.12.0 stuurt de app zelf in', async () => {
+  const ex = (extra = {}) => ({ id: 'e1', name: 'Clubavond 30', kind: 'score', darts: 30, startsOn: '2026-11-02', endsOn: '2026-11-08', open: true, canSubmit: true, ...extra });
+  const t30 = { trainingId: 'a', kind: 'score30', darts: 30, points: 600 };
+  assert.equal(exerciseFits(ex(), t30, '2026-11-07'), true);
+  assert.equal(exerciseFits(ex(), { ...t30, kind: 'free' }, '2026-11-07'), true, 'vrij trainen met hetzelfde aantal pijlen');
+  assert.equal(exerciseFits(ex({ darts: 45 }), t30, '2026-11-07'), false, 'ander aantal pijlen');
+  assert.equal(exerciseFits(ex(), t30, '2026-11-01'), false, 'gegooid vóór de looptijd');
+  assert.equal(exerciseFits(ex({ open: false }), t30, '2026-11-07'), false);
+  assert.equal(exerciseFits(ex({ canSubmit: false }), t30, '2026-11-07'), false, 'training van een ander team');
+  assert.equal(exerciseFits(ex({ kind: 'clock', darts: null }), { trainingId: 'k', kind: 'clock', darts: 40, points: 0 }, '2026-11-07'), true);
+  assert.equal(exerciseFits(ex({ kind: 'target' }), t30, '2026-11-07'), false, 'doel-oefening voer je zelf in');
+  assert.equal(exerciseFits(ex(), { trainingId: 'b', kind: 'bobs27', darts: 63, points: 100 }, '2026-11-07'), false);
+
+  const now = new Date('2026-11-07T20:00:00');
+  const data = { players: [{ id: 'p' }], trainings: [tr('a', '2026-11-07T19:00:00')] };
+  const run = async server => {
+    const s = mem(), calls = [];
+    setClubAuto('p', 'C1', { name: 'De Roos', on: true }, s, new Date('2026-11-07T08:00:00'));
+    const send = async (path, method, body) => {
+      calls.push(method + ' ' + path);
+      if (path.endsWith('/trainings')) return server === 'nieuw' ? { feed: true, exercises: [{ id: 'e1', name: 'Clubavond 30', best: true, value: 600 }] } : { feed: true };
+      if (path.endsWith('/exercises')) return { exercises: [ex(), ex({ id: 'e2', name: 'Andere', darts: 60 })] };
+      assert.deepEqual(body, { trainingId: 'a', darts: 30, points: 600 });
+      return { best: true, value: 600 };
+    };
+    const done = await autoShareClubs(data, { send, token: () => 'tok', storage: s, now });
+    return { calls, results: done[0].exerciseResults };
+  };
+  const nieuw = await run('nieuw');
+  assert.deepEqual(nieuw.calls, ['POST /v1/clubs/C1/trainings'], 'nieuwe server doet het zelf');
+  assert.deepEqual(nieuw.results, [{ id: 'e1', name: 'Clubavond 30', best: true, value: 600 }]);
+  const oud = await run('oud');
+  assert.deepEqual(oud.calls, ['POST /v1/clubs/C1/trainings', 'GET /v1/clubs/C1/exercises', 'POST /v1/clubs/C1/exercises/e1/results']);
+  assert.deepEqual(oud.results, [{ id: 'e1', name: 'Clubavond 30', best: true, value: 600 }]);
 });
