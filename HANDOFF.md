@@ -10,17 +10,24 @@
   pijlen); nu het echte gemiddelde.
 - **Getest (13 november):** unit 216, Worker 111, Playwright volledig 296 geslaagd (55 bewust overgeslagen), waaronder
   de nieuwe route *eigen clubtraining zonder weekoefening* op iPhone-, Android- en desktopformaat.
+- **Uitgerold 13 november:** dartlog PR #28 (CI 6/6 groen) → `main`; webapp via okkie-app PR #1; website via
+  okkiedarts-site PR #10 (`4b3d374`, terug: `57d719c`). Livecontrole op app.okkiedarts.nl met een tijdelijke testclub
+  (11 punten: Trainingen eerst, geen tabblad Weekoefening, eigen training van 12 pijlen, scannen, *Gooi de clubtraining*,
+  automatisch in de ranglijst met 60,00, geen scriptfouten); testclub en twee testaccounts daarna verwijderd (200).
+- **iOS 1.12.0 (build 72)** uit `main` `85b2967` (run 72: build, rooktest, XCUITests, TestFlight), voorbereid en
+  **ingediend bij App Review op 13 november 08:36 UTC** (inzending `6cc4213b`, `WAITING_FOR_REVIEW`), vrijgave
+  automatisch na goedkeuring. Teksten: `appstore/release-1.12.0.json` (PR #29).
 - **Worker niet uitgerold:** in de cloudomgeving OKKIE staat geen Cloudflare-token (Martijn kon er op 13 november geen
   geven). De app stuurt het resultaat daarom zelf in bij passende clubtrainingen zolang de server geen `exercises`
   teruggeeft (`js/club-auto.js`, `shareWithExercises`). Uitrollen zodra er toegang is:
   `cd cloud && npm run deploy:production` (geen migratie nodig). Tot dan telt automatisch meetellen bij eigen
   clubtrainingen niet voor wie nog iOS 1.11.0 gebruikt; zelf insturen werkt wel.
 
-## Actuele stand (7 november 2026, middag: Club bij het bord live)
+## Actuele stand (13 november 2026: 1.12.0 eigen clubtrainingen voorop live op web, iOS in review)
 | Onderdeel | Live | Terugzetten |
 |---|---|---|
-| Webapp app.okkiedarts.nl | **1.11.0** (Club bij het bord), sinds 7 november 2026 (okkie-app `52423bf`, uit dartlog `2d3878e`) | okkie-app commit `d142ea9` (1.10.0) terugzetten (tag pushen mocht niet: 403) |
-| Oude adres martijndbesten.github.io/dartlog | `main` van dartlog (1.11.0, via GitHub Pages) | tag `live-1.9.0` in dartlog (`d1f1ca0`) of `main` vóór `2d3878e` |
+| Webapp app.okkiedarts.nl | **1.12.0** (eigen clubtrainingen voorop), sinds 13 november 2026 (okkie-app PR #1 `9d618bb`, uit dartlog `85b2967`) | okkie-app `5387179` (1.11.0) terugzetten |
+| Oude adres martijndbesten.github.io/dartlog | `main` van dartlog (1.12.0, via GitHub Pages) | tag `live-1.9.0` in dartlog (`d1f1ca0`) of `main` vóór `2d3878e` |
 | Website okkiedarts.nl | /club, /club/uitnodiging (doel van de QR-code) en privacy 6a voor Club bij het bord, sinds 7 november 2026 (okkiedarts-site PR #9, `0047f33`) | okkiedarts-site `db71ae6` (vorige stand) |
 | API (Worker `okkie-api`) | versie **`314fe827`** (7 november), D1-migraties t/m **0012** (`club_codes`) | `wrangler rollback ac052b34-92a9-4dd0-833c-cd79aaf0857d --env production`; `club_codes` mag blijven staan |
 | iOS App Store | **1.11.0 (build 66)** openbaar sinds 8 november 2026 (nachtelijke goedkeuring; vastgesteld 05:13 UTC via de App Store Connect-API, `READY_FOR_SALE`), 4+: Club bij het bord. Daarvoor 1.10.0 (build 53, 7-11 19:54 UTC, eerste versie met Club) | — |
