@@ -233,7 +233,7 @@ Reviewnotitie 1.11.0 (aanvulling op die van 1.10.0): zie `reviewNotes` in `appst
 App Privacy: ongewijzigd (zelfde gegevenssoorten; een optionele omschrijving bij een toegangscode valt onder Overige
 gebruikersinhoud). Leeftijdsclassificatie: ongewijzigd (16+ voor Club blijft server-side afgedwongen).
 
-## Versie 1.12.0 (eigen clubtrainingen voorop; build uit `main` na PR #28, 13 november 2026)
+## Versie 1.12.0 (eigen clubtrainingen voorop; build 72 uit `main` `85b2967`, 13 november 2026)
 
 Inhoud gelijk aan webapp 1.12.0. Indienen via `appstore/release-1.12.0.json`.
 
