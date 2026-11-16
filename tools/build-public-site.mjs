@@ -90,8 +90,8 @@ const tutorialFile = join(dest,'uitleg','index.html');
 writeFileSync(tutorialFile,rootIcons(readFileSync(tutorialFile,'utf8')));
 
 // Cookieloze bezoekersteller van het Denckh-marketingdashboard (Worker dd-marketing via https://dashboard.denckh.nl, repo marketing-dashboard).
-// Alleen op de website okkiedarts.nl: daarom hier in de build en niet in de bronpagina's. uitleg/ hoort ook bij
-// de app (tools/build-app-site.mjs); die en de rest van de app krijgen de teller dus nooit.
+// Op de website okkiedarts.nl: daarom hier in de build en niet in de bronpagina's. uitleg/ hoort ook bij de app; de
+// webapp app.okkiedarts.nl krijgt de teller alleen op index.html (tools/build-app-site.mjs), de iPhone-app nooit.
 // Stuurt alleen pad (zonder querystring), herkomsthost en utm_source; geen cookies, geen persoonsgegevens.
 const COUNTER = '<script defer src="https://dashboard.denckh.nl/s.js" data-brand="okkie"></script>';
 for(const page of PREVIEW ? [] : ['index.html','dartregels/index.html','privacy/index.html','contact/index.html','club/index.html','club/uitnodiging/index.html','over/index.html','uitleg/index.html']) {   // voorbeeld op staging: niet tellen

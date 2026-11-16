@@ -1,5 +1,15 @@
 # Overdracht OKKIE.
 
+## Bezoekersteller in de webapp (16 november 2026, opdracht Martijn)
+- `tools/build-app-site.mjs` zet `<script defer src="https://dashboard.denckh.nl/s.js" data-brand="okkie">` in de head
+  van `dist-app/index.html` (alleen live-build). iPhone-/Android-build, bronpagina's en subpagina's blijven zonder.
+- Privacy (okkiedarts.nl/privacy): *In het kort* + alinea `#bezoekersteller-app`. Moet live staan zodra de webapp telt.
+- Volgorde: privacytekst via okkiedarts-site, webapp via okkie-app (PR met dezelfde index.html), marketing-dashboard
+  PR #78 mergen en deployen (daarvoor worden tellingen van app.okkiedarts.nl stil geweigerd).
+- Headers app.okkiedarts.nl (GitHub Pages, 16-11): geen CSP en geen Referrer-Policy (browserstandaard
+  strict-origin-when-cross-origin), dus geen aanpassing nodig. Komt er ooit een CSP of `no-referrer`: zie
+  marketing-dashboard (Origin wordt dan `null` in Safari/Firefox en de telling wordt geweigerd).
+
 ## 1.12.0: eigen clubtrainingen voorop (13 november 2026, opdracht Martijn)
 - **Besluit:** de club bepaalt zelf wat er getraind wordt. Eigen clubtrainingen staan voorop; de vaste weekoefening
   blijft als optie die de beheerder zelf aanzet (standaard geen). Zie CHANGELOG 1.12.0 en `cloud/CLUB.md`.

@@ -138,7 +138,7 @@ test('homepage en uitleg werken zonder JavaScript', async ({ browser }, info) =>
 
 test('alle links op website en uitleg wijzen naar de juiste omgeving', async ({ page, request }, info) => {
   test.skip(info.project.name !== 'desktop', 'links zijn per toestel gelijk');
-  // Cookieloze bezoekersteller (1.7.x, PR #4/#5): alleen op de website, zie tools/build-public-site.mjs en privacytekst.
+  // Cookieloze bezoekersteller (1.7.x, PR #4/#5): website (en sinds 16-11 de webapp), zie tools/build-*-site.mjs en privacytekst.
   const COUNTER = 'https://dashboard.denckh.nl/s.js';
   const allowedExternal = [APP, APP + 'community/', APP + 'club/', 'https://denckh.nl/', 'https://autoriteitpersoonsgegevens.nl/', 'https://dartswdf.com/rules', 'https://www.thedra.co.uk/dra-rulebook', COUNTER,
     // officiële App Store-vermelding (badge, sinds de app openbaar staat: site-config appStoreApproved)

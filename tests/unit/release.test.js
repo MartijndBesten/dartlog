@@ -23,7 +23,7 @@ const EXTERNAL = [APP, APP + 'community/', 'https://denckh.nl/', 'https://okkied
   'https://autoriteitpersoonsgegevens.nl/', 'mailto:info@denckh.nl', 'mailto:info@denckh.nl?subject=OKKIE.',
   // officiële App Store-vermelding (badge, sinds de app openbaar staat: site-config appStoreApproved)
   'https://apps.apple.com/nl/app/id6829301399',
-  // cookieloze bezoekersteller van Denckh (alleen op de website, nooit in de app)
+  // cookieloze bezoekersteller van Denckh (website en webapp, nooit in de iPhone-app)
   'https://dashboard.denckh.nl/s.js'];
 const COUNTER = '<script defer src="https://dashboard.denckh.nl/s.js" data-brand="okkie"></script>';
 const PAGES = ['index.html', 'uitleg/index.html', 'privacy/index.html', 'contact/index.html', 'dartregels/index.html', 'club/index.html', 'club/uitnodiging/index.html'];
@@ -221,8 +221,9 @@ test('app-build voor app.okkiedarts.nl: alleen de app, met CNAME, en de verhuizi
   const files = readdirSync(dist, { recursive: true }).map(f => String(f).replaceAll('\\', '/'));
   for (const f of ['index.html', 'sw.js', 'manifest.webmanifest', 'js/app.js', 'js/transfer.js', 'js/install.js', 'icons/icon-512.png', 'uitleg/index.html', '.nojekyll']) assert.ok(files.includes(f), 'ontbreekt: ' + f);
   for (const f of files) assert.doesNotMatch(f, /^(cloud|tests|tools|node_modules)\/|\.md$(?<!README\.md)|package/, 'hoort niet in de app-publicatie: ' + f);
-  // Dezelfde app als op het oude adres: bestanden byte-gelijk
-  for (const f of ['index.html', 'sw.js', 'js/app.js', 'css/app.css']) assert.equal(readFileSync(join(dist, f), 'utf8'), read(f), f);
+  // Dezelfde app als op het oude adres: bestanden byte-gelijk (index.html op de bezoekersteller na, zie onderaan)
+  for (const f of ['sw.js', 'js/app.js', 'css/app.css']) assert.equal(readFileSync(join(dist, f), 'utf8'), read(f), f);
+  assert.equal(readFileSync(join(dist, 'index.html'), 'utf8').replace('  ' + COUNTER + '\n', ''), read('index.html'));
   // Community-pagina: stijl aanwezig, geen verwijzing naar een websitekopie op het app-adres
   assert.ok(files.includes('ontdek/site.css'));
   assert.ok(!files.includes('ontdek/index.html'), 'geen kopie van de website op app.okkiedarts.nl');
@@ -242,7 +243,7 @@ test('app-build in testfase: niet vindbaar voor zoekmachines, verder dezelfde ap
   const dist = join(root, 'dist-app');
   const index = readFileSync(join(dist, 'index.html'), 'utf8');
   assert.match(index, /<meta name="robots" content="noindex, nofollow">/);
-  assert.equal(index.replace('\n  <meta name="robots" content="noindex, nofollow">', ''), read('index.html'));
+  assert.equal(index.replace('\n  <meta name="robots" content="noindex, nofollow">', ''), read('index.html'), 'testfase: ook geen bezoekersteller');
   assert.equal(readFileSync(join(dist, 'robots.txt'), 'utf8'), 'User-agent: *\nDisallow: /\n');
   for (const f of ['sw.js', 'js/app.js', 'js/transfer.js']) assert.equal(readFileSync(join(dist, f), 'utf8'), read(f), f);
   // weer terug naar de gewone build, zodat andere tests niet van de testfase afhangen
@@ -309,26 +310,41 @@ test('offline: elke module die de app laadt, staat in de lijst van de servicewor
   for (const f of seen) assert.ok(assets.has('./' + f), `niet offline beschikbaar: ${f}`);
 });
 
-test('bezoekersteller: precies één keer op elke websitepagina, nooit in de app, privacy legt het uit', () => {
+test('bezoekersteller: precies één keer op elke websitepagina en in de webapp, nooit in de iPhone-app, privacy legt het uit', () => {
   execFileSync(process.execPath, [join(root, 'tools/build-public-site.mjs')], { cwd: root, stdio: 'pipe' });
   for (const page of PAGES) {
     const html = readFileSync(join(root, 'dist', page), 'utf8');
     assert.equal(html.split(COUNTER).length - 1, 1, `${page}: teller precies één keer`);
     assert.ok(html.indexOf(COUNTER) < html.indexOf('</head>'), `${page}: teller in de head`);
   }
-  // Bronpagina's (ook uitleg/, die in de app zit) blijven zonder teller.
+  // Bronpagina's (ook uitleg/, die in de app zit) blijven zonder teller; zo krijgen de iPhone- en Android-app hem nooit.
   for (const f of ['index.html', 'uitleg/index.html', 'community/index.html', 'vrienden/index.html', 'ontdek/index.html', 'ontdek/privacy/index.html']) {
     assert.doesNotMatch(read(f), /dd-marketing|dashboard\.denckh\.nl\/s\.js/, `${f}: geen teller in de bron`);
   }
+  // Webapp app.okkiedarts.nl (sinds 16 november 2026): alleen index.html, precies één keer, in de head.
+  // Niet op uitleg/, community/, vrienden/, club/ (beheer, poster) of in andere bestanden.
   execFileSync(process.execPath, [join(root, 'tools/build-app-site.mjs')], { cwd: root, stdio: 'pipe' });
   const app = join(root, 'dist-app');
-  for (const f of readdirSync(app, { recursive: true }).map(String).filter(f => /.(html|js)$/.test(f))) {
+  const appIndex = readFileSync(join(app, 'index.html'), 'utf8');
+  assert.equal(appIndex.split(COUNTER).length - 1, 1, 'webapp: teller precies één keer');
+  assert.equal(appIndex.split('dashboard.denckh.nl').length - 1, 1, 'webapp: geen tweede verwijzing');
+  assert.ok(appIndex.indexOf(COUNTER) < appIndex.indexOf('</head>'), 'webapp: teller in de head');
+  assert.match(appIndex, /data-brand="okkie"/, 'project-id in marketing-dashboard');
+  for (const f of readdirSync(app, { recursive: true }).map(f => String(f).replaceAll('\\', '/')).filter(f => /.(html|js)$/.test(f) && f !== 'index.html')) {
     assert.doesNotMatch(readFileSync(join(app, f), 'utf8'), /dd-marketing|dashboard\.denckh\.nl\/s\.js/, `app ${f}: geen teller`);
+  }
+  execFileSync(process.execPath, [join(root, 'tools/build-ios-web.mjs')], { cwd: root, stdio: 'pipe' });
+  const ios = join(root, 'dist-ios');
+  for (const f of readdirSync(ios, { recursive: true }).map(String).filter(f => /.(html|js)$/.test(f))) {
+    assert.doesNotMatch(readFileSync(join(ios, f), 'utf8'), /dd-marketing|dashboard\.denckh\.nl\/s\.js/, `iPhone-app ${f}: geen teller`);
   }
   const privacy = readFileSync(join(root, 'dist/privacy/index.html'), 'utf8');
   assert.match(privacy, /id="bezoekersteller"/);
   assert.match(privacy, /zonder cookies en zonder persoonsgegevens geteld/);
-  assert.match(privacy, /De app wordt hiermee niet gevolgd/);
+  assert.match(privacy, /webapp op app\.okkiedarts\.nl/);
+  assert.match(privacy, /De iPhone-app heeft deze teller niet/);
+  assert.match(privacy, /\?dd-niet-tellen=1/);
+  assert.doesNotMatch(privacy, /De app wordt hiermee niet gevolgd|heeft deze teller niet en wordt hiermee niet gevolgd/);
   assert.doesNotMatch(privacy, /geen analyse- of advertentiediensten en geen lettertypen of scripts van derden/);
 });
 
