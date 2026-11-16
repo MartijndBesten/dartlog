@@ -1,5 +1,19 @@
 # Changelog
 
+## Webapp app.okkiedarts.nl — bezoekersteller zonder cookies (16 november 2026, geen nieuwe appversie)
+
+- **Besluit Martijn:** ook het openen van de webapp telt mee in de cookieloze teller van het Denckh-marketingdashboard
+  (`data-brand="okkie"`, zelfde merk als okkiedarts.nl). `tools/build-app-site.mjs` zet de scripttag alleen in
+  `index.html` van de webapp-build. Niet in de bron, dus niet in de iPhone-/Android-app (`build-ios-web.mjs`), niet op
+  het oude adres, niet in de testfase en niet op uitleg/, community/, vrienden/ of club/ (beheer, poster).
+- De app wisselt schermen zonder het adres te veranderen: de teller ziet alleen app-openingen (pad `/`), geen schermen.
+  Routering bewust niet aangepast.
+- Server: telling wordt pas geaccepteerd na marketing-dashboard PR #78 (`app.okkiedarts.nl` in `BEACON_ORIGINS` en
+  `teller_hosts`) en de deploy daarvan.
+- Privacyverklaring: *In het kort* en nieuwe alinea *Ook in de webapp* (`#bezoekersteller-app`), met afmelden via
+  `?dd-niet-tellen=1` (per adres).
+- Test: teller precies één keer in de head van de webapp, nergens anders in de webapp, nooit in de iPhone-app-build.
+
 ## 1.12.0 — OKKIE. Club: eigen clubtrainingen voorop
 
 De club bepaalt zelf wat er getraind wordt; OKKIE. schrijft geen vaste weekopzet meer voor (besluit Martijn, 13 november 2026).
